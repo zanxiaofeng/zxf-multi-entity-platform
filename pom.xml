@@ -28,6 +28,9 @@
     <properties>
         <!-- Spring Boot 4 基线 JDK 17，本骨架按文档建议用 21+（虚拟线程） -->
         <java.version>21</java.version>
+        <!-- Flowable 硬性约束（文档 7.0）：Spring Boot 4 必须 >= 8.0（7.x 基于 Boot 3 不兼容；
+             8.0 早期版本的生产成熟度需显式评估），由 Enforcer 锚定（文档 6.3） -->
+        <flowable.version>8.0.0</flowable.version>
         <archunit.version>1.4.2</archunit.version>
         <maven-enforcer-plugin.version>3.6.1</maven-enforcer-plugin.version>
     </properties>
@@ -54,6 +57,11 @@
                 <artifactId>archunit-junit5</artifactId>
                 <version>${archunit.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.flowable</groupId>
+                <artifactId>flowable-spring-boot-starter-process</artifactId>
+                <version>${flowable.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -75,6 +83,23 @@
                                     <version>[21,)</version>
                                     <message>本骨架要求 JDK 21+（虚拟线程，见文档 5.0）</message>
                                 </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>enforce-flowable-baseline</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <!-- 版本硬性约束（文档 7.0）：SB4 下 Flowable 7.x 存在已知不兼容 -->
+                                        <exclude>org.flowable:*:*:[7.0.0,8.0.0)</exclude>
+                                    </excludes>
+                                    <message>Spring Boot 4 必须使用 Flowable &gt;= 8.0（7.x 基于 Spring Framework 6 / Boot 3，与 SB4 不兼容）</message>
+                                </bannedDependencies>
                             </rules>
                         </configuration>
                     </execution>

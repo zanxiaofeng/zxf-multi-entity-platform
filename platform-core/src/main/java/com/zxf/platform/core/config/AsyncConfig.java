@@ -5,6 +5,7 @@ import com.zxf.platform.core.context.EntityType;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -47,8 +48,14 @@ public class AsyncConfig {
     /**
      * 显式声明 {@code @Async} 执行器并挂上 {@link TaskDecorator}，
      * 确保传播一定生效（覆盖 Boot 默认执行器，不依赖自动配置是否收集 decorator）。
+     *
+     * <p><b>必须 @Primary</b>：{@code @Async} 无 qualifier 时按类型取唯一 {@code TaskExecutor}，
+     * 取不到则静默退回无装饰器的 {@code SimpleAsyncTaskExecutor}——上下文丢失且无报错。
+     * 工程里还有 {@code flowableJobExecutor}（文档 7.3④）等第二个执行器 bean，靠 @Primary
+     * 让按类型解析收敛到本执行器。
      */
     @Bean(name = "applicationTaskExecutor")
+    @Primary
     public ThreadPoolTaskExecutor applicationTaskExecutor(TaskDecorator entityContextPropagator) {
         var executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(4);

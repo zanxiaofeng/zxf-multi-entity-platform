@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Beta 订单审批流程：五级审批 + 专属审计留痕（文档 7.1/7.2）。
+  与 Alpha 同 processDefinitionKey（order-approval）、不同拓扑——删除一个实体的部署时，
+  只需删掉本模块与这份流程定义，核心层零改动（文档第四章健康度标准）。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/order">
+
+    <process id="order-approval" name="Beta 订单五级审批">
+        <startEvent id="start"/>
+        <sequenceFlow id="flow-start-l1" sourceRef="start" targetRef="betaApproveL1"/>
+
+        <userTask id="betaApproveL1" name="Beta 一级审批"/>
+        <sequenceFlow id="flow-l1-l2" sourceRef="betaApproveL1" targetRef="betaApproveL2"/>
+
+        <userTask id="betaApproveL2" name="Beta 二级审批"/>
+        <sequenceFlow id="flow-l2-l3" sourceRef="betaApproveL2" targetRef="betaApproveL3"/>
+
+        <userTask id="betaApproveL3" name="Beta 三级审批"/>
+        <sequenceFlow id="flow-l3-l4" sourceRef="betaApproveL3" targetRef="betaApproveL4"/>
+
+        <userTask id="betaApproveL4" name="Beta 四级审批"/>
+        <sequenceFlow id="flow-l4-l5" sourceRef="betaApproveL4" targetRef="betaApproveL5"/>
+
+        <userTask id="betaApproveL5" name="Beta 五级审批"/>
+        <sequenceFlow id="flow-l5-audit" sourceRef="betaApproveL5" targetRef="betaAuditRecord"/>
+
+        <!-- 实体专属任务：审批链结束后写入 Beta 专属审计扩展 -->
+        <serviceTask id="betaAuditRecord" name="Beta 审计留痕"
+                     flowable:delegateExpression="${betaAuditExtraDelegate}"/>
+        <sequenceFlow id="flow-audit-notify" sourceRef="betaAuditRecord" targetRef="sendNotification"/>
+
+        <!-- 通用任务：core 的共享 delegate -->
+        <serviceTask id="sendNotification" name="发送通知"
+                     flowable:delegateExpression="${sendNotificationDelegate}"/>
+        <sequenceFlow id="flow-notify-end" sourceRef="sendNotification" targetRef="end"/>
+
+        <endEvent id="end"/>
+    </process>
+</definitions>

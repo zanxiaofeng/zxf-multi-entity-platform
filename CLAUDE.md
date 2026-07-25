@@ -27,3 +27,13 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 - Flyway 自动配置在 `org.springframework.boot:spring-boot-flyway` 模块，需显式引入
 - `@AutoConfigureMockMvc` 在 `org.springframework.boot.webmvc.test.autoconfigure`（`spring-boot-webmvc-test` 模块）
 - 测试中覆盖 `application-*.yaml` 里的属性要用命令行参数（`app.run("--k=v")`），`SpringApplicationBuilder.properties()` 是 defaultProperties，优先级低于 yaml
+- 工程存在多个 `TaskExecutor` bean 时（如 `applicationTaskExecutor` + `flowableJobExecutor`），无 qualifier 的 `@Async` 按类型取唯一执行器失败会**静默退回 `SimpleAsyncTaskExecutor`**——TaskDecorator 丢失、上下文断链且无报错。`applicationTaskExecutor` 必须 `@Primary`
+
+## Flowable 注意点（第七章）
+
+- Flowable 必须 >= 8.0（7.x 基于 Boot 3 不兼容；Enforcer 已锚定），当前 8.0.0
+- ACT_* 表归 Flyway 管：`common/V3__flowable_engine_tables.sql`（提取自官方 jar 的 H2 DDL），`flowable.database-schema-update=false`；升级 Flowable 须人工核对表结构差异补脚本
+- **ACT_ID_*（IDM）表不能漏**：引擎启动对 common/process/idm/eventregistry 四类 schema 逐一校验；IDM DDL 在独立的 `flowable-idm-engine` jar 里（不在流程引擎 jar），缺失时报极具误导性的 `db version is 5.99.0.0`（`IdmDbSchemaManager` 对缺表场景的升级起点默认值）
+- Flowable 8 的 `SpringAsyncExecutor.setTaskExecutor` 接收引擎侧 `org.flowable.common.engine.api.async.AsyncTaskExecutor`，Spring 执行器需经 `org.flowable.common.spring.async.SpringAsyncTaskExecutor` 适配
+- BPMN 在实体模块 `processes/` 目录，两实体同 key（`order-approval`）不同拓扑；引擎不做启动期 delegate 校验——装配冒烟兜底（同 key 唯一 + delegate 全装配）
+- `core.flow` 是引擎适配层（允许接触 EntityContext，与 Filter 同级）；`core.service` 仍禁止（ArchUnit 守护）

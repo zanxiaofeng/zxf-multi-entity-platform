@@ -30,11 +30,14 @@ class MisconfiguredAssemblyTest {
                 .profiles(current);
 
         // 用命令行参数注入（优先级高于 application-*.yaml）：
-        // platform.entity 指向另一个实体制造漂移；flyway/ddl 仅用于把注册表防线隔离为唯一失败点
+        // platform.entity 指向另一个实体制造漂移；独立 H2 库 + 免迁移/引擎自建表，
+        // 把注册表防线隔离为唯一失败点，也避免污染同 JVM 内其他测试共享的库
         assertThatThrownBy(() -> app.run(
                         "--platform.entity=" + other,
+                        "--spring.datasource.url=jdbc:h2:mem:misconfigured-db;DB_CLOSE_DELAY=-1",
                         "--spring.flyway.enabled=false",
-                        "--spring.jpa.hibernate.ddl-auto=create-drop"))
+                        "--spring.jpa.hibernate.ddl-auto=create-drop",
+                        "--flowable.database-schema-update=true"))
                 .rootCause()
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("未装配 PricingPolicy");

@@ -12,7 +12,16 @@ spring:
   flyway:
     # 公共迁移目录 + per-entity 迁移目录，按 platform.entity 组合（文档 6.1）
     # per-entity 脚本在对应实体模块内，随 Maven profile 裁剪进入产物
+    # common 目录同时承载 Flowable ACT_* 引擎表（V3，文档 7.3②）
     locations: classpath:db/migration/common,classpath:db/migration/${platform.entity}
+
+# Flowable 引擎属共享内核（文档 7.1），运维纪律（文档规则 9）
+flowable:
+  # ACT_* 表结构归 Flyway 管（common/V3__flowable_engine_tables.sql），
+  # 禁止引擎启动期自行 DDL——否则与 Flyway 管理产生漂移冲突
+  database-schema-update: false
+  # BPMN 自动部署默认扫描 classpath*:/processes/：per-entity 流程定义随实体模块裁剪进产物，
+  # 装配冒烟断言"同 key 定义数 == 1"防静默错路由（文档 7.2/7.4）
 
 # 可观测性：/actuator/info 输出当前实体（EntityInfoContributor），接入监控巡检（文档 6.3）
 management:

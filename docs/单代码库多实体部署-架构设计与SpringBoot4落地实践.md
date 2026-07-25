@@ -13,8 +13,9 @@
 - [四、健康度判断标准](#四健康度判断标准)
 - [五、Spring Boot 4 落地骨架（Demo）](#五spring-boot-4-落地骨架demo)
 - [六、数据迁移、契约治理与配置一致性](#六数据迁移契约治理与配置一致性)
-- [七、Review 检查清单与工程护栏](#七review-检查清单与工程护栏)
-- [八、演进方向](#八演进方向)
+- [七、Flowable 流程引擎集成](#七flowable-流程引擎集成)
+- [八、Review 检查清单与工程护栏](#八review-检查清单与工程护栏)
+- [九、演进方向](#九演进方向)
 
 ---
 
@@ -98,9 +99,9 @@
 
 - 理想情况：删一个 module / 一组配置 / 一组流程定义即可，核心层零改动。
 - 警告信号：
-  - 核心层散落实体判断；
-  - 共享表里有大量仅一个实体使用的字段；
-  - 升级一个实体需要回归另一个实体的全部功能。
+    - 核心层散落实体判断；
+    - 共享表里有大量仅一个实体使用的字段；
+    - 升级一个实体需要回归另一个实体的全部功能。
 
 出现警告信号，说明差异已侵入共享内核。该强制收敛到 SPI 边界内，或考虑把变体拆成独立服务（共享平台层而非共享应用层）。
 
@@ -115,7 +116,7 @@
 
 从 Spring Boot 3 迁移或新建时，直接影响本骨架的变化：
 
-- **JDK 基线 17**（非 21）；21+ 用于虚拟线程（`spring.threads.virtual.enabled=true`），但虚拟线程下 ThreadLocal 语义不变，上下文传播问题依然存在（见 5.2.4）。
+- **JDK 基线 17**（非 21）；21+ 用于虚拟线程（`spring.threads.virtual.enabled=true`），但虚拟线程下 ThreadLocal 语义不变，上下文传播问题依然存在（见 5.2.3）。
 - **全面模块化拆包**：Boot 4 重排了自动配置与相关类的模块/包归属，自定义注册的 `FilterRegistrationBean`、自动配置类的 import 需逐一核对。
 - **Jackson 3**：默认 JSON 实现升级为 Jackson 3（`tools.jackson` 包），共享内核中的自定义序列化器、`ObjectMapper` 配置需重写适配。
 - **嵌入式容器**：Undertow 已移除，基线为 Tomcat 11 / Jetty 12（Servlet 6.1）。
@@ -474,19 +475,202 @@ assembly-matrix:
 
 ---
 
-## 七、Review 检查清单与工程护栏
+## 七、Flowable 流程引擎集成
 
-### 7.1 硬性规则（可落入团队编码标准）
+> 触发条件：两个实体的差异主要在**流程拓扑**（审批层级、状态机、分支条件），且拓扑变化频率高于代码发版频率，或业务方需要可视化评审流程。
+> 反例：差异只是"某步算钱逻辑不同"→ 策略模式足够；流程固定不变 → 模板方法/管道更轻。引擎不是必选项。
+
+**版本硬性约束：Spring Boot 4 必须使用 Flowable ≥ 8.0。** Flowable 7.x（含 7.2）基于 Spring Framework 6 / Boot 3，在 SB4 下存在已知不兼容（自动配置类缺失等）；Flowable 8.0 起才迁移到 Spring Framework 7 / Boot 4 / Jackson 3 基线（同时 8.0 不再支持 Boot 3）。版本选择纳入 6.3 的依赖锚定（Enforcer 依赖规则，如 `bannedDependencies` / `requireUpperBoundDeps`），并与 5.0 的迁移检查项联动。若采用 Flowable 8.0 早期版本，需显式评估其生产成熟度。
+
+### 7.1 Flowable 的角色：流程拓扑差异的外置容器
+
+| 层 | 归属 | 内容 |
+| --- | --- | --- |
+| 流程拓扑（先后次序、分支条件、审批链路） | **BPMN 文件，随实体模块部署** | A 实体三级审批、B 实体五级审批 → 两份流程定义，不进代码 |
+| 任务实现（干活逻辑） | 代码，按差异归属分流 | 通用任务进 `platform-core`；实体专属任务进 `entity-alpha`/`entity-beta`，与 `PricingPolicy` 相同的 SPI 套路 |
+| 引擎本身（运行时、持久化、历史、事务集成） | **共享内核 `platform-core`** | 引擎配置、表结构、与 Spring 事务/数据源的整合，不允许分叉 |
+
+代码从"流程编排者"退化为"任务实现者"。`OrderService` 里没有 `if (entity == A) { 走三步审批 } else { 走五步 }`，只有：
+
+```java
+@Service
+@RequiredArgsConstructor
+public class OrderApprovalService {
+
+    private final RuntimeService runtimeService;
+
+    @Transactional
+    public String startApproval(Order order) {
+        // 流程变量只放轻量标识，不放实体对象（避免序列化与历史表膨胀）；
+        // delegate 内按 orderId 重新加载领域对象
+        return runtimeService.startProcessInstanceByKey(
+                        "order-approval",
+                        order.getId(),
+                        Map.of("orderId", order.getId(),
+                               "entity", EntityContext.current().name()))
+                .getProcessInstanceId();
+    }
+}
+```
+
+关键纪律：**共享内核只依赖 Flowable 引擎 API，不依赖任何具体流程定义；流程定义 key（`order-approval`）构成内核与实体模块之间的契约**，与 SPI 接口同级，纳入契约治理。
+
+### 7.2 多实体应对：部署级隔离（与现有架构天然契合）
+
+两个实体本来就是独立部署 + 独立数据库，因此 **每套部署一个独立的 ProcessEngine 实例、各自一套 Flowable 表（ACT_*），天然物理隔离**：
+
+```text
+实体 A 部署                实体 B 部署
+├── 同一代码基线构建        ├── 同一代码基线构建
+├── classpath 含 alpha BPMN ├── classpath 含 beta BPMN
+├── 独立 Flowable 表        ├── 独立 Flowable 表
+└── 独立流程实例            └── 独立流程实例
+```
+
+落地要点：
+
+1. **BPMN 放实体模块资源目录**：`entity-alpha/src/main/resources/processes/order-approval.bpmn20.xml`，随 Maven profile 裁剪进入对应产物（复用 5.4 机制），引擎启动自动部署。A 实体的流程定义不进入 B 的镜像。**前提**：Flowable starter 默认自动部署 `classpath*:/processes/**/*.bpmn20.xml`——若裁剪失效导致两个实体模块同时进入 classpath，同 key 两份定义会以 v1/v2 共存，`startProcessInstanceByKey` **静默路由到最新版本，不报错只错路由**，比启动失败更危险。因此 5.7 负例必须增加"同一 key 部署定义数 == 1"的启动期断言（见 7.4）；同时注意 `classpath*:` 会扫描所有依赖 jar，防止依赖传递带入第三方示例 BPMN。
+2. **流程定义 key 统一、拓扑各异**：两份 BPMN 的 `processDefinitionKey` 都是 `order-approval`，内部结构不同。内核按 key 发起实例，不关心是哪个实体的拓扑——与策略注册表"按 key 路由"同构。隔离成立的前提是**每套部署独立数据源**；若共享物理库，必须显式配置 `flowable.database-schema` 区分 schema。
+3. **任务实现走条件装配**：
+    - 通用任务（如 `SendNotificationDelegate`）进 core；
+    - 专属任务（如 `AlphaRiskCheckDelegate`）进实体模块，加 `@Profile("alpha")`。BPMN 中用委托表达式引用：`flowable:delegateExpression="${alphaRiskCheckDelegate}"`。
+
+```java
+@Component("alphaRiskCheckDelegate")
+@Profile("alpha")
+public class AlphaRiskCheckDelegate implements JavaDelegate {
+
+    @Override
+    public void execute(DelegateExecution execution) {
+        // Alpha 专属风控任务
+    }
+}
+```
+
+4. **不使用 Flowable 的 tenantId 多租户模式**：Flowable 原生支持按 `TENANT_ID_` 在同一引擎内隔离流程定义与实例，适用于"单部署多租户 SaaS"。本方案已按部署物理隔离，再引入 tenantId 是重复机制，徒增每张表的查询与运维复杂度；且 tenantId 方案会迫使核心层感知"按租户部署哪份流程定义"，把拓扑差异泄进 core，违反 8.1 第 1 条的边界规则。**只有当未来演进为单部署混部多实体时才切换 tenantId**（见第九章）。
+5. **事务边界：每套部署内业务 schema 与 ACT_* 表必须同库、同一 DataSource、同一事务管理器**——`@Transactional` + `startProcessInstanceByKey` 的原子性依赖此前提。若确需分离，只能引入 outbox/最终一致并写入检查清单。两个已知坑：(a) delegate 抛异常会回滚整个业务事务，delegate 内的外部副作用（调下游、发消息）需自行权衡幂等；(b) async 续跑节点在原事务外执行，不能假设与发起方事务一致。
+
+### 7.3 三个必须特别处理的问题
+
+**① 版本漂移与在途流程实例**
+
+BPMN 变更比代码变更更危险：新流程定义部署后，**已在运行中的旧实例仍按旧拓扑执行**（Flowable 默认行为，且应保留）。纪律：
+
+- 流程定义变更视同 schema 变更，走 expand-and-contract：新增节点/分支安全；删除或重命名节点前必须确认无在途实例——**通过公共 API 查询**（`runtimeService.createProcessInstanceQuery()` / `createExecutionQuery()`），不要直查 `ACT_RU_EXECUTION` 表（表结构语义跨版本不稳定，且破坏引擎封装边界）；
+- 两套部署存在版本差时，流程相关领域事件（如"审批完成"消息）契约必须向后兼容，纳入 6.2 契约治理；
+- 确需迁移在途实例时，用迁移 Builder（Flowable 6.4+）：`runtimeService.createProcessInstanceMigrationBuilder()`，先 `validateMigration(processInstanceId)` 校验、再 `migrate(processInstanceId)` 执行，必要时用 `addActivityMigrationMapping(...)` 做活动映射；批量场景用 `ProcessMigrationService`。先在测试环境演练。
+
+**② 引擎表与业务迁移的统一治理**
+
+per-entity 的 Flyway 治理（6.1）覆盖两部分：
+
+- 业务表：`common + alpha/beta` 目录，如 6.1 所述；
+- Flowable 表：统一走 6.1 的 `common` 目录——**引擎升级属于核心层变更，对两个实体都有兼容性义务**，两套部署需协调升级窗口。两个配套硬性要求：
+    1. 必须设置 `flowable.database-schema-update=false`，否则引擎启动期自行 DDL，与 Flyway 管理产生漂移冲突；
+    2. Flowable 官方只发布 Liquibase changelog，**Flyway 脚本需团队自维护**——每次升级 Flowable 版本 = 人工核对 ACT_* 表结构差异并补齐 Flyway 脚本，此项列入 8.1 检查清单，属于持续运维成本，引入引擎前应知晓。
+
+**③ 可观测性**
+
+- 日志/指标继续打 `entity` 标签；Flowable 的同步 delegate 运行在 Web 请求线程内，MDC 天然带上；但 **async 节点与 Job 执行器（AsyncExecutor）运行在引擎自有线程池**，5.2.3 的 `TaskDecorator` 不适用（那是 Spring `@Async` 的扩展点）。落地方式（放 core）：为 Flowable 的 SpringAsyncExecutor 提供自定义 `TaskExecutor`，包装 Runnable 复制 MDC/`entity` 上下文；或注册引擎事件监听器/`ProcessEngineLifecycleListener` 在 Job 入口打标。流程变量中显式携带的 `entity`（见 7.1 代码）作为双保险。
+- 按实体维度监控两个关键指标：活跃流程实例数、**死信 Job 数（deadletter job）**——后者是流程引擎最该告警的指标，非零即需人工介入。
+
+### 7.4 冒烟测试扩展
+
+装配冒烟矩阵（5.7）增加两条自研校验。**注意：Flowable 引擎本身不做启动期 delegate 校验**——`delegateExpression` 在活动执行时才求值，缺 bean 时流程运行到该任务才抛 `FlowableObjectNotFoundException`，是在途实例级事故。因此以下校验需自研实现（`ApplicationRunner` 或并入 5.7 冒烟），与 5.2.5 PolicyRegistry 的 fail-fast 同等级：
+
+```java
+@SpringBootTest
+@ActiveProfiles("alpha")
+class AlphaProcessAssemblySmokeTest {
+
+    @Autowired
+    private RepositoryService repositoryService;
+
+    @Autowired
+    private ApplicationContext context;
+
+    @Test
+    void 同一流程key只有一份部署定义() {
+        // 防双 BPMN 静默错路由：裁剪失效时同 key 会出 v1/v2 共存
+        assertThat(repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("order-approval").list())
+                .hasSize(1);
+    }
+
+    @Test
+    void EventRegistry通道与事件定义同key唯一() {
+        // 与 BPMN 同款风险：裁剪失效时两实体的 .channel/.event 同时进 classpath，
+        // 会导致入站事件重复消费/错配。断言 EventRegistryRepositoryService 中定义唯一。
+    }
+
+    @Test
+    void 所有BPMN引用的delegate均已装配() {
+        repositoryService.createProcessDefinitionQuery().list().forEach(definition -> {
+            var model = repositoryService.getBpmnModel(definition.getId());
+            // 遍历 model 中所有 ServiceTask / TaskListener，
+            // 提取 delegateExpression="${xxx}" 的 bean 名，
+            // 断言 context.containsBean("xxx")
+        });
+    }
+}
+```
+
+### 7.5 外部集成通道（HTTP / Spring Event / MQ）
+
+流程与外部系统的集成有三条通道，设计纪律如下（模式源于 Flowable 7.x 实战，**Flowable 8 下代码细节需重新验证**，设计原则不变）。
+
+#### 7.5.1 通道选型
+
+| 模式 | 通道 | 适用 |
+| --- | --- | --- |
+| 同步编排 | HTTP service task（delegate 内调下游） | 请求-响应、实时、短耗时（支付、发货） |
+| 异步编排 | MQ + message/event catch | 长耗时、解耦、可重试（审批、风控回调） |
+| 事件驱动触发 | MQ/Event Registry → start/correlate | 外部系统触发流程 |
+| 事件发射 | service task → Spring Event / MQ（AFTER_COMMIT / Outbox） | 流程里程碑通知外部 |
+
+混合使用：同一流程内同步步骤走 HTTP，异步步骤走 message catch + MQ。
+
+#### 7.5.2 HTTP 集成纪律
+
+- **错误分类**：4xx → 抛 `BpmnError`（业务错误，走 error boundary event 进入补偿/人工分支）；5xx / 超时 → 抛技术异常，配合 service task 的 `failedJobRetryTimeCycle`（如 `R3/PT5S`）由 Job 重试。注意 `failedJobRetryTimeCycle` 生效需 `flowable:async="true"` + async executor 已开启，二者配套缺一不可。
+- **超时与熔断**：HTTP client 必须配 connect/read timeout；下游加 Resilience4j 熔断。
+- **幂等**：Job 会重试，下游调用必须幂等（idempotency-key / 业务键去重）。
+- **delegate 线程安全（最高频 bug 源）**：`delegateExpression` 引用的 delegate 是 Spring 单例，被多个 Job 线程并发调用——**禁止在 delegate 字段中保存任何执行态**（execution、请求/响应对象），操作注册表必须无状态。
+- Flowable 原生 HTTP Task（`flowable:type="http"`）可作浅层集成的次选；鉴权、报文组装等行为差异仍走实体模块 delegate（与 2.1"外部集成"维度一致）。
+- **trace 贯通**：下游调用透传 `X-Trace-Id`，并把 `processInstanceId`、`activityId` 与 `entity` 一并写入 MDC——Splunk 可按流程实例 + 实体双维度检索。
+
+#### 7.5.3 Spring Event 桥接纪律
+
+- 流程 → 事件（里程碑通知）：delegate 内 `publisher.publishEvent(...)`；**有副作用的监听器一律 `@TransactionalEventListener(AFTER_COMMIT)`**——默认同步 `@EventListener` 在引擎事务内执行，监听器抛异常会回滚整个流程推进，监听器的外部副作用（通知、缓存）则无法随回滚撤销。AFTER_COMMIT 方向的两个坑同样须知：(a) 监听器异常发生在事务已提交之后，**无法回滚流程推进**，失败必须自带重试/告警；(b) 监听器内若写库，原事务已结束，需自带 `@Transactional(REQUIRES_NEW)`。
+- 事件 → 流程（外部事件推进等待中的流程）：按 **businessKey**（不用 executionId——流程版本升级/异步边界后易变）查询订阅并 `messageEventReceived`；存在循环/多实例时 `singleResult()` 会抛异常，必须用 `list()` 遍历。该监听器默认在发布者事务内执行，流程推进失败会拖垮上游业务事务，需用 `@TransactionalEventListener` 或 `REQUIRES_NEW` 隔离。
+- Spring Event 只是应用内通知，**不替代 BPMN message/signal**（后者有持久化订阅，重启不丢）。
+
+#### 7.5.4 MQ 集成纪律
+
+- **生产侧禁止在 delegate 里直接 `kafkaTemplate.send()`**：发送成功而引擎事务随后回滚时，消息无法撤回，消费者会看到"不存在"的流程状态。可靠做法二选一：① Transactional Outbox——delegate 同事务写 outbox 表，独立 relay 投递（至少一次 + 消费端幂等）；② Spring Event + `AFTER_COMMIT` 转发 MQ。
+- **Flowable Event Registry（推荐，声明式零消费代码）**：`.event` / `.channel` 定义文件放 `classpath*:/eventregistry/` 自动部署，把 Kafka topic 与 BPMN message catch 声明式桥接，outbound 通道在引擎内部处理与流程事务的衔接（**上线前用回滚用例实测确认**：发消息后强制回滚，断言消息未发出——开源版边界行为曾有差异）。**多实体适配**：与 BPMN 同款处理——通道/事件定义放实体模块随 profile 裁剪，event key 跨实体统一、关联参数（correlation，如 orderId）一致。
+- **未匹配事件必须接监控**：Event Registry 中未被任何订阅匹配的事件默认丢弃，生产环境需接 non-matching event 处理接口转死信/告警，否则"消息被吞"无感知。
+- 消费侧：幂等（业务键去重）；MQ 死信（消费失败）与 BPMN 死信（deadletter job）分开监控；一体化告警 = consumer lag + 入站失败率 + deadletter job 数 + entity 维度。
+
+---
+
+## 八、Review 检查清单与工程护栏
+
+### 8.1 硬性规则（可落入团队编码标准）
 
 1. `platform-core` 中全文检索 `EntityType` / `platform.entity`，只允许出现在注册表、上下文、Filter 中，业务服务里出现即打回。
 2. 扩展点接口的实现类必须声明 `supports()` 且被 `@Profile` 限定；禁止 `@Profile` 与 `@ConditionalOnProperty` 双轨混用。
 3. 实体模块之间零相互依赖，core 不依赖任何实体模块（Maven Enforcer 强制）。
-4. 日志/指标必须带 `entity` 标签（ArchUnit 或切面强制）。
+4. 日志/指标必须带 `entity` 标签（ArchUnit 只能约束代码结构，MDC 属运行时行为——靠统一 Filter/切面 + 日志评审保证）。
 5. 新增差异时先问：配置能表达吗？能 → 禁止写成 `@Value` + if 判断；不能 → 新扩展点。
 6. 异步代码路径（`@Async`、消息消费）必须经 `TaskDecorator`/消息头传播上下文，PR 中含 `@Async` 必查传播。
 7. `EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 依赖需架构评审。
+8. 引入流程引擎后：核心层禁止出现具体流程定义 key 之外的 BPMN 解析逻辑；流程定义变更走 expand-and-contract，删除/重命名节点前必须用公共 API 核查在途实例；BPMN 引用的 delegate bean、流程/事件/通道定义的同 key 唯一性必须有冒烟测试覆盖。
+9. 流程引擎运维纪律：`flowable.database-schema-update=false`（表结构归 Flyway 管）；业务表与 ACT_* 同库同事务管理器；每次升级 Flowable 版本须人工核对 ACT_* 差异并补 Flyway 脚本。
+10. delegate 纪律：单例无状态（字段禁存执行态）；禁止 delegate 内直接发 MQ（走 Outbox / AFTER_COMMIT）；HTTP 调用必须配超时且下游幂等。
+11. 事件纪律：有副作用的监听器必须 `@TransactionalEventListener(AFTER_COMMIT)`；流程关联一律用 businessKey；Event Registry 未匹配事件必须接监控。
 
-### 7.2 Maven Enforcer 示例
+### 8.2 Maven Enforcer 示例
 
 ```xml
 <plugin>
@@ -511,7 +695,7 @@ assembly-matrix:
 </plugin>
 ```
 
-### 7.3 ArchUnit 示例
+### 8.3 ArchUnit 示例
 
 ```java
 @AnalyzeClasses(packages = "com.example.platform")
@@ -533,11 +717,11 @@ class ArchitectureGuardTest {
 
 ---
 
-## 八、演进方向
+## 九、演进方向
 
 1. **流程拓扑差异变大** → 把审批/状态迁移外置到 Camunda / Flowable，每个实体部署自己的 BPMN 流程定义，代码只剩任务实现。
 2. **结构性差异（数据模型）大到扩展点兜不住** → 按健康度标准拆成两个服务，只共享平台层（安全、审计、消息、监控等横切能力）。
 3. **实体数量增长（>3）** → 从 `@Profile` 平滑迁移到插件发现机制：
-   - 第一步：注册表键从枚举改为 `String`，新增实体不改核心层；
-   - 第二步：扩展点定义收敛为独立 `platform-spi` 模块，语义化版本管理；
-   - 第三步：实体模块独立仓库、独立发版，运行期通过 ServiceLoader / 插件目录发现，内核只对稳定的 SPI 版本契约负责。
+    - 第一步：注册表键从枚举改为 `String`，新增实体不改核心层；
+    - 第二步：扩展点定义收敛为独立 `platform-spi` 模块，语义化版本管理；
+    - 第三步：实体模块独立仓库、独立发版，运行期通过 ServiceLoader / 插件目录发现，内核只对稳定的 SPI 版本契约负责。

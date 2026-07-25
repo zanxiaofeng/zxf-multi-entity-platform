@@ -60,10 +60,16 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 | 5.4 装配 | `app/pom.xml` Maven profile 裁剪 + 产物名带实体标识 + 无实体感知启动类 |
 | 5.5 通用逻辑 | `OrderService`：零实体判断（ArchUnit 守护） |
 | 5.7 装配冒烟矩阵 | 实体模块轻量装配测试 + app `@SpringBootTest`（按 `assembly.entity` 门控）+ 漂移负例 + GitHub Actions 矩阵 |
-| 6.1 Flyway 迁移 | `db/migration/common`（core）+ `db/migration/alpha|beta`（实体模块），locations 按 `platform.entity` 组合 |
+| 6.1 Flyway 迁移 | `db/migration/common`（core）+ `db/migration/alpha\|beta`（实体模块），locations 按 `platform.entity` 组合 |
 | 6.3 配置一致性三防线 | 启动期 `PolicyRegistry` 校验 → CI 装配矩阵 → `/actuator/info` 实体巡检 |
-| 7.2 Maven Enforcer | core 禁依赖 `entity-*`；实体模块互禁依赖；app 强制要求 `assembly.entity` |
-| 7.3 ArchUnit | core 服务不得感知 `EntityType`/静态上下文；扩展点实现必须 `@Profile` 限定 |
+| 7.0 Flowable 版本硬性约束 | `flowable.version=8.0.0` + Enforcer 锚定 `org.flowable:*:*:[7.0.0,8.0.0)` 禁用 |
+| 7.1 流程拓扑差异外置 | `core.flow.OrderApprovalService`：只按契约 key（`order-approval`）发起实例；变量只放轻量标识 |
+| 7.2 部署级隔离 | BPMN 在实体模块 `processes/` 随 profile 裁剪：Alpha 风控+三级审批 / Beta 五级审批+审计留痕；专属 delegate `@Profile` 限定，通用 delegate 进 core |
+| 7.3② ACT_* 表治理 | `common/V3__flowable_engine_tables.sql`（提取自官方 jar 的 H2 DDL）+ `flowable.database-schema-update=false` |
+| 7.3③ 引擎线程可观测性 | `FlowableJobContextConfig`：`SpringAsyncExecutor` 挂 `EntityContextPropagatingTaskExecutor` 传播 MDC/entity；流程变量显式携带 `entity` 双保险 |
+| 7.4 流程装配冒烟 | `AlphaProcessAssemblySmokeTest` / `BetaProcessAssemblySmokeTest`：同 key 定义唯一、delegate 全装配、拓扑符合预期 |
+| 8.2 Maven Enforcer | core 禁依赖 `entity-*`；实体模块互禁依赖；app 强制要求 `assembly.entity`；Flowable 版本锚定 |
+| 8.3 ArchUnit | core 服务不得感知 `EntityType`/静态上下文；core 不做 BPMN 解析；扩展点实现必须 `@Profile` 限定；delegate 实例字段必须 final |
 
 ## Spring Boot 4 适配点（文档 5.0 的实际落地）
 
@@ -83,15 +89,24 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 
 任一漂移 → 启动期 `PolicyRegistry` 直接失败（负例测试覆盖）。
 
-## Review 硬性规则（文档 7.1，已由工具强制的部分）
+## Review 硬性规则（文档 8.1，已由工具强制的部分）
 
-1. `platform-core` 业务代码出现 `EntityType` 引用 → ArchUnit 测试红。
+1. `platform-core` 业务代码出现 `EntityType` 引用 → ArchUnit 测试红（`core.flow` 为引擎适配层，与 Filter 同级豁免）。
 2. 扩展点实现未加 `@Profile` → ArchUnit 测试红。
-3. 实体模块相互依赖 / core 依赖实体模块 → Enforcer 构建失败。
-4. 异步路径未传播上下文 → `EntityContextPropagatorTest` + 端到端审计断言守护。
-5. `EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 需架构评审。
+3. 实体模块相互依赖 / core 依赖实体模块 / Flowable 版本 < 8.0 → Enforcer 构建失败。
+4. 异步路径未传播上下文 → `EntityContextPropagatorTest` / `EntityContextPropagatingTaskExecutorTest` + 端到端审计断言守护。
+5. BPMN 引用未装配的 delegate、同 key 双定义 → 流程装配冒烟测试红（引擎不做启动期校验，必须自研）。
+6. delegate 实例字段非 final（存执行态风险）→ ArchUnit 测试红。
+7. `EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 需架构评审。
 
-## 演进方向（文档第八章）
+## Flowable 运维纪律（文档 7.3 / 8.1.9，需团队知晓的持续成本）
+
+- `flowable.database-schema-update=false`：ACT_* 表归 Flyway 管（`common/V3`，H2 方言，提取自官方 jar；换 Oracle 需重新提取）。
+- **每次升级 Flowable 版本 = 人工核对 ACT_* 差异并补齐 Flyway 脚本**（官方只发布 Liquibase changelog）。核对范围含四类 schema：common / process / **idm（ACT_ID_\*，在独立的 flowable-idm-engine jar，易漏）** / eventregistry——引擎启动逐一校验，缺 IDM 表会报误导性的 `db version is 5.99.0.0`。
+- 流程定义变更走 expand-and-contract：删除/重命名节点前用公共 API（`runtimeService.createProcessInstanceQuery()`）核查在途实例；在途迁移用 `createProcessInstanceMigrationBuilder()`。
+- 告警：活跃流程实例数 + **deadletter job 数**（非零即人工介入），按 entity 维度分别配置。
+
+## 演进方向（文档第九章）
 
 实体数增长到 >3 时，按文档路径平滑迁移：注册表键枚举 → `String`；SPI 收敛为独立
 `platform-spi` 模块语义化版本管理；实体模块独立仓库，运行期 ServiceLoader 发现。

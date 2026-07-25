@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Alpha 订单审批流程：风控检查 + 三级审批（文档 7.1/7.2）。
+  流程拓扑差异外置为 BPMN，随 entity-alpha 模块经 Maven profile 裁剪进入 Alpha 产物，
+  Beta 的流程定义不进入本镜像（与 5.4 同一机制），引擎启动自动部署（classpath*:/processes/）。
+
+  processDefinitionKey 与 Beta 统一为 order-approval：内核按 key 发起实例，不关心拓扑；
+  同 key 两份定义共存会静默错路由——装配冒烟断言"同 key 部署定义数 == 1"（文档 7.4）。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/order">
+
+    <process id="order-approval" name="Alpha 订单三级审批">
+        <startEvent id="start"/>
+        <sequenceFlow id="flow-start-risk" sourceRef="start" targetRef="alphaRiskCheck"/>
+
+        <!-- 实体专属任务：委托表达式引用 @Profile("alpha") 限定的 Spring bean（文档 7.2 落地要点 3） -->
+        <serviceTask id="alphaRiskCheck" name="Alpha 风控检查"
+                     flowable:delegateExpression="${alphaRiskCheckDelegate}"/>
+        <sequenceFlow id="flow-risk-l1" sourceRef="alphaRiskCheck" targetRef="alphaApproveL1"/>
+
+        <userTask id="alphaApproveL1" name="Alpha 一级审批"/>
+        <sequenceFlow id="flow-l1-l2" sourceRef="alphaApproveL1" targetRef="alphaApproveL2"/>
+
+        <userTask id="alphaApproveL2" name="Alpha 二级审批"/>
+        <sequenceFlow id="flow-l2-l3" sourceRef="alphaApproveL2" targetRef="alphaApproveL3"/>
+
+        <userTask id="alphaApproveL3" name="Alpha 三级审批"/>
+        <sequenceFlow id="flow-l3-notify" sourceRef="alphaApproveL3" targetRef="sendNotification"/>
+
+        <!-- 通用任务：core 的共享 delegate -->
+        <serviceTask id="sendNotification" name="发送通知"
+                     flowable:delegateExpression="${sendNotificationDelegate}"/>
+        <sequenceFlow id="flow-notify-end" sourceRef="sendNotification" targetRef="end"/>
+
+        <endEvent id="end"/>
+    </process>
+</definitions>

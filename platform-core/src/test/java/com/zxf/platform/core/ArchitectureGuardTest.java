@@ -25,4 +25,11 @@ class ArchitectureGuardTest {
     static final ArchRule 核心服务不得直接触碰静态上下文 = noClasses()
             .that().resideInAPackage("..core.service..")
             .should().dependOnClassesThat().haveFullyQualifiedName(EntityContext.class.getName());
+
+    // 文档 8.1.8：核心层禁止出现具体流程定义 key 之外的 BPMN 解析逻辑——
+    // 解析（BpmnModel）只允许出现在 app 的装配冒烟测试中
+    @ArchTest
+    static final ArchRule 内核只依赖引擎API不做BPMN解析 = noClasses()
+            .that().resideInAPackage("..core..")
+            .should().dependOnClassesThat().resideInAnyPackage("org.flowable.bpmn..");
 }
