@@ -1,0 +1,13 @@
+# Beta 实体部署配置（K8s ConfigMap 注入，文档 5.4.3）
+#
+# 三个开关必须成对出现（文档 5.3 / 6.3）：
+#   platform.entity=beta  ↔  SPRING_PROFILES_ACTIVE=beta,prod  ↔  构建产物 -Pbeta
+platform:
+  entity: beta
+
+spring:
+  datasource:
+    # 分库（schema-per-entity，文档 2.4）：生产示例 jdbc:oracle:thin:@//beta-db:1521/BETA
+    # demo 用独立 H2 内存库，两实体互不可见
+    url: jdbc:h2:mem:beta-db;DB_CLOSE_DELAY=-1
+    username: sa

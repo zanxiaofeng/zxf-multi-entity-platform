@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zxf.platform</groupId>
+        <artifactId>multi-entity-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>app</artifactId>
+    <name>app</name>
+    <description>启动模块：构建时按实体裁剪打包，-Palpha 与 -Pbeta 产出两个不同的二进制产物（见文档 5.4）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zxf.platform</groupId>
+            <artifactId>platform-core</artifactId>
+        </dependency>
+
+        <!-- Flyway：Boot 4 模块化拆包后需显式引入 spring-boot-flyway 自动配置模块（见文档 5.0） -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
+
+        <!-- demo 数据源：每实体独立 H2 库（分库 schema-per-entity），生产替换为 Oracle -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Boot 4 测试同样模块化：MockMvc 自动配置在新包 org.springframework.boot.webmvc.test.autoconfigure -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- Maven profile 控制打包内容：实体 B 的类不进入实体 A 的镜像（文档 5.4.1）。
+         两个 profile 产出两个不同二进制，CI 需分别构建与冒烟，互不背书。 -->
+    <profiles>
+        <profile>
+            <id>alpha</id>
+            <properties>
+                <assembly.entity>alpha</assembly.entity>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.zxf.platform</groupId>
+                    <artifactId>entity-alpha</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>beta</id>
+            <properties>
+                <assembly.entity>beta</assembly.entity>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.zxf.platform</groupId>
+                    <artifactId>entity-beta</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
+    <build>
+        <!-- 产物名带实体标识：强调是两个不同产物，发布各自打 tag、各自过冒烟 -->
+        <finalName>${project.artifactId}-${project.version}-${assembly.entity}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>require-assembly-entity</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireProperty>
+                                    <property>assembly.entity</property>
+                                    <regex>alpha|beta</regex>
+                                    <message>app 模块必须用 -Palpha 或 -Pbeta 构建：不打实体 profile 的产物是空壳，启动必然失败（文档 5.4）</message>
+                                </requireProperty>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- 把当前装配实体传给测试：装配冒烟测试按此门控（@EnabledIfSystemProperty） -->
+                    <systemPropertyVariables>
+                        <assembly.entity>${assembly.entity}</assembly.entity>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

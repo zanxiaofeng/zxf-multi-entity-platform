@@ -1,0 +1,30 @@
+# 公共配置：两个实体部署共用（文档 5.4.3）
+spring:
+  threads:
+    virtual:
+      # JDK 21+ 虚拟线程（文档 5.0）。ThreadLocal 语义不变，EntityContext 传播方案不变
+      enabled: true
+  jpa:
+    hibernate:
+      # schema 由 Flyway 管理，启动时校验实体映射与迁移脚本一致
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    # 公共迁移目录 + per-entity 迁移目录，按 platform.entity 组合（文档 6.1）
+    # per-entity 脚本在对应实体模块内，随 Maven profile 裁剪进入产物
+    locations: classpath:db/migration/common,classpath:db/migration/${platform.entity}
+
+# 可观测性：/actuator/info 输出当前实体（EntityInfoContributor），接入监控巡检（文档 6.3）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# 所有日志带 entity 标签（文档 2.5）：MDC 由 EntityContextFilter / TaskDecorator 写入
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%15.15t] entity=%X{entity:-none} %-40.40logger{39} : %m%n"
+
+server:
+  port: 8080

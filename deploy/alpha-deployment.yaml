@@ -1,0 +1,45 @@
+# Alpha 实体部署清单示例（文档 5.4.3：K8s ConfigMap 注入）
+#
+# 三个开关必须成对出现（文档 5.3 / 6.3）：
+#   ① 构建产物：registry.example.com/platform-app:1.0.0-alpha（-Palpha 打包）
+#   ② SPRING_PROFILES_ACTIVE=alpha,prod
+#   ③ platform.entity=alpha（application-alpha.yaml，或经 ConfigMap 覆盖）
+# 漂移由启动期 PolicyRegistry 校验 + /actuator/info 巡检兜底。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-alpha-config
+  namespace: entity-alpha
+data:
+  SPRING_PROFILES_ACTIVE: "alpha,prod"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-alpha
+  namespace: entity-alpha
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: platform
+      entity: alpha
+  template:
+    metadata:
+      labels:
+        app: platform
+        entity: alpha
+    spec:
+      containers:
+        - name: app
+          image: registry.example.com/platform-app:1.0.0-alpha # 注意：与 beta 是两个不同二进制产物
+          envFrom:
+            - configMapRef:
+                name: platform-alpha-config
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          # 巡检项：/actuator/info 的 entity 必须为 ALPHA，否则即漂移告警

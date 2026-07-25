@@ -1,0 +1,44 @@
+# Beta 实体部署清单示例（与 Alpha 完全对称，文档 5.4.3）
+#
+# 三个开关必须成对出现（文档 5.3 / 6.3）：
+#   ① 构建产物：registry.example.com/platform-app:1.0.0-beta（-Pbeta 打包）
+#   ② SPRING_PROFILES_ACTIVE=beta,prod
+#   ③ platform.entity=beta（application-beta.yaml，或经 ConfigMap 覆盖）
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-beta-config
+  namespace: entity-beta
+data:
+  SPRING_PROFILES_ACTIVE: "beta,prod"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-beta
+  namespace: entity-beta
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: platform
+      entity: beta
+  template:
+    metadata:
+      labels:
+        app: platform
+        entity: beta
+    spec:
+      containers:
+        - name: app
+          image: registry.example.com/platform-app:1.0.0-beta # 注意：与 alpha 是两个不同二进制产物
+          envFrom:
+            - configMapRef:
+                name: platform-beta-config
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          # 巡检项：/actuator/info 的 entity 必须为 BETA，否则即漂移告警

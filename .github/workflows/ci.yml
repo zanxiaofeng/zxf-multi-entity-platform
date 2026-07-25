@@ -1,0 +1,39 @@
+# 装配矩阵 CI（文档 5.7）：每个构建产物 × 对应 profile，分别构建与冒烟，互不背书
+name: assembly-matrix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        entity: [alpha, beta]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: '21'
+          cache: maven
+
+      # 装配冒烟矩阵 + 负例：某实体配置把另一实体装配搞坏是共库最常见的线上事故来源
+      - name: 装配矩阵验证（-P${{ matrix.entity }}）
+        run: mvn -B verify -P${{ matrix.entity }}
+
+      # 产物是"按实体裁剪的两个二进制"：各自打 tag、各自出 SBOM、各自过冒烟
+      - name: 产物冒烟（entity-${{ matrix.entity }}）
+        run: |
+          JAR=$(ls app/target/app-*-${{ matrix.entity }}.jar)
+          SPRING_PROFILES_ACTIVE=${{ matrix.entity }} java -jar "$JAR" &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/actuator/info && break || sleep 2
+          done
+          # 运行期防线：巡检实体维度，防"A 的命名空间跑着 B 的镜像"
+          curl -sf http://localhost:8080/actuator/info | grep -i '"entity":"${{ matrix.entity }}"'
+          kill %1
