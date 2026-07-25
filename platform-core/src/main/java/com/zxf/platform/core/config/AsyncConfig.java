@@ -6,9 +6,9 @@ import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * 上下文传播（异步场景，文档 5.2.3）。
@@ -34,11 +34,11 @@ public class AsyncConfig {
                     return;
                 }
                 EntityContext.set(entity);
-                MDC.put("entity", entity.name());
+                MDC.put(EntityContext.MDC_KEY, entity.name());
                 try {
                     runnable.run();
                 } finally {
-                    MDC.remove("entity");
+                    MDC.remove(EntityContext.MDC_KEY);
                     EntityContext.clear();
                 }
             };
@@ -46,22 +46,22 @@ public class AsyncConfig {
     }
 
     /**
-     * 显式声明 {@code @Async} 执行器并挂上 {@link TaskDecorator}，
-     * 确保传播一定生效（覆盖 Boot 默认执行器，不依赖自动配置是否收集 decorator）。
+     * 显式声明 {@code @Async} 执行器：虚拟线程（每任务一线程，不池化）+ {@link TaskDecorator}。
      *
      * <p><b>必须 @Primary</b>：{@code @Async} 无 qualifier 时按类型取唯一 {@code TaskExecutor}，
      * 取不到则静默退回无装饰器的 {@code SimpleAsyncTaskExecutor}——上下文丢失且无报错。
-     * 工程里还有 {@code flowableJobExecutor}（文档 7.3④）等第二个执行器 bean，靠 @Primary
+     * 工程里还有 {@code flowableJobExecutor}（文档 7.3③）等第二个执行器 bean，靠 @Primary
      * 让按类型解析收敛到本执行器。
+     *
+     * <p>注：Boot 自动配置的执行器同样会应用 {@code TaskDecorator}；此处显式声明是为了把
+     * 「@Primary 唯一解析」与「虚拟线程」两个语义同时钉死在代码里，不依赖自动配置的装配细节
+     * （全局 {@code spring.threads.virtual.enabled=true} 对自定义执行器不生效，需自行开启）。
      */
     @Bean(name = "applicationTaskExecutor")
     @Primary
-    public ThreadPoolTaskExecutor applicationTaskExecutor(TaskDecorator entityContextPropagator) {
-        var executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("entity-async-");
+    public SimpleAsyncTaskExecutor applicationTaskExecutor(TaskDecorator entityContextPropagator) {
+        var executor = new SimpleAsyncTaskExecutor("entity-async-");
+        executor.setVirtualThreads(true);
         executor.setTaskDecorator(entityContextPropagator);
         return executor;
     }

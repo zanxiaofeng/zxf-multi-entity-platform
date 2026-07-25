@@ -37,7 +37,6 @@ class OrderApprovalServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void 按契约key发起且只携带轻量标识变量() {
         EntityContext.set(EntityType.ALPHA);
         var order = Order.from(new CreateOrderCommand("widget", 1));

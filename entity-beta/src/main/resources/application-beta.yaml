@@ -1,5 +1,8 @@
 # Beta 实体部署配置（K8s ConfigMap 注入，文档 5.4.3）
 #
+# 本文件位于 entity-beta 模块：与 BPMN、per-entity 迁移脚本同一机制，
+# 随 Maven profile 裁剪只进入 Beta 产物——实体 A 的配置不进实体 B 的镜像（文档 5.4.1）。
+#
 # 三个开关必须成对出现（文档 5.3 / 6.3）：
 #   platform.entity=beta  ↔  SPRING_PROFILES_ACTIVE=beta,prod  ↔  构建产物 -Pbeta
 platform:

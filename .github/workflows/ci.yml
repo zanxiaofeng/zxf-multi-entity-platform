@@ -31,9 +31,16 @@ jobs:
         run: |
           JAR=$(ls app/target/app-*-${{ matrix.entity }}.jar)
           SPRING_PROFILES_ACTIVE=${{ matrix.entity }} java -jar "$JAR" &
+          APP_PID=$!
+          trap 'kill $APP_PID 2>/dev/null || true' EXIT
           for i in $(seq 1 30); do
             curl -sf http://localhost:8080/actuator/info && break || sleep 2
           done
           # 运行期防线：巡检实体维度，防"A 的命名空间跑着 B 的镜像"
           curl -sf http://localhost:8080/actuator/info | grep -i '"entity":"${{ matrix.entity }}"'
-          kill %1
+          # 下单级冒烟：同一契约按实体 SPI 计价（Alpha 13% 增值税 / Beta 95 折，文档 5.5）
+          EXPECTED=$([ "${{ matrix.entity }}" = "alpha" ] && echo 226.00 || echo 190.00)
+          PRICE=$(curl -sf -X POST localhost:8080/orders -H 'Content-Type: application/json' \
+            -d '{"item":"widget","quantity":2}' | grep -o '"amount":[0-9.]*' | cut -d: -f2)
+          echo "entity=${{ matrix.entity }} price=$PRICE expected=$EXPECTED"
+          test "$PRICE" = "$EXPECTED"

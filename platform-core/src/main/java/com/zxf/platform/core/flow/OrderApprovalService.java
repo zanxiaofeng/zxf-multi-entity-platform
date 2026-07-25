@@ -40,12 +40,13 @@ public class OrderApprovalService {
     @Transactional
     public String startApproval(Order order) {
         // 流程变量只放轻量标识，不放实体对象（避免序列化与历史表膨胀）；
-        // delegate 内按 orderId 重新加载领域对象
+        // delegate 内按 orderId 重新加载领域对象；entity 变量供 delegate 基类在
+        // Job 线程重建上下文（文档 7.3③ 双保险，见 EntityContextAwareDelegate）
         return runtimeService.startProcessInstanceByKey(
                         ORDER_APPROVAL_KEY,
                         String.valueOf(order.getId()),
                         Map.of("orderId", order.getId(),
-                                "entity", EntityContext.current().name()))
+                                EntityContextAwareDelegate.ENTITY_VARIABLE, EntityContext.current().name()))
                 .getProcessInstanceId();
     }
 }

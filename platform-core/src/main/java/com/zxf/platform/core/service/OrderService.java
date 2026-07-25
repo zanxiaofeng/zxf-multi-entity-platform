@@ -1,12 +1,13 @@
 package com.zxf.platform.core.service;
 
-import com.zxf.platform.core.audit.AuditService;
 import com.zxf.platform.core.flow.OrderApprovalService;
 import com.zxf.platform.core.order.CreateOrderCommand;
 import com.zxf.platform.core.order.Order;
+import com.zxf.platform.core.order.OrderCreatedEvent;
 import com.zxf.platform.core.order.OrderRepository;
 import com.zxf.platform.core.policy.PolicyRegistry;
 import java.util.Optional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,14 +24,14 @@ public class OrderService {
     private final OrderRepository repository;
     private final PolicyRegistry policies;
     private final OrderApprovalService approval;
-    private final AuditService audit;
+    private final ApplicationEventPublisher events;
 
     public OrderService(OrderRepository repository, PolicyRegistry policies,
-                        OrderApprovalService approval, AuditService audit) {
+                        OrderApprovalService approval, ApplicationEventPublisher events) {
         this.repository = repository;
         this.policies = policies;
         this.approval = approval;
-        this.audit = audit;
+        this.events = events;
     }
 
     @Transactional
@@ -42,8 +43,9 @@ public class OrderService {
         // 流程拓扑差异外置：按 key 发起审批实例，不关心是哪个实体的拓扑（文档 7.1/7.2），
         // 与本事务同库同数据源原子提交（文档 7.2 落地要点 5）
         var processInstanceId = approval.startApproval(saved);
-        // 横切：审计（异步，实体上下文经 TaskDecorator 传播，文档 5.2.3）
-        audit.record("ORDER_CREATED", "orderId=" + saved.getId() + " processInstanceId=" + processInstanceId);
+        // 横切：审计走 AFTER_COMMIT 事件（文档 8.1 规则 11）——回滚不留审计；
+        // 监听器 @Async 异步执行，实体上下文经 TaskDecorator 传播（文档 5.2.3）
+        events.publishEvent(new OrderCreatedEvent(saved.getId(), processInstanceId));
         return saved;
     }
 

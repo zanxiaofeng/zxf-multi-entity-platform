@@ -14,6 +14,12 @@ import org.jspecify.annotations.Nullable;
  */
 public final class EntityContext {
 
+    /**
+     * MDC key：日志实体维度的唯一事实来源，Filter / TaskDecorator / delegate 基类统一引用。
+     * 与 {@code application.yaml} 日志 pattern 的 {@code %X{entity:-none}} 对应，改动需同步。
+     */
+    public static final String MDC_KEY = "entity";
+
     private static final ThreadLocal<EntityType> HOLDER = new ThreadLocal<>();
 
     private EntityContext() {

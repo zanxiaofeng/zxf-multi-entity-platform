@@ -29,8 +29,9 @@
         <userTask id="alphaApproveL3" name="Alpha 三级审批"/>
         <sequenceFlow id="flow-l3-notify" sourceRef="alphaApproveL3" targetRef="sendNotification"/>
 
-        <!-- 通用任务：core 的共享 delegate -->
-        <serviceTask id="sendNotification" name="发送通知"
+        <!-- 通用任务：core 的共享 delegate。async 节点（通知类任务的典型形态）：
+             由引擎 Job 执行器线程运行，delegate 基类从流程变量 entity 重建上下文（文档 7.3③） -->
+        <serviceTask id="sendNotification" name="发送通知" flowable:async="true"
                      flowable:delegateExpression="${sendNotificationDelegate}"/>
         <sequenceFlow id="flow-notify-end" sourceRef="sendNotification" targetRef="end"/>
 

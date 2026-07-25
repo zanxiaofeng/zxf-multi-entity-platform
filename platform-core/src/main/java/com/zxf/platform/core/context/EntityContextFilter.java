@@ -36,11 +36,11 @@ public class EntityContextFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         EntityContext.set(properties.entity());
         // 日志带实体维度：Splunk 等监控体系按 entity 分别告警（文档 2.5）
-        MDC.put("entity", properties.entity().name());
+        MDC.put(EntityContext.MDC_KEY, properties.entity().name());
         try {
             chain.doFilter(request, response);
         } finally {
-            MDC.remove("entity");
+            MDC.remove(EntityContext.MDC_KEY);
             EntityContext.clear();
         }
     }

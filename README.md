@@ -54,9 +54,9 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 | --- | --- |
 | 5.2.1 实体标识与上下文 | `core.context.EntityType` / `EntityContext`（含 JSpecify `@Nullable`） |
 | 5.2.2 边缘识别一次路由 | `EntityContextFilter`：上下文 + MDC 同一 try/finally 生命周期 |
-| 5.2.3 上下文传播 | `AsyncConfig.entityContextPropagator`（TaskDecorator）+ 显式 `applicationTaskExecutor` |
-| 5.2.4 / 5.2.5 扩展点与注册表 | `PricingPolicy` / `PolicyRegistry`（构造器启动期 fail-fast） |
-| 5.3 SPI 模块 | `entity-alpha` / `entity-beta`，`@Profile` 限定，专属迁移脚本随模块打包 |
+| 5.2.3 上下文传播 | `AsyncConfig.entityContextPropagator`（TaskDecorator）+ 显式 `applicationTaskExecutor`（虚拟线程 + `@Primary`） |
+| 5.2.4 / 5.2.5 扩展点与注册表 | `PricingPolicy` / `PolicyRegistry`（构造器启动期 fail-fast + 解析期 fail-loud） |
+| 5.3 SPI 模块 | `entity-alpha` / `entity-beta`，`@Profile` 限定，专属迁移脚本与 profile 配置（`application-{entity}.yaml`）随模块打包 |
 | 5.4 装配 | `app/pom.xml` Maven profile 裁剪 + 产物名带实体标识 + 无实体感知启动类 |
 | 5.5 通用逻辑 | `OrderService`：零实体判断（ArchUnit 守护） |
 | 5.7 装配冒烟矩阵 | 实体模块轻量装配测试 + app `@SpringBootTest`（按 `assembly.entity` 门控）+ 漂移负例 + GitHub Actions 矩阵 |
@@ -66,7 +66,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 | 7.1 流程拓扑差异外置 | `core.flow.OrderApprovalService`：只按契约 key（`order-approval`）发起实例；变量只放轻量标识 |
 | 7.2 部署级隔离 | BPMN 在实体模块 `processes/` 随 profile 裁剪：Alpha 风控+三级审批 / Beta 五级审批+审计留痕；专属 delegate `@Profile` 限定，通用 delegate 进 core |
 | 7.3② ACT_* 表治理 | `common/V3__flowable_engine_tables.sql`（提取自官方 jar 的 H2 DDL）+ `flowable.database-schema-update=false` |
-| 7.3③ 引擎线程可观测性 | `FlowableJobContextConfig`：`SpringAsyncExecutor` 挂 `EntityContextPropagatingTaskExecutor` 传播 MDC/entity；流程变量显式携带 `entity` 双保险 |
+| 7.3③ 引擎线程可观测性 | `FlowableJobContextConfig`：`SpringAsyncExecutor` 挂 `EntityContextPropagatingTaskExecutor` 传播 MDC/entity；流程变量显式携带 `entity` 双保险——delegate 基类 `EntityContextAwareDelegate` 在 Job 线程从变量重建上下文（闭环，e2e 覆盖 async 通知任务） |
 | 7.4 流程装配冒烟 | `AlphaProcessAssemblySmokeTest` / `BetaProcessAssemblySmokeTest`：同 key 定义唯一、delegate 全装配、拓扑符合预期 |
 | 8.2 Maven Enforcer | core 禁依赖 `entity-*`；实体模块互禁依赖；app 强制要求 `assembly.entity`；Flowable 版本锚定 |
 | 8.3 ArchUnit | core 服务不得感知 `EntityType`/静态上下文；core 不做 BPMN 解析；扩展点实现必须 `@Profile` 限定；delegate 实例字段必须 final |
@@ -96,8 +96,9 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 3. 实体模块相互依赖 / core 依赖实体模块 / Flowable 版本 < 8.0 → Enforcer 构建失败。
 4. 异步路径未传播上下文 → `EntityContextPropagatorTest` / `EntityContextPropagatingTaskExecutorTest` + 端到端审计断言守护。
 5. BPMN 引用未装配的 delegate、同 key 双定义 → 流程装配冒烟测试红（引擎不做启动期校验，必须自研）。
-6. delegate 实例字段非 final（存执行态风险）→ ArchUnit 测试红。
+6. delegate 实例字段非 final（存执行态风险）→ ArchUnit 测试红；delegate 未继承 `EntityContextAwareDelegate`（绕过 Job 线程上下文重建）→ ArchUnit 测试红。
 7. `EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 需架构评审。
+8. 事务内副作用（审计等）必须走领域事件 + `@TransactionalEventListener(AFTER_COMMIT)`（文档 8.1 规则 11）。
 
 ## Flowable 运维纪律（文档 7.3 / 8.1.9，需团队知晓的持续成本）
 

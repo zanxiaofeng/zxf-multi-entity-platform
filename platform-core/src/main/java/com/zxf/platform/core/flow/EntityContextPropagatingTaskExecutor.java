@@ -32,6 +32,8 @@ public class EntityContextPropagatingTaskExecutor implements AsyncTaskExecutor {
         delegate.execute(decorator.decorate(task));
     }
 
+    /** @deprecated 接口方法已废弃，保留重写只为忠实转发 startTimeout。 */
+    @Deprecated
     @Override
     public void execute(Runnable task, long startTimeout) {
         delegate.execute(decorator.decorate(task), startTimeout);
@@ -65,11 +67,11 @@ public class EntityContextPropagatingTaskExecutor implements AsyncTaskExecutor {
         }
         return () -> {
             EntityContext.set(entity);
-            MDC.put("entity", entity.name());
+            MDC.put(EntityContext.MDC_KEY, entity.name());
             try {
                 return task.call();
             } finally {
-                MDC.remove("entity");
+                MDC.remove(EntityContext.MDC_KEY);
                 EntityContext.clear();
             }
         };

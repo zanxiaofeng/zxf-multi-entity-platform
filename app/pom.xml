@@ -42,7 +42,8 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Boot 4 测试同样模块化：MockMvc 自动配置在新包 org.springframework.boot.webmvc.test.autoconfigure -->
+        <!-- Boot 4 测试模块化：MockMvc 自动配置在新包 org.springframework.boot.webmvc.test.autoconfigure；
+             -test starter 只含测试自动配置切片，断言/mock 库仍由 spring-boot-starter-test 提供 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-webmvc-test</artifactId>

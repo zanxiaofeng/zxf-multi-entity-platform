@@ -363,6 +363,8 @@ spring:
     url: jdbc:oracle:thin:@//alpha-db:1521/ALPHA
 ```
 
+per-entity 配置文件与 BPMN、迁移脚本同机制：**放在各自实体模块的 resources 下**，随 Maven profile 裁剪只进入对应产物——实体 B 的数据源配置不应出现在实体 A 的镜像里（生产环境这些文件含真实数据源地址，属裁剪对象而非共享资源）。
+
 部署清单里设置 `SPRING_PROFILES_ACTIVE=alpha,prod`。两套部署共用同一代码库与镜像构建流水线，只有环境变量和 ConfigMap 不同。
 
 ### 5.5 共享内核中的通用逻辑示例
@@ -572,6 +574,7 @@ per-entity 的 Flyway 治理（6.1）覆盖两部分：
 **③ 可观测性**
 
 - 日志/指标继续打 `entity` 标签；Flowable 的同步 delegate 运行在 Web 请求线程内，MDC 天然带上；但 **async 节点与 Job 执行器（AsyncExecutor）运行在引擎自有线程池**，5.2.3 的 `TaskDecorator` 不适用（那是 Spring `@Async` 的扩展点）。落地方式（放 core）：为 Flowable 的 SpringAsyncExecutor 提供自定义 `TaskExecutor`，包装 Runnable 复制 MDC/`entity` 上下文；或注册引擎事件监听器/`ProcessEngineLifecycleListener` 在 Job 入口打标。流程变量中显式携带的 `entity`（见 7.1 代码）作为双保险。
+- **注意 executor 包装的盲区**：引擎 acquisition 线程从 `ACT_RU_JOB` 拉取 Job 后才提交给 executor——提交线程本身没有请求上下文，装饰器必然捕获到空值而空转。因此「双保险」必须闭环：本骨架的 delegate 基类（`EntityContextAwareDelegate`）在执行入口检查上下文缺失时，从流程变量 `entity` 重建 `EntityContext` + MDC，执行后清理；executor 包装只覆盖"提交线程恰好在请求内"的少数路径。所有 delegate 强制继承该基类（ArchUnit 守护），禁止直接 `implements JavaDelegate`。
 - 按实体维度监控两个关键指标：活跃流程实例数、**死信 Job 数（deadletter job）**——后者是流程引擎最该告警的指标，非零即需人工介入。
 
 ### 7.4 冒烟测试扩展
