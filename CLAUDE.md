@@ -13,7 +13,8 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 ## 运行
 
 - `SPRING_PROFILES_ACTIVE=alpha java -jar app/target/app-*-alpha.jar`（beta 对称）
-- 三个开关成对：构建 profile ↔ `SPRING_PROFILES_ACTIVE` ↔ `platform.entity`，漂移则启动失败（PolicyRegistry fail-fast）
+- 三个开关成对：构建 profile ↔ `SPRING_PROFILES_ACTIVE` ↔ `platform.entity`，漂移则启动失败（PolicyRegistry fail-fast）。`@ForEntity`（5.10.1 已落地）直接读 `platform.entity` 决定激活——`SPRING_PROFILES_ACTIVE` 通过激活 `application-{entity}.yaml` 间接提供 `platform.entity`，三者仍成对
+- 扩展点实现统一用 `@ForEntity(EntityType.ALPHA|BETA)` 限定（不再用裸 `@Profile`）；ArchUnit `beMetaAnnotatedWith(Conditional.class)` 守护；契约基类 `PricingPolicyContractTest` 防 `@ForEntity` value 与 `supports()` 漂移
 
 ## 硬性约束（改动前必读）
 

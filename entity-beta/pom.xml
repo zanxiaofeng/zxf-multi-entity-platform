@@ -19,6 +19,16 @@
             <groupId>com.zxf.platform</groupId>
             <artifactId>platform-core</artifactId>
         </dependency>
+        <!-- platform-core 的测试支持类（扩展点契约测试基类，文档 8.4）：
+             消费 test-jar 不构成"实体依赖 core test 代码"的边界违反——test scope 不进产物，
+             且方向仍是 entity → core 单向（实体模块互禁依赖由 Enforcer 守护）。 -->
+        <dependency>
+            <groupId>com.zxf.platform</groupId>
+            <artifactId>platform-core</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
