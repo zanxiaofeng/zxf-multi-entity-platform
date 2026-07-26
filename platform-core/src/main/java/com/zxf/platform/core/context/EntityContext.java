@@ -1,5 +1,6 @@
 package com.zxf.platform.core.context;
 
+import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
@@ -25,8 +26,14 @@ public final class EntityContext {
     private EntityContext() {
     }
 
+    /**
+     * 设置当前线程实体。仅限边缘识别点（Filter）与异步/Job 线程的上下文重建点调用，
+     * 业务代码不得调用。
+     *
+     * @param type 当前实体（不允许 {@code null}——清除上下文用 {@link #clear()}）
+     */
     public static void set(EntityType type) {
-        HOLDER.set(type);
+        HOLDER.set(Objects.requireNonNull(type, "实体类型不能为 null"));
     }
 
     /**
@@ -46,6 +53,7 @@ public final class EntityContext {
         return HOLDER.get();
     }
 
+    /** 清除当前线程实体。必须与 {@link #set} 在同一 try/finally 生命周期内成对出现（线程池复用防串实体）。 */
     public static void clear() {
         HOLDER.remove();
     }

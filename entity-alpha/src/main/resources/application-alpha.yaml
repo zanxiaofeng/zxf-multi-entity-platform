@@ -8,6 +8,14 @@
 # 漂移由启动期 PolicyRegistry 校验、CI 装配矩阵、/actuator/info 巡检三层防线兜底。
 platform:
   entity: alpha
+  validation:
+    # Schema 驱动校验规则（文档 5.8.3）：声明式约束存配置，改规则不发版；
+    # 需要分支逻辑时升级为扩展点，禁止在 Schema 里发明表达式语言
+    rules:
+      - field: amount
+        max: 100000
+      - field: currency
+        in: [CNY, USD]
 
 spring:
   datasource:

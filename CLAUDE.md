@@ -18,9 +18,9 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 ## 硬性约束（改动前必读）
 
 - 依赖单向：`entity-* → platform-core`，`app → platform-core`；core 禁依赖实体模块、实体模块互禁依赖（Maven Enforcer 强制）
-- `core.service` 包禁止引用 `EntityType`/`EntityContext`（ArchUnit 强制）；差异一律走 `PricingPolicy` 式扩展点 + `@Profile` 限定
+- `application`（除 `application.port`）与 `domain` 核心包禁止引用 `EntityType`/`EntityContext`（ArchUnit 强制）；差异一律走 `PricingPolicy` 式扩展点 + `@Profile` 限定
 - `EntityContext` 为 ThreadLocal，仅限同步 Servlet 栈；`@Async` 必须经 `TaskDecorator` 传播
-- 日志/指标必须带 `entity` 维度（MDC 由 `EntityContextFilter`/`TaskDecorator` 写入）
+- 日志/指标必须带 `entity` 维度（MDC 由 `EntityContextFilter`/`TaskDecorator` 写入）；`traceId` 由 `TraceIdFilter` 注入（上游 `X-Trace-Id` 白名单校验），`@Async`/引擎任务经全量 MDC 快照随车传播
 - Flowable delegate 一律继承 `EntityContextAwareDelegate`（Job 线程从流程变量重建上下文），禁止直接 `implements JavaDelegate`（实体模块 ArchUnit 强制）
 - per-entity 配置（`application-{entity}.yaml`）、BPMN、迁移脚本一律放实体模块 resources，随 profile 裁剪；app 模块只放公共 `application.yaml`
 - 事务内的副作用（审计等）走领域事件 + `@TransactionalEventListener(AFTER_COMMIT)`（文档 8.1 规则 11），禁止事务内直接触发
@@ -40,8 +40,28 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 - **ACT_ID_*（IDM）表不能漏**：引擎启动对 common/process/idm/eventregistry 四类 schema 逐一校验；IDM DDL 在独立的 `flowable-idm-engine` jar 里（不在流程引擎 jar），缺失时报极具误导性的 `db version is 5.99.0.0`（`IdmDbSchemaManager` 对缺表场景的升级起点默认值）
 - Flowable 8 的 `SpringAsyncExecutor.setTaskExecutor` 接收引擎侧 `org.flowable.common.engine.api.async.AsyncTaskExecutor`，Spring 执行器需经 `org.flowable.common.spring.async.SpringAsyncTaskExecutor` 适配
 - BPMN 在实体模块 `processes/` 目录，两实体同 key（`order-approval`）不同拓扑；引擎不做启动期 delegate 校验——装配冒烟兜底（同 key 唯一 + delegate 全装配）
-- `core.flow` 是引擎适配层（允许接触 EntityContext，与 Filter 同级）；`core.service` 仍禁止（ArchUnit 守护）
+- `infrastructure.engine` 是引擎适配层（允许接触 EntityContext，与 Filter 同级）；`application`/`domain` 仍禁止（ArchUnit 守护）
 
-## .claude/rules 适用范围
+## .claude/rules 规范库（每会话必读纪律）
 
-`.claude/rules/` 是跨项目通用的后端规范（四层架构分包、`BusinessException`/`ApiResponse`、Contract Test、WireMock MockFactory 等），**面向后续新增的业务模块**。本骨架是架构演示工程：`core.{context,policy,service,flow,...}` 分包与评审红线以本文件「硬性约束」+ README「Review 硬性规则」+ ArchUnit/Enforcer 护栏为准，不套用四层分包，骨架代码未实现的规范项（Contract Test、下游 Mock 等）在引入对应能力时再生效。
+`.claude/rules/` 是跨项目通用的后端规范库，走 Claude Code 原生加载机制（官方文档 code.claude.com/docs/en/memory）：无 `paths` frontmatter 的文件每会话全量加载；带 `paths` 的文件在读写匹配文件时按需加载。**规范索引必须留在本文件内**——rules 目录的按需加载是否生效依赖客户端版本，本文件是全团队每会话必达的唯一可靠通道。
+
+**纪律：开始编码 / review / 写测试前，先按下表通读与任务匹配的规范全文；review 结论必须逐条对照规范，不得仅凭记忆评审。**
+
+| 规范文件 | 何时必读 |
+| --- | --- |
+| `java-coding-standard.md` | 任何 Java 编码/review：编码规范 + 契约编程 + 对象健身操 |
+| `code-review.md` | 任何 review：检查清单 |
+| `architecture.md` | 新增业务模块、四层分包决策（domain/application/infrastructure/interfaces） |
+| `api-conventions.md` / `validation.md` | 新增 REST 端点、入参校验 |
+| `exception-handling.md` | 异常设计（`BusinessException`/`ApiResponse`） |
+| `service-conventions.md` | Service 编写 |
+| `logging.md` | 日志、MDC、脱敏 |
+| `db-conventions.md` / `db-migration.md` | JPA 实体、Flyway 迁移 |
+| `test-conventions.md` / `integration-test-guide.md` / `tdd-workflow.md` / `contract-test.md` | 编写任何测试 |
+| `downstream-conventions.md` | 下游 HTTP 调用（RestClient/WireMock） |
+| `tech-stack.md` | 依赖与 starter 变更 |
+
+### 骨架适用范围
+
+本骨架是架构演示工程：`core.{context,interfaces,application,domain,infrastructure}` 分包与评审红线以本文件「硬性约束」+ README「Review 硬性规则」+ ArchUnit/Enforcer 护栏为准，**不套用四层分包**；`BusinessException`/`ApiResponse`、Contract Test、WireMock MockFactory 等规范项**面向后续新增业务模块**，引入对应能力时再生效；`java-coding-standard`/`logging`/`db-*`/`test-*` 等通用规范**现在即生效**。

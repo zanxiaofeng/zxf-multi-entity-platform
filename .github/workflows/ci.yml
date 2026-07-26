@@ -40,7 +40,7 @@ jobs:
           curl -sf http://localhost:8080/actuator/info | grep -i '"entity":"${{ matrix.entity }}"'
           # 下单级冒烟：同一契约按实体 SPI 计价（Alpha 13% 增值税 / Beta 95 折，文档 5.5）
           EXPECTED=$([ "${{ matrix.entity }}" = "alpha" ] && echo 226.00 || echo 190.00)
-          PRICE=$(curl -sf -X POST localhost:8080/orders -H 'Content-Type: application/json' \
+          PRICE=$(curl -sf -X POST localhost:8080/api/v1/orders -H 'Content-Type: application/json' \
             -d '{"item":"widget","quantity":2}' | grep -o '"amount":[0-9.]*' | cut -d: -f2)
           echo "entity=${{ matrix.entity }} price=$PRICE expected=$EXPECTED"
           test "$PRICE" = "$EXPECTED"

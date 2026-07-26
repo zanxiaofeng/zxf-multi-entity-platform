@@ -38,7 +38,7 @@
 | 差异维度 | 典型例子 | 隔离手段 |
 | --- | --- | --- |
 | 数据模型 | 实体字段不同、校验规则不同 | Schema 版本化、扩展字段（EAV/JSONB/动态列）、或独立模块 |
-| 业务流程 | 审批链路不同、状态机不同 | 策略模式 + 工作流引擎（Camunda / Flowable） |
+| 业务流程 | 审批链路不同、状态机不同 | 轻量：策略模式 / 管道（步骤增删，见 5.8）；重量：工作流引擎（Camunda / Flowable，第七章） |
 | 外部集成 | 对接不同的上下游系统 | SPI / 适配器（Adapter）模式，按部署装配不同实现 |
 | 界面/交互 | 不同表单、不同展示 | 前端独立部署，或表单 Schema 驱动渲染 |
 | 运维/合规 | 数据隔离级别、审计要求、灾备等级不同 | 部署拓扑 + 基础设施配置，不进代码 |
@@ -85,11 +85,11 @@
 
 1. **策略模式 + 注册表（Strategy + Registry）**：最基础的差异隔离。行为差异封装为接口实现，按实体标识从注册表选取。Spring 中即按条件注入的组件集合 + 一个 `EntityContext`。
 2. **SPI / 插件化（Spring 条件装配，后期升级 ServiceLoader）**：策略类膨胀时，把实体专属代码收进独立 module，主工程只依赖接口，打包时按实体裁剪。实体 B 的代码甚至不进入实体 A 的镜像。
-3. **管道/过滤器（Pipeline）**：流程步骤的增删差异（A 多一步风控，B 多一步审计）用管道编排，优于 if-else 嵌入主流程。
-4. **模板方法（Template Method）**：主流程骨架固定、个别步骤不同。适合差异点少且稳定的业务。
-5. **特性开关（Feature Toggle）**：仅用于发布控制和临时差异，不要用它承载长期业务差异——开关数量指数增长，测试矩阵爆炸。开关必须有 TTL、责任人和到期报警约定，逾期不清理即技术债工单。
-6. **流程引擎外置（Camunda / Flowable）**：差异主要在流程拓扑时，把流程定义外置为 BPMN，每个实体部署自己的流程定义文件，代码只剩任务实现。
-7. **配置即数据 + Schema 驱动**：表单、校验规则、字段映射用 Schema 描述存库，代码只写解释器。适合差异高频但浅层的场景。
+3. **管道/过滤器（Pipeline）**：流程步骤的增删差异（A 多一步风控，B 多一步审计）用管道编排，优于 if-else 嵌入主流程。Demo 见 5.8.1。
+4. **模板方法（Template Method）**：主流程骨架固定、个别步骤不同。适合差异点少且稳定的业务。Demo 仅作边界示范，见 5.8.2。
+5. **特性开关（Feature Toggle）**：仅用于发布控制和临时差异，不要用它承载长期业务差异——开关数量指数增长，测试矩阵爆炸。开关必须有 TTL、责任人和到期报警约定，逾期不清理即技术债工单。**Demo 刻意不提供示例**（防止反向诱导），理由见 5.8。
+6. **流程引擎外置（Camunda / Flowable）**：差异主要在流程拓扑时，把流程定义外置为 BPMN，每个实体部署自己的流程定义文件，代码只剩任务实现。完整方案见第七章。
+7. **配置即数据 + Schema 驱动**：表单、校验规则、字段映射用 Schema 描述存库，代码只写解释器。适合差异高频但浅层的场景。Demo 见 5.8.3。
 
 ---
 
@@ -135,6 +135,108 @@ multi-entity-platform/
 
 依赖方向严格单向：`entity-* → platform-core`，`app → platform-core`。
 `app` 通过 Maven profile 决定打包哪个实体模块——实体 B 的类不进入实体 A 的镜像。代价是：两个实体产出两个不同的二进制（见 2.4），CI 需分别构建验证。
+
+#### 5.1.1 模块内部：六边形架构 × DDD 四层分包
+
+Maven 模块解决"实体间/内核间"的边界；**模块内部的包结构用六边形架构（Ports & Adapters）组织，与 DDD 四层对应**——六边形的"端口"正是多实体方案里扩展点（SPI）的天然归宿：
+
+| 六边形 | DDD 层 | 包 | 职责 | 实体差异允许？ |
+| --- | --- | --- | --- | --- |
+| 端口（Port） | 领域层 | `domain.port` | 扩展点接口、Repository 接口、出站服务接口 | 接口本身不允许分叉 |
+| 领域核心 | 领域层 | `domain.model` / `domain.service` | 聚合、值对象、领域服务、领域事件 | ❌ 绝对禁止 |
+| 用例编排 | 应用层 | `application` | 应用服务（事务边界）、命令/查询对象 | ❌ 禁止 |
+| 出站适配器（Driven Adapter） | 基础设施层 | `infrastructure.persistence` / `.messaging` / `.engine` | Repository 实现、MQ、Flowable 集成 | 通用实现在 core；**差异实现放实体模块** |
+| 入站适配器（Driving Adapter） | 接口层 | `interfaces.rest` / `.consumer` | Controller、消息监听、Filter | ❌ 禁止（差异在边缘已路由） |
+| 组合根 | — | `app` | 启动、装配、配置注入 | ✅ 按 profile 装配 |
+
+重组后的包结构：
+
+```text
+platform-core/
+└── src/main/java/com/example/platform/
+    ├── interfaces/                    # 入站适配器（Driving / DDD 接口层）
+    │   ├── rest/                      OrderController、异常映射 @RestControllerAdvice
+    │   ├── consumer/                  消息监听器（Kafka inbound → 应用服务）
+    │   └── filter/                    EntityContextFilter（含 MDC，5.2.2）
+    ├── application/                   # 应用层：用例编排，无业务规则
+    │   ├── OrderApplicationService    # 事务边界在此（@Transactional）
+    │   ├── command/                   CreateOrderCommand 等
+    │   ├── assembler/                 DTO ↔ 领域对象转换
+    │   └── port/                      ★ 端口解析机制（含 Spring 装配，非纯领域）
+    │       ├── PolicyRegistry         # 策略注册表（5.2.5，@Component 组合机制）
+    │       └── OrderPipeline          # 管道编排器（5.8.1）
+    ├── domain/                        # 领域层：纯 Java，零框架注解
+    │   ├── model/                     Order 聚合、Money 值对象、OrderStatus
+    │   ├── service/                   跨聚合领域服务
+    │   ├── event/                     OrderCreated 等领域事件
+    │   └── port/                      ★ 端口 = 纯契约接口，零框架注解
+    │       ├── PricingPolicy          # 差异端口（实体模块实现）
+    │       ├── OrderStep              # 管道步骤接口（5.8.1）
+    │       └── OrderRepository        # 持久化端口（core 基础设施实现）
+    ├── infrastructure/                # 出站适配器（Driven / DDD 基础设施层）
+    │   ├── persistence/               OrderJpaAdapter 实现 domain.port.OrderRepository
+    │   ├── messaging/                 Outbox relay、事件发布适配器
+    │   ├── engine/                    Flowable 集成（OrderApprovalService，7.1）
+    │   └── observation/               MDC/指标 entity 打标（2.5）
+    └── context/                       EntityContext、EntityType（横切最小集）
+
+entity-alpha/
+└── com/example/entity/alpha/
+    ├── adapter/                       # ★ 实体 = 一组出站适配器实现
+    │   ├── AlphaPricingPolicy         # implements domain.port.PricingPolicy
+    │   └── RiskCheckStep              # implements domain.port.OrderStep
+    └── process/                       BPMN、Event Registry 通道（resources）
+app/
+└── PlatformApplication + 配置          # 组合根：唯一知道"全部零件"的地方
+```
+
+**关键对应关系**：
+
+1. **扩展点 = 端口，实体实现 = 适配器**。`PricingPolicy` 从"策略接口"重新定性为 domain port——这不是改名，而是明确了它的架构身份：内核（六边形内部）只依赖端口，实体模块是插到端口上的适配器。多实体隔离因此复用了六边形最成熟的纪律：**适配器可换，端口契约稳定**。注意区分两类适配器：**资源型出站适配器**（JPA/MQ，访问外部资源，归 core 的 infrastructure）与**行为型扩展点适配器**（Pricing/Step，只提供差异化算法，归实体模块）——前者允许依赖外部客户端，后者应保持纯计算。另注意 `domain.port` 只放**纯契约接口（零框架注解）**；带 Spring 装配语义的端口解析机制（`PolicyRegistry`、`OrderPipeline`）属组合关注点，归 `application.port`，否则与"领域层零框架注解"及下方 ArchUnit 规则自相矛盾。
+2. **组合根在 app**。app 是唯一既依赖 core 又依赖实体模块的地方，负责"把哪个适配器插到哪个端口"——Maven profile（5.4）就是组合根的构建期表达。
+3. **领域层零实体感知有了新的强制手段**：ArchUnit 洋葱架构规则替代 8.3 的单点规则：
+
+```java
+// ArchUnit ≥ 0.21；onionArchitecture 的层方法固定为
+// domainModels / domainServices / applicationServices / adapter(名称, 包)
+@ArchTest
+static final ArchRule 六边形分层 =
+        Architectures.onionArchitecture()
+                .domainModels("..domain.model..", "..domain.event..")
+                .domainServices("..domain.service..", "..domain.port..")
+                .applicationServices("..application..")
+                .adapter("rest", "..interfaces.rest..")
+                .adapter("consumer", "..interfaces.consumer..")
+                .adapter("persistence", "..infrastructure.persistence..")
+                .adapter("engine", "..infrastructure.engine..")
+                .adapter("messaging", "..infrastructure.messaging..")
+                .withOptionalLayers(true);
+// 注：context 包（EntityContext）是横切的"隐式参数"，等效于显式方法参数，
+// 置于洋葱最外层/豁免，不作为层参与规则。
+
+@ArchTest
+static final ArchRule 领域核心零实体感知 =
+        // 范围为 model/service/event：domain.port 的 supports() 以 EntityType 声明适配实体
+        // （5.2.4），属端口契约的一部分——若覆盖整个 ..domain.. 会与本布局自相矛盾
+        noClasses().that().resideInAPackage("..domain.model..")
+                .or().resideInAPackage("..domain.service..")
+                .or().resideInAPackage("..domain.event..")
+                .should().dependOnClassesThat().areAssignableTo(EntityType.class);
+
+@ArchTest
+static final ArchRule 应用层仅端口解析器可感知实体 =
+        noClasses().that().resideInAPackage("..application..")
+                .and().resideOutsideOfPackage("..application.port..")
+                .should().dependOnClassesThat().areAssignableTo(EntityType.class);
+```
+
+> `PolicyRegistry` / `OrderPipeline` 是唯一的"实体感知"组件（通过 `EntityContext` 读取当前实体做端口解析），故归 `application.port` 并在规则中单列豁免。若希望连这点隐式依赖也消除，可将注册表纯函数化——`pricing(EntityType type)` 显式入参，由调用方（应用服务）从 `EntityContext` 取值传入；代价是应用层方法签名多一个参数，收益是注册表可脱离 ThreadLocal 单测。团队按口味二选一，规则相应调整。
+
+4. **与 DDD 四层的映射说明**：DDD 经典四层（接口/应用/领域/基础设施）中，六边形把"基础设施"拆为入站/出站适配器，并把 DDD 分层容易模糊的"接口层 vs 基础设施层"统一为"适配器"概念。本方案包名按六边形命名（`interfaces`/`infrastructure`），分层语义按 DDD——二者在此是同一结构的两种视角，不是叠加两套结构。
+5. **实体模块的定位升级**：`entity-alpha` 从"SPI 实现包"升级为"**该实体的适配器包**"——它不仅能实现定价端口，还可以提供专属持久化适配器（实体专属表的 Repository 实现）、专属外部系统适配器（2.1"外部集成"维度的归处），全部通过 `@Profile` 装配插到 core 端口上。
+6. **既有代码的归位**：`OrderService`（5.5）→ `application.OrderApplicationService`；`EntityContextFilter` → `interfaces.filter`；`PolicyRegistry` / `OrderPipeline` → `application.port`（含 Spring 装配的端口解析机制）；`OrderRepository` 接口 → `domain.port`，JPA 实现 → `infrastructure.persistence`。5.2 节的示例代码按此包归属理解（示例中省略 package 声明）。
+
+> 注意 DDD 战略层面的一条边界：两个实体**共享同一个限界上下文**（共库方案成立的前提）。当健康度检查（第四章）触警、实体拆分为独立服务时，拆分线就是新的限界上下文线——此时共享内核降级为共享平台层（第九章），端口/适配器结构使拆分的物理成本最小：适配器模块原样搬走。但端口契约**不会自动变成**跨服务 API 契约——端口只是拆分的**接缝候选**，拆分时需在其上新增 DTO、版本化、幂等与容错层（进程内接口是同步、共享事务、共享领域对象的；跨服务契约这些假设全部断裂，见 6.2 契约治理）。
 
 ### 5.2 platform-core：共享内核
 
@@ -183,8 +285,8 @@ public class EntityContextFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         // 部署级实体（来自配置）优先；多实体混部时可改为从 Header/Token 解析
-        EntityContext.set(properties.getEntity());
-        MDC.put("entity", properties.getEntity().name()); // 日志带实体维度，Splunk 可按 entity 分别告警
+        EntityContext.set(properties.entity());
+        MDC.put("entity", properties.entity().name()); // 日志带实体维度，Splunk 可按 entity 分别告警
         try {
             chain.doFilter(request, response);
         } finally {
@@ -196,12 +298,13 @@ public class EntityContextFilter extends OncePerRequestFilter {
 ```
 
 ```java
-@Data
+/** 当前部署服务的实体（唯一事实来源）。record 构造器绑定：不可变、无 setter（对象健身操军规 9） */
 @ConfigurationProperties(prefix = "platform")
-public class PlatformProperties {
+public record PlatformProperties(EntityType entity) {
 
-    /** 当前部署服务的实体（唯一事实来源） */
-    private EntityType entity;
+    public PlatformProperties {
+        Assert.notNull(entity, "platform.entity 必须配置");
+    }
 }
 ```
 
@@ -266,15 +369,24 @@ public class PolicyRegistry {
         this.pricingPolicies = policies.stream()
                 .collect(Collectors.toUnmodifiableMap(PricingPolicy::supports, Function.identity()));
         // 启动期防护：当前实体必须有且仅有一个实现装配，否则直接启动失败
-        if (!pricingPolicies.containsKey(properties.getEntity())) {
+        if (!pricingPolicies.containsKey(properties.entity())) {
             throw new IllegalStateException(
                     "当前实体 %s 未装配 PricingPolicy，请检查 SPRING_PROFILES_ACTIVE 与 platform.entity 是否一致"
-                            .formatted(properties.getEntity()));
+                            .formatted(properties.entity()));
         }
     }
 
-    public PricingPolicy pricing() {
-        return pricingPolicies.get(EntityContext.current());
+    /** 对外只暴露完整行为（对象健身操军规 4：调用方一行一个点） */
+    public Money priceFor(Order order) {
+        var current = EntityContext.current();
+        var policy = Optional.ofNullable(pricingPolicies.get(current))
+                .orElseThrow(() -> new IllegalStateException("当前实体未装配 PricingPolicy: " + current));
+        return policy.calculate(order);
+    }
+
+    /** 冒烟测试等装配校验场景使用 */
+    boolean hasPolicy(EntityType type) {
+        return pricingPolicies.containsKey(type);
     }
 }
 ```
@@ -363,8 +475,6 @@ spring:
     url: jdbc:oracle:thin:@//alpha-db:1521/ALPHA
 ```
 
-per-entity 配置文件与 BPMN、迁移脚本同机制：**放在各自实体模块的 resources 下**，随 Maven profile 裁剪只进入对应产物——实体 B 的数据源配置不应出现在实体 A 的镜像里（生产环境这些文件含真实数据源地址，属裁剪对象而非共享资源）。
-
 部署清单里设置 `SPRING_PROFILES_ACTIVE=alpha,prod`。两套部署共用同一代码库与镜像构建流水线，只有环境变量和 ConfigMap 不同。
 
 ### 5.5 共享内核中的通用逻辑示例
@@ -379,8 +489,8 @@ public class OrderService {
 
     @Transactional
     public Order create(CreateOrderCommand cmd) {
-        var order = Order.from(cmd);                     // 通用：结构
-        var price = policies.pricing().calculate(order); // 差异：委托扩展点
+        var order = Order.from(cmd);          // 通用：结构
+        var price = policies.priceFor(order); // 差异：委托扩展点（注册表封装"取策略+执行"）
         order.priceTo(price);
         return repository.save(order);
     }
@@ -421,7 +531,7 @@ class AlphaAssemblySmokeTest {
         assertThat(policies)
                 .extracting(PricingPolicy::supports)
                 .containsExactly(EntityType.ALPHA);
-        assertThat(registry.pricing().supports()).isEqualTo(EntityType.ALPHA);
+        assertThat(registry.hasPolicy(EntityType.ALPHA)).isTrue();
     }
 }
 ```
@@ -451,6 +561,252 @@ assembly-matrix:
     - mvn verify -P${{ matrix.entity }} -Dtest=*Assembly*Test
     - 构建并推送 entity-${{ matrix.entity }} 镜像
 ```
+
+### 5.8 设计模式的 Demo 落地取舍
+
+第三章的模式不应全部堆进 demo——demo 的价值是每种模式一个最小可运行示例，并示范**模式间的分工边界**。落地取舍如下：
+
+| 模式 | 是否进 Demo | 说明 |
+| --- | --- | --- |
+| ① 策略 + 注册表 | ✅ 已有 | 骨架核心（`PricingPolicy` / `PolicyRegistry`） |
+| ② SPI / 插件化 | ✅ 已有（半落地） | 独立 module + profile 裁剪已体现；ServiceLoader 动态发现属第九章演进，不提前做 |
+| ③ 管道/过滤器 | ✅ 引入 | 解决"步骤增删"差异，与策略（"算法替换"）互补 |
+| ④ 模板方法 | ⚠️ 精简引入 | 只作适用边界示范，差异点会增长就必须退化为策略 |
+| ⑤ 特性开关 | ❌ 刻意不给代码 | 防止反向诱导——拿 Toggle 承载实体差异正是 if-else 地狱的入口 |
+| ⑥ 流程引擎外置 | ✅ 已有 | 第七章 |
+| ⑦ 配置即数据 + Schema 驱动 | ✅ 引入 | 浅层高频差异的归处，与策略构成分工对照 |
+
+#### 5.8.1 管道：步骤增删差异
+
+策略模式解决"同一件事算法不同"，管道解决"流程步骤增删不同"（A 多一步风控、B 多一步审计）。核心层定义管道与步骤接口，**步骤列表由装配决定，核心层零实体判断**：
+
+```java
+public interface OrderStep {
+
+    String name();
+
+    void execute(OrderContext ctx);
+}
+
+@Component
+public class OrderPipeline {
+
+    private final List<OrderStep> steps;
+
+    public OrderPipeline(List<OrderStep> steps) {
+        // Spring 注入当前实体装配的全部步骤，按 @Order（或 Ordered 接口）排序。
+        // 与 5.2.5 同级 fail-fast：装配遗漏导致零步骤时注入空 List，启动即失败而非静默空转。
+        Assert.notEmpty(steps, "当前实体未装配任何 OrderStep，请检查 profile 与 platform.entity");
+        this.steps = steps;
+    }
+
+    public void run(OrderContext ctx) {
+        steps.forEach(step -> step.execute(ctx));
+    }
+}
+```
+
+```java
+// entity-alpha：比 beta 多一步风控
+@Component
+@Order(2)
+@Profile("alpha")
+public class RiskCheckStep implements OrderStep { /* ... */ }
+```
+
+冒烟测试增加一条断言：各实体 profile 下管道步骤序列符合预期（步骤名有序列表逐字比对）。管道与 Flowable 构成"轻/重"对照：步骤增删用管道；拓扑含分支、等待、人工任务才上引擎（第七章触发条件）。
+
+#### 5.8.2 模板方法：刻意精简的边界示范
+
+差异点少且永远稳定时最省，但它是继承体系，与组合式策略并存易混淆。只给一个带边界注释的示例：
+
+```java
+/**
+ * 适用边界：差异点 ≤ 2 且永远不会增长。
+ * 一旦差异点会增长（新实体要改中间步骤），必须退化为策略/管道——
+ * 继承体系的扩展成本随差异点数量线性恶化。
+ */
+public abstract class AbstractDocumentGenerator {
+
+    public final byte[] generate(DocumentData data) {   // 固定骨架（辅助方法体省略）
+        var doc = newDocument();
+        renderHeader(doc, header());                    // 差异点：实体实现
+        renderBody(doc, data);                          // 通用
+        renderFooter(doc, footer());                    // 差异点：实体实现
+        return toBytes(doc);
+    }
+
+    protected abstract HeaderModel header();   // 差异点返回领域内容，渲染逻辑留在骨架
+
+    protected abstract FooterModel footer();
+}
+```
+
+#### 5.8.3 配置即数据 + Schema 驱动：声明式约束的归处
+
+表单/校验规则/字段映射是最高频的浅层差异。规则存配置（ConfigMap / 数据库），core 只写解释器：
+
+```yaml
+# ConfigMap：alpha 的校验规则，改规则不发版
+platform:
+  validation:
+    rules:
+      - field: amount
+        max: 100000
+      - field: currency
+        in: [CNY, USD]
+```
+
+```java
+// 配置绑定：SB4 下用 record + 构造器绑定（呼应 5.0"public 字段宽松绑定已移除"）
+@ConfigurationProperties(prefix = "platform.validation")
+public record PlatformValidationProperties(List<Rule> rules) {
+
+    public record Rule(String field, Long max, List<String> in) {}
+}
+
+@Component
+@RequiredArgsConstructor
+public class SchemaDrivenValidator {
+
+    private final PlatformValidationProperties rules; // 配置即数据
+
+    public void validate(Order order) {
+        // 解释器：无实体判断，规则全来自配置
+    }
+}
+```
+
+关键纪律（与 8.1 第 5 条呼应）：**Schema 只能表达声明式约束**。一旦规则需要分支逻辑（"金额大于 X 且币种为 Y 时……"），立即升级为扩展点——禁止在 Schema 里发明 DSL 表达式语言，那是"字符串配置拼接逻辑"的变体，与 2.2 明确禁止的最差形态同源。
+
+#### 5.8.4 三种模式的分工三角
+
+| 差异类型 | 模式 | 判定 |
+| --- | --- | --- |
+| 同一件事，算法不同 | 策略 + 注册表 | 接口签名相同，实现替换 |
+| 流程步骤增删 | 管道 | 步骤列表不同，单步逻辑可复用 |
+| 约束/映射的数值不同 | Schema 驱动 | 能用声明式表达，无分支逻辑 |
+
+三者覆盖 2.1 差异维度中"业务流程 + 数据模型校验"的轻量侧；拿不准归属时默认策略模式——它是三者的安全兜底。
+
+### 5.9 对象健身操（Object Calisthenics）优化
+
+按 ThoughtWorks 对象健身操 9 条军规对 demo 代码体检。结论：骨架整体合规度较高（策略/注册表本身就是军规 2"不用 else"和军规 6"小对象"的产物），但有几处典型违例值得重构——它们同时也是可测试性与演进性的改进点。
+
+#### 军规 4「一行一个点」：OrderService 的链式调用（违例，重构）
+
+```java
+// ✗ 违例：policies.pricing().calculate(order) 两个点——
+// 应用层穿透了注册表的内部结构（先取策略、再调算法两步被调用方感知）
+var price = policies.pricing().calculate(order);
+```
+
+```java
+// ✓ 重构：把"取策略 + 执行"收敛为注册表的一个完整行为，
+// 调用方只说"做什么"，不知道策略的存在
+public Money priceFor(Order order) {
+    return pricingPolicies.get(EntityContext.current()).calculate(order);
+}
+
+// 应用层变为：
+var price = policies.priceFor(order);   // 一个点，Demeter 法则合规
+```
+
+> 收益不止合规：未来注册表内部机制升级（5.1.1 提到的纯函数化、或第九章的 ServiceLoader 发现），调用方零改动——"一行一个点"本质是封装边界的探针。
+
+#### 军规 3「封装原生类型与字符串」：标识与金额值对象化（违例，重构）
+
+demo 中 `order.getId()`、`platform.entity` 字符串配置、`Map.of("orderId", ...)` 都是裸值。引入值对象：
+
+```java
+public record OrderId(String value) {
+    public OrderId {
+        Assert.hasText(value, "OrderId 不能为空");
+    }
+}
+
+public record Money(BigDecimal amount, Currency currency) {
+    public Money {
+        Assert.notNull(amount, "金额不能为空");
+        if (amount.signum() < 0) throw new IllegalArgumentException("金额不能为负");
+    }
+}
+```
+
+```java
+// 端口签名同步升级——编译期就杜绝"把 entity 字符串传进 orderId 参数"
+Money calculate(Order order);
+String startApproval(Order order);   // 见 7.1：OrderId 由 order.id() 取，entity 由引擎适配层从上下文取
+```
+
+> 值对象的校验集中在构造器（compact constructor），消除了散落各处的 `if (amount < 0)`——这也是军规 1/2 的间接收益。`Money` 归 `domain.model`，`EntityType` 已是枚举（合规，不必再包）。
+>
+> **JPA 映射注意**：值对象进入持久化实体时，record 不能按 JPA 规范直接作 `@Embeddable`（规范要求无参构造 + 可变字段；Hibernate 6+ 对 record embeddable 的支持属实现扩展，不可移植）。可移植写法：为 `OrderId`/`Money` 各配一个 `@AttributeConverter`（如 `AttributeConverter<OrderId, String>`），领域层保持不可变 record，映射细节留在 `infrastructure.persistence`——与 5.1.1 的分层一致。
+
+#### 军规 8「一等集合」：Map 不裸奔（合规但可强化）
+
+`PolicyRegistry` 把 `Map<EntityType, PricingPolicy>` 藏在类内部、只暴露行为方法——已是一等集合的标准形态，**合规**。需要警惕的是反向退化：
+
+```java
+// ✗ 禁止：把内部 Map 暴露出去（哪怕 unmodifiable）
+public Map<EntityType, PricingPolicy> policies() { ... }
+
+// ✓ 只暴露行为：priceFor(order) / hasPolicy(entity)
+```
+
+冒烟测试若需要断言装配数量，通过专门的查询行为（`hasPolicy(type)`，包私有——冒烟测试与被测类放同包路径的 test 源集即可访问）或测试切片注入 `List<PricingPolicy>`，不要让测试需求倒逼封装破坏。
+
+#### 军规 9「不用 getter/setter」：配置类与领域对象（部分违例，重构）
+
+`PlatformProperties` 此前用 Lombok `@Data`（含 setter）——既是军规 9 违例，也与 5.0"SB4 移除 public 字段宽松绑定"冲突。统一改为不可变绑定：
+
+```java
+// ✓ record + 构造器绑定：无 setter，配置即不可变事实
+@ConfigurationProperties(prefix = "platform")
+public record PlatformProperties(EntityType entity) {
+
+    public PlatformProperties {
+        Assert.notNull(entity, "platform.entity 必须配置");
+    }
+}
+```
+
+> 绑定细节：record 属性类走构造器绑定（单构造器，无需 `@ConstructorBinding`），通过 `@EnableConfigurationProperties(PlatformProperties.class)` 或 `@ConfigurationPropertiesScan` 注册（不再标注 `@Component`）；compact constructor 的校验发生在**绑定阶段**，配置缺失即启动失败，无需 `@Validated`。
+
+**军规 9 的立场澄清**：它针对的是暴露可变状态的 JavaBean 式 getter/setter；record 访问器（`entity()`、`order.id()`）返回不可变值，属合规——`OrderId`/`Money` 即正例。领域对象同理：`Order` 不暴露 `getPrice()/setPrice()`，用行为方法表达业务语义（`order.priceTo(price)` 已是正确示范，保留）。需要读取的场景优先问"调用方拿这个值去干嘛"——把那个"干嘛"变成 `Order` 的方法。
+
+#### 军规 1/2「单层缩进、不用 else」：Filter 与上下文（合规，说明）
+
+`EntityContextFilter` 的 try/finally 是资源管理惯用法，不算 else 语义；`EntityContext.current()` 用 `Optional.orElseThrow` 替代 if-else——合规。若未来上下文解析变复杂（部署级 + Header 降级 + Token 解析），按军规应拆为职责链而非缩进嵌套：
+
+```java
+// 解析策略链，每个解析器一个职责、单层缩进
+public interface EntityResolver {
+    Optional<EntityType> resolve(HttpServletRequest request);
+}
+// Filter 中：resolvers.stream().map(r -> r.resolve(req))
+//         .flatMap(Optional::stream).findFirst().orElse(defaultEntity);
+```
+
+#### 军规 5/6/7：命名、小对象、实例变量（合规）
+
+- 不缩写（`PolicyRegistry` 而非 `PolicyReg`）、类保持单一职责（Filter/Registry/Pipeline 各自一件事）、每类实例变量 ≤2（各 demo 类均满足）——合规，作为持续 review 项保留。
+
+#### 体检结论速查
+
+| 军规 | 状态 | 处置 |
+| --- | --- | --- |
+| 1 单层缩进 | ✅ | 复杂化时用职责链 |
+| 2 不用 else | ✅ | `Optional.orElseThrow` 已示范 |
+| 3 封装原生类型 | ⚠️→✅ | 引入 `OrderId`/`Money` 值对象 |
+| 4 一行一个点 | ⚠️→✅ | `policies.priceFor(order)` 收敛行为 |
+| 5 不缩写 | ✅ | — |
+| 6 小对象 | ✅ | — |
+| 7 ≤2 实例变量 | ✅ | — |
+| 8 一等集合 | ✅ | 禁暴露内部 Map |
+| 9 无 getter/setter | ⚠️→✅ | `@Data` → record 构造器绑定 |
+
+> 落地方式：军规 3/4/9 的重构直接替换前文示例（5.2/5.5 的代码以上述版本为准）；8.1 检查清单新增第 12 条：领域对象禁 setter、应用层调用禁链式两点以上、标识与金额必须用值对象——由 ArchUnit（setter 检测）+ review 双重保证。
 
 ---
 
@@ -505,10 +861,11 @@ public class OrderApprovalService {
     public String startApproval(Order order) {
         // 流程变量只放轻量标识，不放实体对象（避免序列化与历史表膨胀）；
         // delegate 内按 orderId 重新加载领域对象
+        var orderId = order.id(); // OrderId 值对象（军规 3）
         return runtimeService.startProcessInstanceByKey(
                         "order-approval",
-                        order.getId(),
-                        Map.of("orderId", order.getId(),
+                        orderId.value(),
+                        Map.of("orderId", orderId.value(),
                                "entity", EntityContext.current().name()))
                 .getProcessInstanceId();
     }
@@ -574,7 +931,6 @@ per-entity 的 Flyway 治理（6.1）覆盖两部分：
 **③ 可观测性**
 
 - 日志/指标继续打 `entity` 标签；Flowable 的同步 delegate 运行在 Web 请求线程内，MDC 天然带上；但 **async 节点与 Job 执行器（AsyncExecutor）运行在引擎自有线程池**，5.2.3 的 `TaskDecorator` 不适用（那是 Spring `@Async` 的扩展点）。落地方式（放 core）：为 Flowable 的 SpringAsyncExecutor 提供自定义 `TaskExecutor`，包装 Runnable 复制 MDC/`entity` 上下文；或注册引擎事件监听器/`ProcessEngineLifecycleListener` 在 Job 入口打标。流程变量中显式携带的 `entity`（见 7.1 代码）作为双保险。
-- **注意 executor 包装的盲区**：引擎 acquisition 线程从 `ACT_RU_JOB` 拉取 Job 后才提交给 executor——提交线程本身没有请求上下文，装饰器必然捕获到空值而空转。因此「双保险」必须闭环：本骨架的 delegate 基类（`EntityContextAwareDelegate`）在执行入口检查上下文缺失时，从流程变量 `entity` 重建 `EntityContext` + MDC，执行后清理；executor 包装只覆盖"提交线程恰好在请求内"的少数路径。所有 delegate 强制继承该基类（ArchUnit 守护），禁止直接 `implements JavaDelegate`。
 - 按实体维度监控两个关键指标：活跃流程实例数、**死信 Job 数（deadletter job）**——后者是流程引擎最该告警的指标，非零即需人工介入。
 
 ### 7.4 冒烟测试扩展
@@ -661,7 +1017,7 @@ class AlphaProcessAssemblySmokeTest {
 
 ### 8.1 硬性规则（可落入团队编码标准）
 
-1. `platform-core` 中全文检索 `EntityType` / `platform.entity`，只允许出现在注册表、上下文、Filter 中，业务服务里出现即打回。
+1. `EntityType` / `platform.entity` 可见性矩阵（与 5.1.1 六边形分层对齐）：**允许**——`context`（定义）、`application.port`（注册表/管道解析）、`interfaces.filter`（边缘识别）、`infrastructure`（装配与打标）、`domain.port`（`supports()` 声明适配实体，属端口契约）；**禁止**——`domain.model/service/event`（ArchUnit 强制）、`application` 中除 `application.port` 外的用例编排代码（出现即打回）。
 2. 扩展点接口的实现类必须声明 `supports()` 且被 `@Profile` 限定；禁止 `@Profile` 与 `@ConditionalOnProperty` 双轨混用。
 3. 实体模块之间零相互依赖，core 不依赖任何实体模块（Maven Enforcer 强制）。
 4. 日志/指标必须带 `entity` 标签（ArchUnit 只能约束代码结构，MDC 属运行时行为——靠统一 Filter/切面 + 日志评审保证）。
@@ -672,6 +1028,7 @@ class AlphaProcessAssemblySmokeTest {
 9. 流程引擎运维纪律：`flowable.database-schema-update=false`（表结构归 Flyway 管）；业务表与 ACT_* 同库同事务管理器；每次升级 Flowable 版本须人工核对 ACT_* 差异并补 Flyway 脚本。
 10. delegate 纪律：单例无状态（字段禁存执行态）；禁止 delegate 内直接发 MQ（走 Outbox / AFTER_COMMIT）；HTTP 调用必须配超时且下游幂等。
 11. 事件纪律：有副作用的监听器必须 `@TransactionalEventListener(AFTER_COMMIT)`；流程关联一律用 businessKey；Event Registry 未匹配事件必须接监控。
+12. 领域对象禁 setter、应用层调用禁链式两点以上、标识与金额必须用值对象（5.9 军规 3/4/9）——setter 检测由 ArchUnit 强制，链式调用与值对象化靠 review。
 
 ### 8.2 Maven Enforcer 示例
 
@@ -704,17 +1061,21 @@ class AlphaProcessAssemblySmokeTest {
 @AnalyzeClasses(packages = "com.example.platform")
 class ArchitectureGuardTest {
 
-    @ArchTest
-    static final ArchRule 核心层不得感知实体枚举 =
-            noClasses()
-                    .that().resideInAPackage("..core.service..")
-                    .should().dependOnClassesThat().areAssignableTo(EntityType.class);
+    // 完整六边形分层规则见 5.1.1（onionArchitecture + 领域/应用层零实体感知）
+    // 以下保留两条与分层正交的专项规则：
 
     @ArchTest
     static final ArchRule 扩展点实现必须限定Profile =
             classes()
                     .that().implement(PricingPolicy.class)
                     .should().beAnnotatedWith(Profile.class);
+
+    @ArchTest
+    static final ArchRule 实体模块之间零依赖 =
+            noClasses().that().resideInAPackage("..entity.alpha..")
+                    .should().dependOnClassesThat().resideInAPackage("..entity.beta..")
+                    .andShould(noClasses().that().resideInAPackage("..entity.beta..")
+                            .should().dependOnClassesThat().resideInAPackage("..entity.alpha.."));
 }
 ```
 

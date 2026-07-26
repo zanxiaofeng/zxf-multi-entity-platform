@@ -2,8 +2,8 @@ package com.zxf.platform.alpha;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.zxf.platform.core.application.port.PolicyRegistry;
 import com.zxf.platform.core.context.PlatformProperties;
-import com.zxf.platform.core.policy.PolicyRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.util.TestPropertyValues;

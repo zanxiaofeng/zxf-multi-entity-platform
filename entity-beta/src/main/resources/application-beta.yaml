@@ -7,6 +7,13 @@
 #   platform.entity=beta  ↔  SPRING_PROFILES_ACTIVE=beta,prod  ↔  构建产物 -Pbeta
 platform:
   entity: beta
+  validation:
+    # Schema 驱动校验规则（文档 5.8.3）：Beta 只允许人民币且上限更严
+    rules:
+      - field: amount
+        max: 50000
+      - field: currency
+        in: [CNY]
 
 spring:
   datasource:

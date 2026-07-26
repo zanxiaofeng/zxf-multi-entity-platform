@@ -23,6 +23,14 @@ flowable:
   # BPMN 自动部署默认扫描 classpath*:/processes/：per-entity 流程定义随实体模块裁剪进产物，
   # 装配冒烟断言"同 key 定义数 == 1"防静默错路由（文档 7.2/7.4）
 
+# Flowable Job 执行器线程池（引擎自有线程）：默认值见 FlowableJobProperties，
+# 此处显式列出便于运维查阅；按实体差异化时在 application-{entity}.yaml 覆盖
+platform:
+  flowable-job:
+    core-pool-size: 2
+    max-pool-size: 4
+    queue-capacity: 100
+
 # 可观测性：/actuator/info 输出当前实体（EntityInfoContributor），接入监控巡检（文档 6.3）
 management:
   endpoints:
@@ -31,10 +39,12 @@ management:
         include: health,info
 
 # 所有日志带 entity 标签（文档 2.5）：MDC key 的唯一事实来源是 EntityContext.MDC_KEY，
-# 由 EntityContextFilter / TaskDecorator / delegate 基类写入，改动需同步下方 pattern
+# 由 EntityContextFilter / TaskDecorator / delegate 基类写入，改动需同步下方 pattern。
+# traceId 全链路（logging.md）：MDC key 唯一事实来源是 TraceIdFilter.MDC_KEY，
+# 上游 X-Trace-Id 白名单校验后注入、响应头回传
 logging:
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%15.15t] entity=%X{entity:-none} %-40.40logger{39} : %m%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%15.15t] entity=%X{entity:-none} trace=%X{traceId:-none} %-40.40logger{39} : %m%n"
 
 server:
   port: 8080

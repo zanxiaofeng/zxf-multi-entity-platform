@@ -8,8 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import com.zxf.platform.core.audit.AuditService;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
@@ -47,7 +47,7 @@ class AlphaOrderApiEndToEndTest {
 
     @Test
     void 下单按Alpha计价且创建后可查询() throws Exception {
-        var result = mockMvc.perform(post("/orders")
+        var result = mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"item\":\"widget\",\"quantity\":2}"))
                 .andExpect(status().isCreated())
@@ -55,7 +55,7 @@ class AlphaOrderApiEndToEndTest {
                 .andExpect(jsonPath("$.price.currency").value("CNY"))
                 .andReturn();
 
-        String orderId = String.valueOf((int) JsonPath.read(result.getResponse().getContentAsString(), "$.id"));
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
 
         String location = result.getResponse().getHeader("Location");
         mockMvc.perform(get(location))
@@ -71,7 +71,7 @@ class AlphaOrderApiEndToEndTest {
                 .containsExactly("alphaApproveL1");
         // 流程变量携带 entity 作异步 Job 线程的双保险（文档 7.3③）
         assertThat(runtimeService.getVariable(instance.getId(), "entity")).isEqualTo("ALPHA");
-        assertThat(runtimeService.getVariable(instance.getId(), "orderId")).isEqualTo(Long.valueOf(orderId));
+        assertThat(runtimeService.getVariable(instance.getId(), "orderId")).isEqualTo(orderId);
 
         // 异步审计：AFTER_COMMIT 事件 + @Async 监听器，实体上下文经 TaskDecorator 传播（文档 5.2.3 / 8.1 规则 11）
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
@@ -83,12 +83,12 @@ class AlphaOrderApiEndToEndTest {
 
     @Test
     void 审批走完后异步通知任务从流程变量重建实体上下文() throws Exception {
-        var result = mockMvc.perform(post("/orders")
+        var result = mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"item\":\"gadget\",\"quantity\":1}"))
                 .andExpect(status().isCreated())
                 .andReturn();
-        String orderId = String.valueOf((int) JsonPath.read(result.getResponse().getContentAsString(), "$.id"));
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
 
         var instance = runtimeService.createProcessInstanceQuery()
                 .processInstanceBusinessKey(orderId).singleResult();
@@ -125,18 +125,37 @@ class AlphaOrderApiEndToEndTest {
 
     @Test
     void 查询不存在订单返回404() throws Exception {
-        mockMvc.perform(get("/orders/999999"))
+        mockMvc.perform(get("/api/v1/orders/999999"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 非正数订单id返回400() throws Exception {
+        // @PathVariable @Positive（api-conventions）：0 与负数在控制器入口被方法校验拦截
+        mockMvc.perform(get("/api/v1/orders/0"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/orders/-1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 超过实体配置金额上限返回400() throws Exception {
+        // Schema 驱动校验（文档 5.8.3）：Alpha 上限 100000，113 * 1000 = 113000 越界——
+        // 管道在定价之后运行，IllegalArgumentException 经 RestExceptionHandler 映射 400
+        mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1000}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void 非法下单参数返回400() throws Exception {
         // Bean Validation 负例：空 item、非正 quantity 均应被 @Valid 拦截在控制器入口
-        mockMvc.perform(post("/orders")
+        mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"item\":\"\",\"quantity\":2}"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/orders")
+        mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"item\":\"widget\",\"quantity\":0}"))
                 .andExpect(status().isBadRequest());

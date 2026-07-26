@@ -2,11 +2,15 @@ package com.zxf.platform.alpha;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.zxf.platform.core.application.port.PolicyRegistry;
 import com.zxf.platform.core.context.EntityContext;
 import com.zxf.platform.core.context.EntityType;
 import com.zxf.platform.core.context.PlatformProperties;
-import com.zxf.platform.core.policy.PolicyRegistry;
-import com.zxf.platform.core.policy.PricingPolicy;
+import com.zxf.platform.core.domain.model.Money;
+import com.zxf.platform.core.domain.model.Order;
+import com.zxf.platform.core.domain.port.OrderStep;
+import com.zxf.platform.core.domain.port.PricingPolicy;
+import com.zxf.platform.core.domain.service.AbstractDocumentGenerator;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -22,10 +26,11 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 /**
- * Alpha 装配冒烟（文档 5.7）：防交叉污染——只装配 Alpha 实现且注册表可解析。
+ * Alpha 装配冒烟（文档 5.7）：防交叉污染——只装配 Alpha 实现且注册表可按当前实体计价；
+ * 管道步骤与单据生成器按实体各取所需（文档 5.8）。
  *
  * <p>轻量 Spring 上下文（不依赖 Boot 自动配置），随 entity-alpha 模块构建永远运行；
- * 完整启动级冒烟见 app 模块的 {@code @SpringBootTest} 矩阵。
+ * 完整启动级冒烟（含公共 Schema 步骤在内的全管道序列）见 app 模块的 {@code @SpringBootTest} 矩阵。
  */
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = AlphaAssemblySmokeTest.TestAssembly.class)
@@ -44,6 +49,12 @@ class AlphaAssemblySmokeTest {
     private List<PricingPolicy> policies;
 
     @Autowired
+    private List<OrderStep> orderSteps;
+
+    @Autowired
+    private List<AbstractDocumentGenerator> documentGenerators;
+
+    @Autowired
     private PolicyRegistry registry;
 
     @AfterEach
@@ -52,12 +63,22 @@ class AlphaAssemblySmokeTest {
     }
 
     @Test
-    void 只装配Alpha实现且注册表可解析() {
+    void 只装配Alpha实现且注册表可按当前实体计价() {
         assertThat(policies)
                 .extracting(PricingPolicy::supports)
                 .containsExactly(EntityType.ALPHA);
 
         EntityContext.set(EntityType.ALPHA);
-        assertThat(registry.pricing().supports()).isEqualTo(EntityType.ALPHA);
+        assertThat(registry.priceFor(Order.from("widget", 1)))
+                .isEqualTo(Money.cny("113.00")); // 100 * 1.13
+    }
+
+    @Test
+    void 装配Alpha专属管道步骤与单据生成器() {
+        // 本模块扫描仅含实体适配器：公共 Schema 步骤归 core，由 app 级冒烟断言完整序列
+        assertThat(orderSteps)
+                .extracting(OrderStep::name)
+                .containsExactly("risk-check");
+        assertThat(documentGenerators).hasSize(1);
     }
 }

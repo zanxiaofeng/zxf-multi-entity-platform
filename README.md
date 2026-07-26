@@ -38,7 +38,7 @@ SPRING_PROFILES_ACTIVE=beta SERVER_PORT=8081 java -jar app/target/app-1.0.0-SNAP
 验证计价差异（同一契约，不同 SPI 实现）：
 
 ```bash
-curl -X POST localhost:8080/orders -H 'Content-Type: application/json' \
+curl -X POST localhost:8080/api/v1/orders -H 'Content-Type: application/json' \
      -d '{"item":"widget","quantity":2}'
 # Alpha → {"price":{"amount":226.00,"currency":"CNY"}}   （200 × 1.13 增值税）
 # Beta  → {"price":{"amount":190.00,"currency":"CNY"}}   （200 × 0.95 折）
@@ -52,31 +52,36 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 
 | 文档章节 | 落点 |
 | --- | --- |
+| 5.1.1 六边形分包 | core = `interfaces.{filter,rest}` / `application{.command,.assembler,.port}` / `domain.{model,service,event,port}` / `infrastructure.{persistence,engine,observation}`（`onionArchitecture` ArchUnit 守护）；实体模块 = `adapter` 子包 |
 | 5.2.1 实体标识与上下文 | `core.context.EntityType` / `EntityContext`（含 JSpecify `@Nullable`） |
-| 5.2.2 边缘识别一次路由 | `EntityContextFilter`：上下文 + MDC 同一 try/finally 生命周期 |
-| 5.2.3 上下文传播 | `AsyncConfig.entityContextPropagator`（TaskDecorator）+ 显式 `applicationTaskExecutor`（虚拟线程 + `@Primary`） |
-| 5.2.4 / 5.2.5 扩展点与注册表 | `PricingPolicy` / `PolicyRegistry`（构造器启动期 fail-fast + 解析期 fail-loud） |
+| 5.2.2 边缘识别一次路由 | `interfaces.filter.EntityContextFilter`：上下文 + MDC 同一 try/finally 生命周期；`TraceIdFilter`（最前序）：`X-Trace-Id` 白名单校验 + MDC/响应头注入（logging.md） |
+| 5.2.3 上下文传播 | `AsyncConfig.entityContextPropagator`（TaskDecorator：EntityContext + 全量 MDC 快照，traceId 随车）+ 显式 `applicationTaskExecutor`（虚拟线程 + `@Primary`） |
+| 5.2.4 / 5.2.5 扩展点与注册表 | `domain.port.PricingPolicy` / `application.port.PolicyRegistry`（构造器启动期 fail-fast + `priceFor` 解析期 fail-loud；`hasPolicy` 包私有仅供装配冒烟） |
 | 5.3 SPI 模块 | `entity-alpha` / `entity-beta`，`@Profile` 限定，专属迁移脚本与 profile 配置（`application-{entity}.yaml`）随模块打包 |
 | 5.4 装配 | `app/pom.xml` Maven profile 裁剪 + 产物名带实体标识 + 无实体感知启动类 |
-| 5.5 通用逻辑 | `OrderService`：零实体判断（ArchUnit 守护） |
+| 5.5 通用逻辑 | `application.OrderApplicationService`：零实体判断（ArchUnit 守护） |
 | 5.7 装配冒烟矩阵 | 实体模块轻量装配测试 + app `@SpringBootTest`（按 `assembly.entity` 门控）+ 漂移负例 + GitHub Actions 矩阵 |
+| 5.8.1 管道编排 | `OrderPipeline` + `OrderStep`（domain.port 纯契约）：core 公共首步 `SchemaValidationStep`，实体第二步 `RiskCheckStep`（alpha）/ `AuditExtraStep`（beta），`@Order` 排序、装配冒烟逐字比对步骤名 |
+| 5.8.2 模板方法 | `domain.service.AbstractDocumentGenerator`（骨架 `final`）+ Alpha/Beta 页眉页脚实现（差异点 ≤ 2 的适用边界见类 Javadoc） |
+| 5.8.3 Schema 驱动校验 | `PlatformValidationProperties`（规则在 `application-{entity}.yaml`）+ `SchemaDrivenValidator`，违反 → 400（`RestExceptionHandler`），未知规则字段 → 配置缺陷显式失败 |
+| 5.9 对象健身操 | `OrderId`/`Money` 值对象（`MoneyConverter` autoApply 落 `price` 单列，V4 收敛 + V5 NOT NULL 补偿）；`policies.priceFor(order)` 单点调用；`PlatformProperties` record 构造器绑定 |
 | 6.1 Flyway 迁移 | `db/migration/common`（core）+ `db/migration/alpha\|beta`（实体模块），locations 按 `platform.entity` 组合 |
 | 6.3 配置一致性三防线 | 启动期 `PolicyRegistry` 校验 → CI 装配矩阵 → `/actuator/info` 实体巡检 |
 | 7.0 Flowable 版本硬性约束 | `flowable.version=8.0.0` + Enforcer 锚定 `org.flowable:*:*:[7.0.0,8.0.0)` 禁用 |
-| 7.1 流程拓扑差异外置 | `core.flow.OrderApprovalService`：只按契约 key（`order-approval`）发起实例；变量只放轻量标识 |
+| 7.1 流程拓扑差异外置 | `infrastructure.engine.OrderApprovalService`（实现 `domain.port.OrderApprovalPort`）：只按契约 key（`order-approval`）发起实例；变量只放轻量标识（`OrderId` 值对象） |
 | 7.2 部署级隔离 | BPMN 在实体模块 `processes/` 随 profile 裁剪：Alpha 风控+三级审批 / Beta 五级审批+审计留痕；专属 delegate `@Profile` 限定，通用 delegate 进 core |
 | 7.3② ACT_* 表治理 | `common/V3__flowable_engine_tables.sql`（提取自官方 jar 的 H2 DDL）+ `flowable.database-schema-update=false` |
 | 7.3③ 引擎线程可观测性 | `FlowableJobContextConfig`：`SpringAsyncExecutor` 挂 `EntityContextPropagatingTaskExecutor` 传播 MDC/entity；流程变量显式携带 `entity` 双保险——delegate 基类 `EntityContextAwareDelegate` 在 Job 线程从变量重建上下文（闭环，e2e 覆盖 async 通知任务） |
 | 7.4 流程装配冒烟 | `AlphaProcessAssemblySmokeTest` / `BetaProcessAssemblySmokeTest`：同 key 定义唯一、delegate 全装配、拓扑符合预期 |
 | 8.2 Maven Enforcer | core 禁依赖 `entity-*`；实体模块互禁依赖；app 强制要求 `assembly.entity`；Flowable 版本锚定 |
-| 8.3 ArchUnit | core 服务不得感知 `EntityType`/静态上下文；core 不做 BPMN 解析；扩展点实现必须 `@Profile` 限定；delegate 实例字段必须 final |
+| 8.3 ArchUnit | core 洋葱分层（`onionArchitecture`，适配器间互禁依赖）；白名单外不得感知 `EntityType`/静态上下文；领域核心（model/service/event）零实体感知；领域对象禁 setter；core 不做 BPMN 解析；扩展点/管道步骤实现必须 `@Profile` 限定；实体互禁依赖；delegate 实例字段必须 final |
 
 ## Spring Boot 4 适配点（文档 5.0 的实际落地）
 
 - **JDK 21**：虚拟线程经 `spring.threads.virtual.enabled=true` 开启（Enforcer 强制 JDK ≥ 21）。
 - **模块化拆包**：Flyway 自动配置在 `spring-boot-flyway` 模块，需显式引入；`@AutoConfigureMockMvc` 移至 `org.springframework.boot.webmvc.test.autoconfigure`（`spring-boot-webmvc-test` 模块）。
 - **Jackson 3**：DTO/命令对象用 record，Jackson 3 原生序列化，无需自定义适配。
-- **`@ConfigurationProperties`**：record 构造器绑定 + `@Validated`（`PlatformProperties`）。
+- **`@ConfigurationProperties`**：record 构造器绑定 + compact constructor 校验（`PlatformProperties`，无需 `@Validated`）。
 - **JSpecify**：`EntityContext.currentOrNull()`、`AuditEntry` 标注 `@Nullable`。
 
 ## 配置一致性（三个开关成对，文档 6.3）
@@ -91,7 +96,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 
 ## Review 硬性规则（文档 8.1，已由工具强制的部分）
 
-1. `platform-core` 业务代码出现 `EntityType` 引用 → ArchUnit 测试红（`core.flow` 为引擎适配层，与 Filter 同级豁免）。
+1. `platform-core` 白名单外的包出现 `EntityType`/`EntityContext` 引用 → ArchUnit 测试红（白名单：`context`、`application.port`、`interfaces.filter`、`infrastructure.*`、`domain.port`——`supports()` 声明适配实体属端口契约）。
 2. 扩展点实现未加 `@Profile` → ArchUnit 测试红。
 3. 实体模块相互依赖 / core 依赖实体模块 / Flowable 版本 < 8.0 → Enforcer 构建失败。
 4. 异步路径未传播上下文 → `EntityContextPropagatorTest` / `EntityContextPropagatingTaskExecutorTest` + 端到端审计断言守护。
@@ -99,6 +104,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 6. delegate 实例字段非 final（存执行态风险）→ ArchUnit 测试红；delegate 未继承 `EntityContextAwareDelegate`（绕过 Job 线程上下文重建）→ ArchUnit 测试红。
 7. `EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 需架构评审。
 8. 事务内副作用（审计等）必须走领域事件 + `@TransactionalEventListener(AFTER_COMMIT)`（文档 8.1 规则 11）。
+9. 领域对象出现 setter → ArchUnit 测试红；应用层链式调用超两点、标识/金额未用值对象 → review 打回（文档 8.1 规则 12）。
 
 ## Flowable 运维纪律（文档 7.3 / 8.1.9，需团队知晓的持续成本）
 
