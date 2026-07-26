@@ -338,6 +338,8 @@ public record PlatformProperties(EntityType entity) {
 
 > 本节的边缘 ThreadLocal 机制维持不变；应用层内部新建虚拟线程做结构化并发的场景，JDK 25 后可演进到 ScopedValue，见 9.1。
 
+> **`traceId` 由独立的 `TraceIdFilter` 注入**（`@Order(HIGHEST_PRECEDENCE)`，先于 `EntityContextFilter`）：从上游 `X-Trace-Id` 头取值并做白名单校验（防日志注入 / 响应头分裂 CRLF），缺失则生成 UUID；写入 MDC + 回写响应头，try/finally 清理。`EntityContextFilter` 只管 `entity` 键，`TraceIdFilter` 只管 `traceId` 键——两者写不同 MDC key、各自清理，5.11.3 logback pattern 中的 `%X{traceId:-}` 与 `%X{entity:-none}` 分别由这两个 Filter 兜底。
+
 #### 5.2.3 上下文传播（异步场景）
 
 ThreadLocal 不跨线程传播。以下场景必须显式处理，否则 `PolicyRegistry` 会在错误/空上下文中取策略——对定价类逻辑是资损级风险：
@@ -398,20 +400,21 @@ public class PolicyRegistry {
     private final Map<EntityType, PricingPolicy> pricingPolicies;
 
     public PolicyRegistry(List<PricingPolicy> policies, PlatformProperties properties) {
-        // 显式 merge：同实体出现双实现时抛带上下文的异常，
-        // 而非 toUnmodifiableMap 的 JDK 原生 "Duplicate key"（无实体名、无实现类名，排查成本高）
-        this.pricingPolicies = Map.copyOf(policies.stream()
-                .collect(Collectors.toMap(PricingPolicy::supports, Function.identity(),
+        // 显式 merge 函数：同实体出现双实现时抛带上下文的异常，
+        // 而非让 Collectors.toUnmodifiableMap 走默认路径抛裸 "Duplicate key"（无实体名、无实现类名，排查成本高）
+        this.pricingPolicies = policies.stream()
+                .collect(Collectors.toUnmodifiableMap(PricingPolicy::supports, Function.identity(),
                         (a, b) -> {
                             throw new IllegalStateException(
-                                    "实体 %s 装配了重复的 PricingPolicy 实现：%s 与 %s，请检查实体模块依赖与激活注解"
+                                    "实体 %s 装配了重复的 PricingPolicy 实现：%s 与 %s，请检查实体模块依赖与 @ForEntity 限定"
                                             .formatted(a.supports(), a.getClass().getName(), b.getClass().getName()));
-                        })));
+                        }));
         // 启动期防护：当前实体必须有且仅有一个实现装配，否则直接启动失败
         if (!pricingPolicies.containsKey(properties.entity())) {
             throw new IllegalStateException(
-                    "当前实体 %s 未装配 PricingPolicy，请检查 SPRING_PROFILES_ACTIVE 与 platform.entity 是否一致"
-                            .formatted(properties.entity()));
+                    "当前实体 %s 未装配 PricingPolicy，请检查构建产物（Maven profile）与 platform.entity 是否一致，"
+                            + "以及扩展点实现是否标注了 @ForEntity(%s)"
+                            .formatted(properties.entity(), properties.entity()));
         }
     }
 
@@ -553,6 +556,8 @@ platform:
   entity: alpha
 spring:
   datasource:
+    # 数据库选型由部署环境决定：示例为 Oracle（生产）；
+    # 本地开发用 PostgreSQL（5.7.1 compose）；测试用 H2 内存库（CLAUDE.md「Flowable 注意点」）
     url: jdbc:oracle:thin:@//alpha-db:1521/ALPHA
 ```
 
@@ -618,19 +623,31 @@ class AlphaAssemblySmokeTest {
 ```
 
 ```java
-// 负例：profile 与 platform.entity 漂移时启动必须失败
+// 负例：激活开关源不一致时启动必须失败（platform.entity 与装配的 @ForEntity 实现不匹配）
 // @SpringBootTest 无法在 @Test 内断言"启动失败"（启动失败即测试 ERROR，而非可断言的结果），
-// 必须用 ApplicationContextRunner 把启动过程变成可断言对象
+// 必须把"启动"变成可被断言的对象——ApplicationContextRunner 或 try-with-resources
+// AnnotationConfigApplicationContext + assertThatThrownBy 都可，二选一。Demo 用后者。
 class MisconfiguredAssemblyTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withUserConfiguration(PlatformApplication.class)
-            .withPropertyValues("platform.entity=beta", "spring.profiles.active=alpha");
+    @Configuration
+    @EnableConfigurationProperties(PlatformProperties.class)
+    @Import(PolicyRegistry.class)
+    @ComponentScan("com.zxf.platform.alpha")   // 装配 alpha 包内的 @ForEntity(ALPHA) 实现
+    static class TestAssembly {}
 
     @Test
-    void profile与entity不一致时启动失败() {
-        assertThat(runner).hasFailed().getFailure().rootCause()
-                .hasMessageContaining("未装配 PricingPolicy");
+    void 开关源不一致时上下文启动失败() {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().setActiveProfiles("alpha");
+            TestPropertyValues.of("platform.entity=beta").applyTo(context.getEnvironment());
+            context.register(TestAssembly.class);
+
+            // platform.entity=beta 但 alpha 包内只有 @ForEntity(ALPHA) 实现 → 容器没有 PricingPolicy
+            assertThatThrownBy(context::refresh)
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("未装配 PricingPolicy");
+        }
     }
 }
 ```
@@ -656,6 +673,8 @@ services:
   app-alpha:
     image: multi-entity-platform:latest
     environment:
+      # 本地开发省略 prod profile（生产部署按 5.4.3 用 SPRING_PROFILES_ACTIVE=alpha,prod）；
+      # alpha 仍需保留——激活 application-alpha.yaml 间接提供 platform.entity=alpha
       SPRING_PROFILES_ACTIVE: alpha
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-alpha:5432/alpha
     ports: ["8081:8080"]
