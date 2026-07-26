@@ -4,6 +4,7 @@ import com.zxf.platform.core.domain.model.Order;
 import com.zxf.platform.core.domain.model.OrderId;
 import com.zxf.platform.core.domain.port.OrderRepository;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
@@ -15,13 +16,10 @@ import org.springframework.util.Assert;
  * 包私有 Spring Data 接口 = {@code {Entity}JpaRepository}。
  */
 @Component
+@RequiredArgsConstructor
 public class OrderJpaAdapter implements OrderRepository {
 
     private final OrderJpaRepository delegate;
-
-    public OrderJpaAdapter(OrderJpaRepository delegate) {
-        this.delegate = delegate;
-    }
 
     @Override
     public Order save(Order order) {

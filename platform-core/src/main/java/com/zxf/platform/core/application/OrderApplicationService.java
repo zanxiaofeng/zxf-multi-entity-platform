@@ -10,6 +10,7 @@ import com.zxf.platform.core.domain.model.OrderId;
 import com.zxf.platform.core.domain.port.OrderApprovalPort;
 import com.zxf.platform.core.domain.port.OrderRepository;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import org.springframework.util.Assert;
 @Slf4j
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class OrderApplicationService {
 
     private final OrderRepository repository;
@@ -33,15 +35,6 @@ public class OrderApplicationService {
     private final OrderPipeline pipeline;
     private final OrderApprovalPort approval;
     private final ApplicationEventPublisher events;
-
-    public OrderApplicationService(OrderRepository repository, PolicyRegistry policies,
-            OrderPipeline pipeline, OrderApprovalPort approval, ApplicationEventPublisher events) {
-        this.repository = repository;
-        this.policies = policies;
-        this.pipeline = pipeline;
-        this.approval = approval;
-        this.events = events;
-    }
 
     /**
      * 创建订单：定价（策略端口）→ 管道步骤（装配差异）→ 持久化 → 发起审批（引擎端口）

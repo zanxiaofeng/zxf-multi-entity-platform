@@ -2,6 +2,7 @@ package com.zxf.platform.core.context;
 
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
@@ -22,13 +23,25 @@ public class EntityCondition extends SpringBootCondition {
 
     @Override
     public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
-        // getEnum 直接取枚举值：注解属性即 EntityType，与 supports() 同源，消除字符串漂移
-        var expected = metadata.getAnnotations().get(ForEntity.class).getEnum("value", EntityType.class);
-        var actual = context.getEnvironment().getProperty("platform.entity");
-        if (actual == null) {
-            return ConditionOutcome.noMatch("platform.entity 未配置（由 PlatformProperties 启动校验兜底报错）");
+        // 防御误用：本 Condition 仅服务于 @ForEntity 复合注解，禁止直接 @Conditional(EntityCondition.class)
+        // 绕过注解——否则下面 getEnum 会因 missing annotation 抛 NPE，错误信息毫无指向性
+        var annotation = metadata.getAnnotations().get(ForEntity.class);
+        if (!annotation.isPresent()) {
+            return ConditionOutcome.noMatch(
+                    "EntityCondition 仅服务于 @ForEntity 复合注解，请改用 @ForEntity 而非直接 @Conditional(EntityCondition.class)");
         }
-        return expected.name().equalsIgnoreCase(actual)
+        var expected = annotation.getEnum("value", EntityType.class);
+
+        // 走 Binder.bind 而非 getProperty + 字符串比对：与 PlatformProperties 的 @ConfigurationProperties
+        // 走同一套 relaxed binding（含大小写、连字符容忍），消除两条解析路径的语义漂移（5.3 唯一事实来源）
+        var actual = Binder.get(context.getEnvironment())
+                .bind("platform.entity", EntityType.class)
+                .orElse(null);
+        if (actual == null) {
+            return ConditionOutcome.noMatch("platform.entity 未配置或无法解析为 EntityType"
+                    + "（由 PlatformProperties 启动校验兜底报错）");
+        }
+        return expected == actual
                 ? ConditionOutcome.match("entity=" + actual)
                 : ConditionOutcome.noMatch("期望 entity=" + expected + "，实际=" + actual);
     }

@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskDecorator;
@@ -23,15 +24,11 @@ import org.springframework.core.task.TaskDecorator;
  * 上下文（装饰空转）——entity 由 delegate 基类从流程变量重建；traceId 不重建（保持
  * {@code none}，那是追踪系统的 span 语义，不作流程变量传播）。
  */
+@RequiredArgsConstructor
 public class EntityContextPropagatingTaskExecutor implements AsyncTaskExecutor {
 
     private final AsyncTaskExecutor delegate;
     private final TaskDecorator decorator;
-
-    public EntityContextPropagatingTaskExecutor(AsyncTaskExecutor delegate, TaskDecorator decorator) {
-        this.delegate = delegate;
-        this.decorator = decorator;
-    }
 
     @Override
     public void execute(Runnable task) {

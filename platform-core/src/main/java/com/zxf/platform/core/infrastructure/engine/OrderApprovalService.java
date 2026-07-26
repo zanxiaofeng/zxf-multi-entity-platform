@@ -4,6 +4,7 @@ import com.zxf.platform.core.context.EntityContext;
 import com.zxf.platform.core.domain.model.Order;
 import com.zxf.platform.core.domain.port.OrderApprovalPort;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.flowable.engine.RuntimeService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,16 +27,13 @@ import org.springframework.util.Assert;
  * <p>stereotype 统一：基础设施适配器一律 {@code @Component}（与 persistence 适配器一致）。
  */
 @Component
+@RequiredArgsConstructor
 public class OrderApprovalService implements OrderApprovalPort {
 
     /** 内核与实体模块之间的契约：两个实体各自部署同 key、不同拓扑的流程定义（文档 7.2）。 */
     public static final String ORDER_APPROVAL_KEY = "order-approval";
 
     private final RuntimeService runtimeService;
-
-    public OrderApprovalService(RuntimeService runtimeService) {
-        this.runtimeService = runtimeService;
-    }
 
     /**
      * 发起订单审批流程实例，返回流程实例 ID。

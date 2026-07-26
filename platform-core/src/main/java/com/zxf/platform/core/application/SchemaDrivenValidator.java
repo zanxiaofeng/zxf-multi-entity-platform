@@ -4,6 +4,7 @@ import com.zxf.platform.core.application.PlatformValidationProperties.Rule;
 import com.zxf.platform.core.domain.model.Money;
 import com.zxf.platform.core.domain.model.Order;
 import java.math.BigDecimal;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
@@ -15,13 +16,10 @@ import org.springframework.util.Assert;
  * {@link IllegalStateException}（配置缺陷，属编程错误）。
  */
 @Component
+@RequiredArgsConstructor
 public class SchemaDrivenValidator {
 
     private final PlatformValidationProperties properties;
-
-    public SchemaDrivenValidator(PlatformValidationProperties properties) {
-        this.properties = properties;
-    }
 
     /**
      * 按当前实体配置的规则逐条校验订单。
