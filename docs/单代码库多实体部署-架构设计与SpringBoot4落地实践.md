@@ -7,6 +7,8 @@
 
 ## 目录
 
+> 仅列章节与重点子章节（模式落点 / 纪律章节）；完整子章节层级（如 5.10.1~3、5.11.1~2、6.2.1~2、6.3.1~4、7.5.1~4）见正文标题。
+
 - [一、问题本质与核心原则](#一问题本质与核心原则)
 - [二、架构设计层面的关键注意点](#二架构设计层面的关键注意点)
 - [三、可用的架构与设计模式](#三可用的架构与设计模式)
@@ -445,6 +447,8 @@ global 任务用 ShedLock 选主。**注意：严格分库下没有共享库可�
 // 方案一：Redis 锁存储（团队已有 Redis 时首选）
 @Bean
 public LockProvider lockProvider(RedisConnectionFactory connectionFactory) {
+    // 第二参数 "platform-locks" 是 Redis key 前缀（所有锁键的命名空间）；
+    // 具体锁名在 @SchedulerLock(name = "...") 上按任务命名——见下方 globalReconciliation
     return new RedisLockProvider(connectionFactory, "platform-locks");
 }
 ```
@@ -453,6 +457,7 @@ public LockProvider lockProvider(RedisConnectionFactory connectionFactory) {
 // 方案二：K8s Lease 锁存储（无中间件依赖，shedlock-provider-kubernetes-fabric8，基于 Lease 对象）
 @Bean
 public LockProvider lockProvider(KubernetesClient client) {
+    // 第二参数同理：Lease 对象的命名空间前缀，锁名在 @SchedulerLock(name = "...") 上
     return new KubernetesLockProvider(client, "platform-locks");
 }
 ```
@@ -754,13 +759,16 @@ public class RiskCheckStep implements OrderStep { /* ... */ }
  */
 public abstract class AbstractDocumentGenerator {
 
-    public final byte[] generate(DocumentData data) {   // 固定骨架（辅助方法体省略）
+    public final byte[] generate(DocumentData data) {   // 固定骨架（final 防子类覆写改流程）
         var doc = newDocument();
-        renderHeader(doc, header());                    // 差异点：实体实现
+        renderHeader(doc, header());                    // 差异点：实体实现 header()
         renderBody(doc, data);                          // 通用
-        renderFooter(doc, footer());                    // 差异点：实体实现
+        renderFooter(doc, footer());                    // 差异点：实体实现 footer()
         return toBytes(doc);
     }
+    // ↑ 骨架内调用的 newDocument / renderHeader / renderBody / renderFooter / toBytes
+    //   均为本类 protected 辅助方法（封装 PDF/HTML 渲染细节，实现省略）；
+    //   子类只实现下方两个 abstract 差异点，不接触渲染机制。
 
     protected abstract HeaderModel header();   // 差异点返回领域内容，渲染逻辑留在骨架
 
@@ -993,7 +1001,7 @@ public interface EntityCapability {
 
     EntityType entity();
 
-    /** 本模块提供的扩展点类型集合（如 PricingPolicy.class、OrderValidator.class） */
+    /** 本模块提供的扩展点类型集合（如 PricingPolicy.class；OrderValidator 等其他扩展点见 6.4 / 后续章节） */
     Set<Class<?>> providedPolicies();
 
     String moduleVersion();
@@ -1011,7 +1019,8 @@ public class AlphaCapability implements EntityCapability {
 
     @Override
     public Set<Class<?>> providedPolicies() {
-        return Set.of(PricingPolicy.class, OrderValidator.class);
+        // OrderValidator 等其他扩展点按工程实际补齐（见 6.4 / 后续章节）
+        return Set.of(PricingPolicy.class);
     }
 
     @Override
@@ -1145,7 +1154,7 @@ public class EntityObservationFilter implements ObservationFilter {
 
 日志支柱的实体打标散点（5.2.2 Filter、7.3③ 引擎 Job 线程、8.5 兜底清理）在此汇总为一份规范：
 
-- **MDC 键命名统一**：全平台只用三个业务键——`entity`（实体标识，唯一强制）、`orderId`（业务主键，按需）、`processInstanceId` / `activityId`（流程上下文，7.5.2）。禁止各模块自造同义词（`entityType`、`tenant`、`biz`），Splunk 检索与告警模板依赖键名稳定。
+- **MDC 键命名统一**：全平台业务键收敛到三个维度、四个键——`entity`（实体标识，唯一强制）、`orderId`（业务主键，按需）、`processInstanceId` / `activityId`（流程上下文，7.5.2，按需）。禁止各模块自造同义词（`entityType`、`tenant`、`biz`），Splunk 检索与告警模板依赖键名稳定。
 - **写入点唯一**：`entity` 只在 `EntityContextFilter`（5.2.2）与异步传播包装器（5.2.3 TaskDecorator、7.3③ Flowable Job 包装）中写入；业务代码只读不写，防覆盖污染。
 - **logback pattern 示例**（MDC 键前置，便于按列切分）：
 
@@ -1320,7 +1329,7 @@ public class AlphaOrderValidator implements OrderValidator {
 | 类别 | 定义 | 定序与回滚 |
 | --- | --- | --- |
 | ① 纯实体变更 | 只动实体模块代码 + 该实体库的迁移脚本 | 单实体独立发布/灰度/回滚，另一侧完全无感 |
-| ② 内核兼容变更 | core 变更但 SPI/API/schema 向后兼容 | 发布顺序任意；但**两个产物都必须重建**，且先在另一侧跑装配冒烟（5.7 矩阵）再发布——兼容变更也可能改变装配面 |
+| ② 内核兼容变更 | core 变更但 SPI/API/schema 向后兼容 | 灰度顺序无强制要求（不像 ③ 类要 expand 先行双侧协调）；但**两个产物都必须重建并跑过装配冒烟**（5.7 矩阵）后再发布——兼容变更也可能改变装配面 |
 | ③ 内核破坏性变更 | SPI 签名、共享 API/schema、路由键的破坏性变更（8.6） | expand 先行双侧（新结构两个实体都可用）→ 双侧都越过兼容点 → contract；**回滚只允许发生在 expand 阶段**，contract 后视为不可逆（与 6.1 迁移回滚策略同源） |
 
 **灰度单位是实体，不是 Pod。** 同一实体内的滚动发布是部署细节；跨实体的灰度顺序才是发布策略——变更先全量发到 beta（或流量较小的一侧），观察 `entity` 维度告警（5.11 指标标签正是为此存在）至少一个业务周期，确认无回归再发 alpha。回滚同理：只回滚出问题的一侧。

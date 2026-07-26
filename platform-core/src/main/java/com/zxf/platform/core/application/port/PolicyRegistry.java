@@ -42,8 +42,9 @@ public class PolicyRegistry {
         // 启动期防护：当前实体必须有且仅有一个实现装配，否则直接启动失败
         if (!pricingPolicies.containsKey(properties.entity())) {
             throw new IllegalStateException(
-                    "当前实体 %s 未装配 PricingPolicy，请检查 SPRING_PROFILES_ACTIVE 与 platform.entity 是否一致"
-                            .formatted(properties.entity()));
+                    "当前实体 %s 未装配 PricingPolicy，请检查构建产物（Maven profile）与 platform.entity 是否一致，"
+                            + "以及扩展点实现是否标注了 @ForEntity(%s)"
+                            .formatted(properties.entity(), properties.entity()));
         }
     }
 
