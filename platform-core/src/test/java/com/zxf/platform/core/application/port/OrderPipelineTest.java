@@ -9,15 +9,24 @@ import com.zxf.platform.core.domain.port.OrderStep;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-/** 文档 5.8.1：管道按装配顺序执行；零步骤装配启动期 fail-fast。 */
+/** 文档 5.8.1：管道按装配顺序执行；零步骤装配启动期 fail-fast（{@code @PostConstruct} 校验）。 */
 class OrderPipelineTest {
 
     @Test
     void 零步骤装配启动失败() {
-        assertThatThrownBy(() -> new OrderPipeline(List.of()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("OrderStep");
+        // 校验在 @PostConstruct（OrderPipeline.validateAssembly），纯 new 不触发——
+        // 用 ApplicationContext 启动让 Spring 走完整 bean 生命周期（含 @PostConstruct），
+        // 断言"初始化失败"（启动期 fail-fast，时机等价于原构造期校验）
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.register(OrderPipeline.class);
+            // 容器中没有任何 OrderStep bean → Spring 注入空 List → @PostConstruct 抛 IllegalArgumentException
+            assertThatThrownBy(context::refresh)
+                    .rootCause()
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("OrderStep");
+        }
     }
 
     @Test
