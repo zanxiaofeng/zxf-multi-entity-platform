@@ -1,9 +1,10 @@
 package com.zxf.platform.beta.adapter;
 
+import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.model.FooterModel;
 import com.zxf.platform.core.domain.model.HeaderModel;
 import com.zxf.platform.core.domain.service.AbstractDocumentGenerator;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Component;
  * 差异点少且稳定时模板方法最省，这是它的适用边界。
  */
 @Component
-@Profile("beta")
+@ForEntity(EntityType.BETA)
 public class BetaDocumentGenerator extends AbstractDocumentGenerator {
 
     @Override

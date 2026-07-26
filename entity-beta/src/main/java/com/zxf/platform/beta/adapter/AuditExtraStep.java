@@ -1,9 +1,10 @@
 package com.zxf.platform.beta.adapter;
 
+import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.model.OrderContext;
 import com.zxf.platform.core.domain.port.OrderStep;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
@@ -15,7 +16,7 @@ import org.springframework.util.Assert;
 @Slf4j
 @Component
 @Order(2)
-@Profile("beta")
+@ForEntity(EntityType.BETA)
 public class AuditExtraStep implements OrderStep {
 
     @Override

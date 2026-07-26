@@ -80,6 +80,28 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- 生成 test-jar：发布测试支持类（如扩展点契约测试基类，文档 8.4）供实体模块继承。
+                 Maven 默认 test 源集不打包；test-jar 让 platform-core 的测试基础设施可被
+                 entity-alpha / entity-beta 以 <type>test-jar</type> 引用。
+                 includes 只发布抽象契约基类（*ContractTest），不发布具体测试用例
+                 （MoneyTest / OrderTest / ArchitectureGuardTest 等——它们是 platform-core
+                 自测用的，与实体模块无关，发布出去是 classpath 噪音与发布面失控）。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/*ContractTest.class</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

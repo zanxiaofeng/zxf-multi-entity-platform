@@ -1,9 +1,10 @@
 package com.zxf.platform.alpha.adapter;
 
+import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.model.FooterModel;
 import com.zxf.platform.core.domain.model.HeaderModel;
 import com.zxf.platform.core.domain.service.AbstractDocumentGenerator;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Component;
  * 骨架与正文渲染在 core——差异点超过两个或会增长时，退化为策略/管道。
  */
 @Component
-@Profile("alpha")
+@ForEntity(EntityType.ALPHA)
 public class AlphaDocumentGenerator extends AbstractDocumentGenerator {
 
     @Override

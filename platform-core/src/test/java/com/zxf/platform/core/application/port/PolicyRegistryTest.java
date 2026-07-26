@@ -49,7 +49,7 @@ class PolicyRegistryTest {
 
     @Test
     void 同一实体装配多个实现时启动失败且消息可定位() {
-        // 误加第二个 @Profile("alpha") 实现 / 双 profile 同时激活：报错应指向修复动作
+        // 误加第二个 @ForEntity(ALPHA) 实现 / 双实体激活注解同时生效：报错应指向修复动作
         assertThatThrownBy(() ->
                 new PolicyRegistry(List.of(alphaPolicy, stub(EntityType.ALPHA, Money.cny("3.00"))),
                         new PlatformProperties(EntityType.ALPHA)))

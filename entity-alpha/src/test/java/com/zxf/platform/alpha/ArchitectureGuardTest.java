@@ -8,15 +8,17 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.port.OrderStep;
 import com.zxf.platform.core.domain.port.PricingPolicy;
 import com.zxf.platform.core.infrastructure.engine.EntityContextAwareDelegate;
 import org.flowable.engine.delegate.JavaDelegate;
-import org.springframework.context.annotation.Profile;
 
 /**
- * 架构守护（文档 8.1.2 / 8.3）：扩展点接口的实现类必须声明 {@code supports()} 且被
- * {@code @Profile} 限定；禁止 {@code @Profile} 与 {@code @ConditionalOnProperty} 双轨混用。
+ * 架构守护（文档 8.1.2 / 8.3 / 5.10.1）：扩展点接口的实现类必须声明 {@code supports()} 且被
+ * {@code @ForEntity} 复合注解限定（单一开关源 {@code platform.entity}）；禁止再散落裸
+ * {@code @Profile} / {@code @ConditionalOnProperty} 硬编码形成双轨——断言精确到
+ * {@code @ForEntity}（而非任意 {@code @Conditional} 元注解），把双轨路堵死。
  * delegate 纪律（文档 8.1.10）：单例无状态——实例字段必须 final（禁存执行态）；
  * delegate 必须继承 {@link EntityContextAwareDelegate}（文档 7.3③：Job 线程上下文重建，
  * 禁止直接 implements JavaDelegate 绕过基类）。
@@ -26,14 +28,14 @@ import org.springframework.context.annotation.Profile;
 class ArchitectureGuardTest {
 
     @ArchTest
-    static final ArchRule 扩展点实现必须限定Profile = classes()
+    static final ArchRule 扩展点实现必须限定ForEntity = classes()
             .that().implement(PricingPolicy.class)
-            .should().beAnnotatedWith(Profile.class);
+            .should().beAnnotatedWith(ForEntity.class); // 精确到 @ForEntity，堵死 @Profile/@ConditionalOnProperty 双轨
 
     @ArchTest
-    static final ArchRule 管道步骤实现必须限定Profile = classes()
+    static final ArchRule 管道步骤实现必须限定ForEntity = classes()
             .that().implement(OrderStep.class)
-            .should().beAnnotatedWith(Profile.class);
+            .should().beAnnotatedWith(ForEntity.class);
 
     @ArchTest
     static final ArchRule 实体模块之间零依赖 = noClasses()

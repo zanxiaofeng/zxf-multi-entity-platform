@@ -35,15 +35,16 @@ public class PolicyRegistry {
                             // 同一实体撞 key：误加第二个实现或双 profile 同时激活——
                             // 与下方"未装配"一样给出指向修复动作的消息，而非裸的 Duplicate key
                             throw new IllegalStateException(
-                                    "实体 %s 装配了多个 PricingPolicy（%s / %s），同一实体必须有且仅有一个实现，请检查 @Profile 限定"
+                                    "实体 %s 装配了多个 PricingPolicy（%s / %s），同一实体必须有且仅有一个实现，请检查 @ForEntity 限定"
                                             .formatted(first.supports(),
                                                     first.getClass().getName(), second.getClass().getName()));
                         }));
         // 启动期防护：当前实体必须有且仅有一个实现装配，否则直接启动失败
         if (!pricingPolicies.containsKey(properties.entity())) {
             throw new IllegalStateException(
-                    "当前实体 %s 未装配 PricingPolicy，请检查 SPRING_PROFILES_ACTIVE 与 platform.entity 是否一致"
-                            .formatted(properties.entity()));
+                    "当前实体 %s 未装配 PricingPolicy，请检查构建产物（Maven profile）与 platform.entity 是否一致，"
+                            + "以及扩展点实现是否标注了 @ForEntity(%s)"
+                            .formatted(properties.entity(), properties.entity()));
         }
     }
 

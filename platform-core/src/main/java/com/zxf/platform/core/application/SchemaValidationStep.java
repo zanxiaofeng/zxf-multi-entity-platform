@@ -2,6 +2,7 @@ package com.zxf.platform.core.application;
 
 import com.zxf.platform.core.domain.model.OrderContext;
 import com.zxf.platform.core.domain.port.OrderStep;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -11,13 +12,10 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(1)
+@RequiredArgsConstructor
 public class SchemaValidationStep implements OrderStep {
 
     private final SchemaDrivenValidator validator;
-
-    public SchemaValidationStep(SchemaDrivenValidator validator) {
-        this.validator = validator;
-    }
 
     @Override
     public String name() {

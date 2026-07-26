@@ -1,6 +1,7 @@
 package com.zxf.platform.core.infrastructure.engine;
 
 import com.zxf.platform.core.domain.port.AuditPort;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.springframework.stereotype.Component;
@@ -21,13 +22,10 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component("sendNotificationDelegate")
+@RequiredArgsConstructor
 public class SendNotificationDelegate extends EntityContextAwareDelegate {
 
     private final AuditPort audit;
-
-    public SendNotificationDelegate(AuditPort audit) {
-        this.audit = audit;
-    }
 
     @Override
     protected void doExecute(DelegateExecution execution) {

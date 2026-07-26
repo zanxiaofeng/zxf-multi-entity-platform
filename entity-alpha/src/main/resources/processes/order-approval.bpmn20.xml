@@ -15,7 +15,7 @@
         <startEvent id="start"/>
         <sequenceFlow id="flow-start-risk" sourceRef="start" targetRef="alphaRiskCheck"/>
 
-        <!-- 实体专属任务：委托表达式引用 @Profile("alpha") 限定的 Spring bean（文档 7.2 落地要点 3） -->
+        <!-- 实体专属任务：委托表达式引用 @ForEntity(EntityType.ALPHA) 限定的 Spring bean（文档 7.2 落地要点 3 / 5.10.1） -->
         <serviceTask id="alphaRiskCheck" name="Alpha 风控检查"
                      flowable:delegateExpression="${alphaRiskCheckDelegate}"/>
         <sequenceFlow id="flow-risk-l1" sourceRef="alphaRiskCheck" targetRef="alphaApproveL1"/>

@@ -1,27 +1,27 @@
 package com.zxf.platform.alpha.adapter;
 
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.model.Money;
 import com.zxf.platform.core.domain.model.Order;
 import com.zxf.platform.core.domain.port.PricingPolicy;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 /**
  * Alpha 专属计价：基础价之上叠加 13% 增值税。
  *
- * <p>约束（文档 5.3 / 7.1）：
+ * <p>约束（文档 5.3 / 5.10.1 / 7.1）：
  * <ul>
- *   <li>扩展点实现必须 {@code @Profile} 限定（ArchUnit 守护）；</li>
+ *   <li>扩展点实现必须 {@code @ForEntity} 限定（ArchUnit 守护，元注解 @Conditional）；</li>
  *   <li>禁止调用 entity-beta 模块的任何类（Maven Enforcer 守护）；</li>
- *   <li>Alpha 专属的流程定义、校验规则、外部系统适配器同样放本模块，用 {@code @Profile("alpha")} 限定。</li>
+ *   <li>Alpha 专属的流程定义、校验规则、外部系统适配器同样放本模块，用 {@code @ForEntity(EntityType.ALPHA)} 限定。</li>
  * </ul>
  */
 @Component
-@Profile("alpha")
+@ForEntity(EntityType.ALPHA)
 public class AlphaPricingPolicy implements PricingPolicy {
 
     private static final BigDecimal BASE_UNIT_PRICE = new BigDecimal("100.00");
