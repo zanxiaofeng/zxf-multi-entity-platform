@@ -19,7 +19,7 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 ## 硬性约束（改动前必读）
 
 - 依赖单向：`entity-* → platform-core`，`app → platform-core`；core 禁依赖实体模块、实体模块互禁依赖（Maven Enforcer 强制）
-- `application`（除 `application.port`）与 `domain` 核心包禁止引用 `EntityType`/`EntityContext`（ArchUnit 强制）；差异一律走 `PricingPolicy` 式扩展点 + `@Profile` 限定
+- `application`（除 `application.port`）与 `domain` 核心包禁止引用 `EntityType`/`EntityContext`（ArchUnit 强制）；差异一律走 `PricingPolicy` 式扩展点 + `@ForEntity` 限定（5.10.1 已落地，不再用裸 `@Profile`）
 - `EntityContext` 为 ThreadLocal，仅限同步 Servlet 栈；`@Async` 必须经 `TaskDecorator` 传播
 - 日志/指标必须带 `entity` 维度（MDC 由 `EntityContextFilter`/`TaskDecorator` 写入）；`traceId` 由 `TraceIdFilter` 注入（上游 `X-Trace-Id` 白名单校验），`@Async`/引擎任务经全量 MDC 快照随车传播
 - Flowable delegate 一律继承 `EntityContextAwareDelegate`（Job 线程从流程变量重建上下文），禁止直接 `implements JavaDelegate`（实体模块 ArchUnit 强制）

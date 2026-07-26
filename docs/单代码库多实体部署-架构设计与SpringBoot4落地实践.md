@@ -1015,6 +1015,8 @@ public @interface ForEntity {
 
 #### 5.10.2 实体能力自描述（Capability Manifest）
 
+> 落地状态：**未落地**（路线图 P0）。当前工程没有 `EntityCapability` 接口与 `AlphaCapability` / `BetaCapability` 实现；本节描述的是目标设计，落地时按下方代码骨架实现。`@ForEntity`（5.10.1）已为能力自描述铺好基础——`EntityCapability` 实现类同样用 `@ForEntity` 限定。
+
 每个实体模块提供一个能力清单 bean，把"这个模块为哪个实体、覆盖哪些扩展点、什么版本"变成可编程查询的事实：
 
 ```java
