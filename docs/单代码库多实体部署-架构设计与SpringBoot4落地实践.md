@@ -1011,6 +1011,8 @@ public @interface ForEntity {
 
 扩展点统一标注 `@ForEntity(EntityType.ALPHA)` 替代裸 `@Profile("alpha")`——注解值与 `supports()` 返回值、`EntityType` 枚举收敛为**同一份编译期事实**（若用裸字符串则与枚举、supports() 构成三份事实，改名/新增实体时三处易漂移），激活语义、失败信息、`supports()` 校验（5.2.5 不变，仍是启动期兜底）全部收口到一处。8.4 契约测试基类相应增加一条"注解声明的实体与 `supports()` 一致"断言（见 8.4）。检查清单 8.1 第 2 条与 8.3 的 ArchUnit 规则同步更新为约束复合注解。
 
+> **设计权衡：为何 `@ForEntity` 与 `supports()` 并存（两份事实）？** 直觉上两者似乎可以合并——让注册表反射读 `@ForEntity` 的 value、从接口去掉 `supports()`。但两者职责不同：`supports()` 是 **SPI 契约**的一部分（注册表、其他策略消费方按签名编程，纯 Java 接口不依赖 Spring）；`@ForEntity` 是 **Spring 装配元数据**（条件评估消费它决定 bean 是否注册）。合并意味着要么接口依赖反射（失去"纯 Java 接口"的测试性与 IoC 容器无关性），要么注册表依赖 Spring 注解（失去容器可替换性）。两份事实的代价是"可能漂移"，由 8.4 契约测试兜底——这是显式的设计选择，不是疏漏。
+
 #### 5.10.2 实体能力自描述（Capability Manifest）
 
 每个实体模块提供一个能力清单 bean，把"这个模块为哪个实体、覆盖哪些扩展点、什么版本"变成可编程查询的事实：
@@ -1101,7 +1103,7 @@ public class PlatformApplication {
 
 3. **构建期装配报告**：CI 对两个产物分别执行 `mvn dependency:tree`，把两份树 diff 作为构建产物归档——diff 应只含实体模块自身及其专属依赖；出现意外的公共库版本分叉，说明依赖管理被绕过。与 5.10.2 的装配报告互补：装配报告管"bean 面"，依赖树 diff 管"jar 面"。
 
-另加一道**构建期防护**：app 的 alpha/beta 两个 Maven profile 必须互斥——误执行 `mvn -Palpha,beta` 时两个实体模块同时进 classpath，装配冒烟的"同 key 唯一"断言（7.4）能兜住，但构建期直接失败更早更省。在 app 的 pom 中用 Enforcer 自定义规则或 `maven-enforcer-plugin` 的 `evaluateBeanshell` 检查 activeProfiles 互斥；或更稳妥：构建脚本入口封装为 `build.sh alpha|beta`，禁止直接传多 profile。
+另加一道**构建期防护**：app 的 alpha/beta 两个 Maven profile 必须互斥——误执行 `mvn -Palpha,beta` 时两个实体模块同时进 classpath，装配冒烟的"同 key 唯一"断言（7.4）能兜住，但构建期直接失败更早更省。落地方式按稳妥度递增三选一：(a) `build.sh alpha|beta` 封装构建脚本入口，禁止直接传多 profile（**推荐**，最简单可靠）；(b) 自定义 Enforcer 规则（实现成本较高，需写 `EnforcerRule` 实现类）；(c) `maven-enforcer-plugin` 自带的 `evaluateBeanshell` 规则求值 `${project.activeProfiles}`——可行但跨 Maven 版本字段形态不稳定，调试成本高，不推荐作为首选。
 
 ### 5.11 可观测性深化：三支柱打实体标签
 
@@ -1632,7 +1634,12 @@ class ArchitectureGuardTest {
     // 自检：防静默失效——断言实体包确实被导入，否则下列规则全是空转
     @ArchTest
     static void 实体包必须被导入(JavaClasses classes) {
-        assertThat(classes).anyMatch(c -> c.getPackageName().startsWith("com.example.entity.alpha"));
+        // 按 CLAUDE.md「app 测试按 assembly.entity 门控」——beta 装配跑时只有 entity-beta 包在
+        // classpath，写死 "alpha" 会让 beta 测试自检失败。从系统属性取当前装配实体动态拼包名前缀。
+        var entity = System.getProperty("assembly.entity");
+        assertThat(classes)
+                .as("当前装配实体 (%s) 的包必须被导入，否则下列规则全是空转", entity)
+                .anyMatch(c -> c.getPackageName().startsWith("com.example.entity." + entity));
     }
 
     @ArchTest
@@ -1855,7 +1862,7 @@ public List<Order> processBatch(List<CreateOrderCommand> cmds, EntityType entity
 
 ### 9.2 Spring Modulith：事件治理与测试切片（边界仍以 Maven + ArchUnit 为主）
 
-**定位纠偏（先写清，防止误读）**：Modulith 管理的是启动类包下的**逻辑包模块**，不替代 Maven 物理模块边界（8.2 Enforcer）与跨实体 ArchUnit 规则（8.3）。引入它只为两件事：**模块事件治理**与**模块测试切片**。Spring Boot 4 对应 Spring Modulith 2.x。
+**定位纠偏（先写清，防止误读）**：Modulith 管理的是启动类包下的**逻辑包模块**，不替代 Maven 物理模块边界（8.2 Enforcer）与跨实体 ArchUnit 规则（8.3）。引入它只为两件事：**模块事件治理**与**模块测试切片**。Spring Boot 4 对应 Spring Modulith 2.0（按 [Spring 官方兼容矩阵](https://docs.spring.io/spring-modulith/reference/appendix.html)：Modulith 2.0 编译针对 Spring Boot 4.0；Modulith 1.x 对应 Spring Boot 3.x。撰写时 Modulith 2.0 仍处 SNAPSHOT/milestone 阶段，正式版发布前需关注官方里程碑）。
 
 **用途一：`@ApplicationModuleListener` 解决 7.5.3 的事务陷阱**：
 
