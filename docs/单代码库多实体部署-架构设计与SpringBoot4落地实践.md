@@ -1938,7 +1938,7 @@ mvn spring-boot:process-aot -Palpha -Dspring.aot.properties.platform.entity=alph
 | P0 | 运行时三处小缺陷（MVC 异步上下文 / ~~Money scale~~✅已落地 / ~~@ForEntity 枚举化~~✅已落地） | 5.2.2 / 5.9 / 5.10.1 | 缺陷修复：均为低频高损型 bug 源 | 异步端点出现、金额比较出工单；@ForEntity 枚举化 + Money scale 已落地，仅余 MVC 异步上下文 |
 | ~~P0~~ 已落地 | 实体能力自描述（Capability Manifest） | 5.10.2 | 直接闭环"装配正确性"与 6.3 漂移检测 | 已落地（EntityCapability 接口 + Alpha/BetaCapability + EntityInfoContributor 汇总到 /actuator/info） |
 | ~~P0~~ 已落地 | Flyway locations 按实体动态拼接 | 6.1 | 闭环 6.1 的 per-entity 迁移目录原则 | 已落地（application.yaml: `locations: classpath:db/migration/common,classpath:db/migration/${platform.entity}`） |
-| P0 | Micrometer 指标打 entity 标签 | 5.11.1 | 闭环 2.5 可观测性原则，一处配置全局生效 | 接入监控首日 |
+| ~~P0~~ 已落地 | Micrometer 指标打 entity 标签 | 5.11.1 | 闭环 2.5 可观测性原则，一处配置全局生效 | 已落地（MetricsConfig.entityCommonTags + micrometer-registry-prometheus + exposure 加 metrics,prometheus） |
 | ~~P1~~ 已落地 | 统一实体激活机制（@ForEntity） | 5.10.1 | 消除 @Profile 硬编码双轨，落地于本次重构 | 已随 H2 修复落地 |
 | ~~P1~~ 已落地 | 扩展点契约测试基类（含注解与 supports 一致断言） | 8.4 | 新增实体契约回归零编写 | 已随 H2 修复落地（test-jar 基础设施一并补齐） |
 | P1 | EntityContext 泄漏防护兜底 | 8.5 | 防线程池串实体 | 异步路径（@Async/消息消费）增多 |

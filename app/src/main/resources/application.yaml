@@ -32,11 +32,12 @@ platform:
     queue-capacity: 100
 
 # 可观测性：/actuator/info 输出当前实体（EntityInfoContributor），接入监控巡检（文档 6.3）
+# /actuator/metrics + /prometheus：指标支柱实体打标（MetricsConfig，文档 5.11.1）
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
 
 # 所有日志带 entity 标签（文档 2.5）：MDC key 的唯一事实来源是 EntityContext.MDC_KEY，
 # 由 EntityContextFilter / TaskDecorator / delegate 基类写入，改动需同步下方 pattern。

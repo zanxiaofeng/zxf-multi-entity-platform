@@ -31,6 +31,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- 指标支柱（文档 5.11.1）：Prometheus registry 与 actuator 同模块，
+             配 MetricsConfig.entityCommonTags 给所有 meter 打 entity 标签 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <!-- SB4 模块化拆包：MeterRegistryCustomizer 等自动配置类在独立模块
+             spring-boot-micrometer-metrics（不在 actuator-autoconfigure） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-metrics</artifactId>
+        </dependency>
         <!-- Flowable 引擎属共享内核（文档 7.1）：运行时、持久化、与 Spring 事务/数据源整合，不允许分叉；
              流程拓扑（BPMN）在实体模块 -->
         <dependency>
