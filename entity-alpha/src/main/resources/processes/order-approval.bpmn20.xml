@@ -39,9 +39,15 @@
         <sequenceFlow id="flow-l3-notify" sourceRef="alphaApproveL3" targetRef="sendNotification"/>
 
         <!-- 通用任务：core 的共享 delegate。async 节点（通知类任务的典型形态）：
-             由引擎 Job 执行器线程运行，delegate 基类从流程变量 entity 重建上下文（文档 7.3③） -->
+             由引擎 Job 执行器线程运行，delegate 基类从流程变量 entity 重建上下文（文档 7.3③）。
+             failedJobRetryTimeCycle（文档 7.7.1 组件 4）：技术异常重试 3 次间隔 5 秒，
+             耗尽进 ACT_RU_DEADLETTER_JOB 死信表——与 BpmnError 走分支不重试对照（组件 5） -->
         <serviceTask id="sendNotification" name="发送通知" flowable:async="true"
-                     flowable:delegateExpression="${sendNotificationDelegate}"/>
+                     flowable:delegateExpression="${sendNotificationDelegate}">
+            <extensionElements>
+                <flowable:failedJobRetryTimeCycle>R3/PT5S</flowable:failedJobRetryTimeCycle>
+            </extensionElements>
+        </serviceTask>
         <sequenceFlow id="flow-notify-end" sourceRef="sendNotification" targetRef="end"/>
 
         <endEvent id="end"/>

@@ -29,8 +29,16 @@ public class SendNotificationDelegate extends EntityContextAwareDelegate {
 
     @Override
     protected void doExecute(DelegateExecution execution) {
+        var orderId = (String) execution.getVariable("orderId");
+        // 示范技术异常重试路径（文档 7.7.1 组件 4）：与 BpmnError（组件 5）对照——
+        // 技术异常配合 failedJobRetryTimeCycle 重试（R3/PT5S），耗尽进 ACT_RU_DEADLETTER_JOB；
+        // BpmnError 走 BPMN 边界事件分支，不重试。
+        // demo 触发条件：orderId 以 "888" 开头（示范用）；正常订单（自增 id）不触发
+        if (orderId != null && orderId.startsWith("888")) {
+            throw new RuntimeException("通知发送失败：下游不可达（orderId=" + orderId + "，示范重试→死信路径）");
+        }
         log.info("发送审批完成通知 orderId={} processInstanceId={}",
-                execution.getVariable("orderId"), execution.getProcessInstanceId());
-        audit.record("APPROVAL_NOTIFICATION", "orderId=" + execution.getVariable("orderId"));
+                orderId, execution.getProcessInstanceId());
+        audit.record("APPROVAL_NOTIFICATION", "orderId=" + orderId);
     }
 }
