@@ -22,7 +22,10 @@ import org.flowable.engine.delegate.JavaDelegate;
  * delegate 纪律（文档 8.1.10）：单例无状态——实例字段必须 final（禁存执行态）；
  * delegate 必须继承 {@link EntityContextAwareDelegate}（文档 7.3③：Job 线程上下文重建，
  * 禁止直接 implements JavaDelegate 绕过基类）。
- * 实体模块之间零依赖（文档 8.3）：Alpha 不得依赖 Beta——类级规则之外由 Maven Enforcer 兜底。
+ *
+ * <p>实体模块互禁依赖由 Maven Enforcer 在 jar 坐标粒度强制（entity-alpha pom
+ * bannedDependencies 禁 entity-beta）；本测试源集 classpath 不含 beta 包，包级
+ * ArchUnit 规则必然空转，故不在此声明（防"护栏存在"的错觉，文档 8.3 P0 修复）。
  */
 @AnalyzeClasses(packages = "com.zxf.platform.alpha", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureGuardTest {
@@ -36,11 +39,6 @@ class ArchitectureGuardTest {
     static final ArchRule 管道步骤实现必须限定ForEntity = classes()
             .that().implement(OrderStep.class)
             .should().beAnnotatedWith(ForEntity.class);
-
-    @ArchTest
-    static final ArchRule 实体模块之间零依赖 = noClasses()
-            .that().resideInAPackage("..alpha..")
-            .should().dependOnClassesThat().resideInAPackage("..beta..");
 
     @ArchTest
     static final ArchRule delegate必须继承上下文重建基类 = classes()

@@ -49,6 +49,14 @@
             <artifactId>spring-boot-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- ArchUnit 跨实体护栏（文档 8.3）：app 是组合根，测试源集做"当前装配实体包必须被导入"
+             自检 + 扩展点激活注解守护。跨实体互禁依赖仍由 Maven Enforcer 强制（单一 profile 下
+             app classpath 只含一个实体模块，ArchUnit 无法跨实体检查） -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <!-- Maven profile 控制打包内容：实体 B 的类不进入实体 A 的镜像（文档 5.4.1）。
