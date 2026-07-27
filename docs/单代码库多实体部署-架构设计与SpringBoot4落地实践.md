@@ -1946,7 +1946,7 @@ mvn spring-boot:process-aot -Palpha -Dspring.aot.properties.platform.entity=alph
 | P1 | SPI 破坏性变更管理（japicmp + requiredCoreVersion） | 8.6 | 内核/实体走向独立发版前必须就位 | 实体模块独立仓库或独立发版提上日程 |
 | P1 | 发布编排、灰度与回滚分类定序 | 6.5 | 首个 ③ 类破坏性变更前必须有发布纪律 | 首次 SPI/schema 破坏性变更排期 |
 | P1 | per-entity 配置治理（分层 diff / 密钥分级 / GitOps） | 6.3 | 配置漂移是双部署最高频事故源 | 首次"改配置没发版却两侧行为不一致"工单 |
-| P1 | Maven 依赖收敛 + 依赖树 diff | 5.10.4 | 防两产物依赖面静默分叉 | 依赖冲突/版本漂移工单出现 |
+| ~~P1~~ 部分落地 | Maven 依赖收敛 + 依赖树 diff | 5.10.4 | 防两产物依赖面静默分叉 | 已落地 dependencyConvergence（根 pom enforce-dependency-convergence execution）；requireUpperBoundDeps / requireSameVersions 暂不启用——SB4 BOM 与 Flowable 8 BOM 对 jackson/flowable 子模块锚定存在合理差异，严格规则误报，待真实漂移工单时启用 |
 | P1 | @Scheduled 双部署语义 + ShedLock 选主 | 5.2.6 | global 任务双跑是资损/重复执行风险 | 首个 global 定时任务需求 |
 | P1 | 本地开发体验（compose 双实例 + Testcontainers 冒烟） | 5.7.1 | 新成员上手成本、CI 无 DB 依赖 | 新人入职环境搭建超过半天 |
 | P2 | 日志支柱规范（MDC 键命名 + pattern 统一） | 5.11.3 | 汇总既有散点为规范，成本低 | 检索时发现同义键/键缺失 |

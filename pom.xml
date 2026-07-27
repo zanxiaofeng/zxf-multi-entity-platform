@@ -113,6 +113,22 @@
                             </rules>
                         </configuration>
                     </execution>
+                    <execution>
+                        <!-- 依赖收敛（文档 5.10.4）：两产物的依赖面必须可控。
+                             dependencyConvergence 抓"同一库在依赖树中出现多个版本"——最核心的收敛规则。
+                             requireUpperBoundDeps / requireSameVersions 暂不启用：SB4 BOM 与 Flowable 8 BOM
+                             对 jackson / flowable 子模块的版本锚定存在合理差异（各自 BOM 管理的传递依赖），
+                             严格规则会误报；待依赖面出现真实漂移工单时再按需启用。 -->
+                        <id>enforce-dependency-convergence</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <dependencyConvergence/>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
