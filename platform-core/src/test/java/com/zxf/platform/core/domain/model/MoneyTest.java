@@ -38,4 +38,23 @@ class MoneyTest {
         assertThatThrownBy(() -> new Money(BigDecimal.ONE, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void scale归一化消除trailing零差异() {
+        // BigDecimal.equals 对 scale 敏感（1.0 ≠ 1.00）—— compact constructor 归一化后两者相等
+        assertThat(Money.cny("1.0")).isEqualTo(Money.cny("1.00"));
+        assertThat(Money.cny("113.50")).isEqualTo(Money.cny("113.5"));
+        // 整数与全零小数归一化后 scale=0
+        assertThat(Money.cny("113").amount().scale()).isZero();
+        assertThat(Money.cny("113.00").amount().scale()).isZero();
+    }
+
+    @Test
+    void 零金额归一化无负scale() {
+        // 防 0E- 形态（旧 JDK 的 stripTrailingZeros 对 0 返回负 scale）
+        var zero = Money.cny("0.00");
+        assertThat(zero).isEqualTo(Money.cny("0"));
+        assertThat(zero.amount().scale()).isNotNegative();
+        assertThat(zero.amount().toString()).isEqualTo("0");
+    }
 }

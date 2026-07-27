@@ -18,7 +18,14 @@ public record Money(BigDecimal amount, Currency currency) {
     public Money {
         Assert.notNull(amount, "金额不能为空");
         Assert.notNull(currency, "币种不能为空");
-        Assert.isTrue(amount.signum() >= 0, () -> "金额不能为负: " + amount);
+        // effectively final 副本供 lambda 引用（compact constructor 内 amount 后续会被重新赋值）
+        var original = amount;
+        Assert.isTrue(original.signum() >= 0, () -> "金额不能为负: " + original);
+        // BigDecimal.equals 对 scale 敏感（2.00 ≠ 2.0），record 的 equals/hashCode 委托它——
+        // 构造期归一化 trailing 零，保证相等性语义与 compareTo 一致（文档 5.9 军规 3 落地）
+        // signum==0 特判：JDK 19+ 的 stripTrailingZeros 对 0 已返回 scale=0，
+        // 但保留特判让"JDK 行为变化/未来切换 BigDecimal.ZERO 常量"零回归
+        amount = original.signum() == 0 ? BigDecimal.ZERO : original.stripTrailingZeros();
     }
 
     /** demo 便捷工厂：人民币金额。 */

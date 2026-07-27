@@ -869,7 +869,7 @@ var price = policies.priceFor(order);   // 一个点，Demeter 法则合规
 
 #### 军规 3「封装原生类型与字符串」：标识与金额值对象化（违例，重构）
 
-> 落地状态：`OrderId` / `Money` 值对象已落地（`domain/model/`）；下方 Money 示例中的 `stripTrailingZeros` 归一化**未落地**（路线图 P0），当前 `Money.java` 的 compact constructor 仅做非空 + 非负校验——`BigDecimal.equals` 对 scale 敏感的问题仍在，业务比较需用 `compareTo`（或后续落地归一化）。
+> 落地状态：`OrderId` / `Money` 值对象已落地（`domain/model/`）；下方 Money 示例中的 `stripTrailingZeros` 归一化**已落地**（`Money.java` compact constructor 含 `signum==0 ? BigDecimal.ZERO : amount.stripTrailingZeros()`，signum==0 特判防 `0E-` 形态）。
 
 demo 中 `order.getId()`、`platform.entity` 字符串配置、`Map.of("orderId", ...)` 都是裸值。引入值对象：
 
@@ -1935,7 +1935,7 @@ mvn spring-boot:process-aot -Palpha -Dspring.aot.properties.platform.entity=alph
 | P0 | ArchUnit 护栏失效修复（规则挪 app 模块 + 自检测试） | 8.3 | 缺陷修复：扫描范围不含实体包时规则静默空转，护栏不存在 | 发现规则"从未失败过"即最高优先 |
 | ~~P0~~ 已落地 | PolicyRegistry 重复实现显式报错 | 5.2.5 | 缺陷修复：Duplicate key 无上下文，排查成本高 | 已落地（PolicyRegistry 自定义 merge 函数抛带实体名/实现类名的 IllegalStateException） |
 | ~~P0~~ 已落地 | 负例测试可断言化 | 5.7 | 缺陷修复：@SpringBootTest 无法断言启动失败 | 已落地（MisconfiguredAssemblyTest 用等价的 AnnotationConfigApplicationContext + assertThatThrownBy(context::refresh)） |
-| P0 | 运行时三处小缺陷（MVC 异步上下文 / Money scale / ~~@ForEntity 枚举化~~✅已落地） | 5.2.2 / 5.9 / 5.10.1 | 缺陷修复：均为低频高损型 bug 源 | 异步端点出现、金额比较出工单；@ForEntity 枚举化已随 H2 修复落地 |
+| P0 | 运行时三处小缺陷（MVC 异步上下文 / ~~Money scale~~✅已落地 / ~~@ForEntity 枚举化~~✅已落地） | 5.2.2 / 5.9 / 5.10.1 | 缺陷修复：均为低频高损型 bug 源 | 异步端点出现、金额比较出工单；@ForEntity 枚举化 + Money scale 已落地，仅余 MVC 异步上下文 |
 | P0 | 实体能力自描述（Capability Manifest） | 5.10.2 | 直接闭环"装配正确性"与 6.3 漂移检测，改动小 | 第一次"跑错镜像"巡检告警 |
 | ~~P0~~ 已落地 | Flyway locations 按实体动态拼接 | 6.1 | 闭环 6.1 的 per-entity 迁移目录原则 | 已落地（application.yaml: `locations: classpath:db/migration/common,classpath:db/migration/${platform.entity}`） |
 | P0 | Micrometer 指标打 entity 标签 | 5.11.1 | 闭环 2.5 可观测性原则，一处配置全局生效 | 接入监控首日 |
