@@ -1949,8 +1949,8 @@ mvn spring-boot:process-aot -Palpha -Dspring.aot.properties.platform.entity=alph
 | ~~P1~~ 部分落地 | Maven 依赖收敛 + 依赖树 diff | 5.10.4 | 防两产物依赖面静默分叉 | 已落地 dependencyConvergence（根 pom enforce-dependency-convergence execution）；requireUpperBoundDeps / requireSameVersions 暂不启用——SB4 BOM 与 Flowable 8 BOM 对 jackson/flowable 子模块锚定存在合理差异，严格规则误报，待真实漂移工单时启用 |
 | P1 | @Scheduled 双部署语义 + ShedLock 选主 | 5.2.6 | global 任务双跑是资损/重复执行风险 | 首个 global 定时任务需求 |
 | P1 | 本地开发体验（compose 双实例 + Testcontainers 冒烟） | 5.7.1 | 新成员上手成本、CI 无 DB 依赖 | 新人入职环境搭建超过半天 |
-| P2 | 日志支柱规范（MDC 键命名 + pattern 统一） | 5.11.3 | 汇总既有散点为规范，成本低 | 检索时发现同义键/键缺失 |
-| P2 | 测试策略索引化 | 2.6 | 文档导航，零成本 | 测试落地章节定位困难时 |
+| ~~P2~~ 已落地 | 日志支柱规范（MDC 键命名 + pattern 统一） | 5.11.3 | 汇总既有散点为规范，成本低 | 已落地（application.yaml pattern 含 entity=%X{entity:-none} trace=%X{traceId:-none}；EntityContext.MDC_KEY / TraceIdFilter.MDC_KEY 唯一事实源；EntityContextFilter / TaskDecorator / delegate 基类统一写入） |
+| ~~P2~~ 已落地 | 测试策略索引化 | 2.6 | 文档导航，零成本 | 已落地（2.6 节含索引清单指向 5.7 / 5.7.1 / 7.4 / 8.3 / 8.4，每条原则对应落地章节） |
 | P2 | 扩展字段（JSONB + SPI 校验） | 6.4 | 数据模型差异场景触发后补 | 首个实体专属字段需求 |
 | P2 | Trace 注入 entity attribute | 5.11.2 | 接入 tracing 栈后补 | tracing 栈选型落地 |
 | P2 | ArchUnit 实体包边界规则参数化（slices） | 8.3 | 实体模块代码量增长后补 | 实体数 >2 |
