@@ -20,6 +20,15 @@
                      flowable:delegateExpression="${alphaRiskCheckDelegate}"/>
         <sequenceFlow id="flow-risk-l1" sourceRef="alphaRiskCheck" targetRef="alphaApproveL1"/>
 
+        <!-- 错误分类示范（文档 7.7.1 组件 5）：alphaRiskCheck 抛 BpmnError(RISK_REJECTED)
+             时由边界错误事件捕获，走"风控拒绝"分支——不触发 Job 重试（与 技术异常的
+             failedJobRetryTimeCycle 重试路径对照）。cancelActivity 默认 true（取消原活动）。 -->
+        <boundaryEvent id="riskCheckErrorBoundary" attachedToRef="alphaRiskCheck">
+            <errorEventDefinition errorRef="RISK_REJECTED"/>
+        </boundaryEvent>
+        <sequenceFlow id="flow-error-reject" sourceRef="riskCheckErrorBoundary" targetRef="riskRejectedEnd"/>
+        <endEvent id="riskRejectedEnd" name="风控拒绝"/>
+
         <userTask id="alphaApproveL1" name="Alpha 一级审批"/>
         <sequenceFlow id="flow-l1-l2" sourceRef="alphaApproveL1" targetRef="alphaApproveL2"/>
 
