@@ -70,4 +70,18 @@ public class FlowableJobContextConfig {
     public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> idGeneratorConfigurer() {
         return configuration -> configuration.setIdGenerator(new StrongUuidGenerator());
     }
+
+    /**
+     * 全局事件监听器注册（7.7.1 组件 1 + 组件 2）。
+     *
+     * <p>{@link FlowableEngineEventListener} 是 Spring 单例，注册到引擎后所有流程定义的事件
+     * 都经它——指标对接（Counter 按事件类型/processDefinitionKey/entity）+ Spring Event 桥接。
+     * {@code setEventListeners} 全量订阅；按类型订阅可用 {@code setTypedEventListeners}（性能更好，
+     * 但 demo 全量订阅即可）。{@code isFailOnException()=false} 保证审计/监控失败不回滚业务事务。
+     */
+    @Bean
+    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> eventListenerConfigurer(
+            FlowableEngineEventListener listener) {
+        return configuration -> configuration.setEventListeners(java.util.List.of(listener));
+    }
 }
