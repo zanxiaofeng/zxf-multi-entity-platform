@@ -13,5 +13,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record FlowableJobProperties(
         @DefaultValue("2") int corePoolSize,
         @DefaultValue("4") int maxPoolSize,
-        @DefaultValue("100") int queueCapacity) {
+        @DefaultValue("100") int queueCapacity,
+        /** 引擎级默认重试次数（节点级可用 failedJobRetryTimeCycle 覆盖，文档 7.7.1 组件 4）。 */
+        @DefaultValue("3") int numberOfRetries,
+        /** 失败 Job 重试前的等待秒数（文档 7.7.1 组件 4）。 */
+        @DefaultValue("10") int failedJobWaitTime) {
 }

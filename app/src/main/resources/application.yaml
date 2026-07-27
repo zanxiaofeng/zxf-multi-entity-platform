@@ -30,6 +30,9 @@ platform:
     core-pool-size: 2
     max-pool-size: 4
     queue-capacity: 100
+    # 引擎级调优（文档 7.7.1 组件 4）：节点级可用 failedJobRetryTimeCycle 覆盖
+    number-of-retries: 3
+    failed-job-wait-time: 10
 
 # 可观测性：/actuator/info 输出当前实体（EntityInfoContributor），接入监控巡检（文档 6.3）
 # /actuator/metrics + /prometheus：指标支柱实体打标（MetricsConfig，文档 5.11.1）
