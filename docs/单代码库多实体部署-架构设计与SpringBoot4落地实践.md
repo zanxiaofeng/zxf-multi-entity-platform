@@ -28,6 +28,7 @@
   - [6.5 发布编排、灰度与回滚](#65-发布编排灰度与回滚)
 - [七、Flowable 流程引擎集成](#七flowable-流程引擎集成)
   - [7.6 优雅停机与 Flowable 协调](#76-优雅停机与-flowable-协调)
+  - [7.7 Flowable 公共组件沉淀](#77-flowable-公共组件沉淀platform-core-的职责清单)
 - [八、Review 检查清单与工程护栏](#八review-检查清单与工程护栏)
   - [8.4 扩展点契约测试基类](#84-扩展点契约测试基类)
   - [8.5 EntityContext 泄漏防护兜底](#85-entitycontext-泄漏防护兜底)
@@ -1123,7 +1124,7 @@ public class PlatformApplication {
 
 ### 5.11 可观测性深化：三支柱打实体标签
 
-2.5 定了"日志、指标、Trace 都带 entity 标签"的原则，5.2.2 落地了日志（MDC）。指标与 Trace 两支柱补齐如下，与 7.3③ 的流程引擎打标同属 `infrastructure.observation` 的职责。
+2.5 定了"日志、指标、Trace 都带 entity 标签"的原则，5.2.2 落地了日志（MDC）。指标与 Trace 两支柱补齐如下，与 7.3③ 的流程引擎打标同属 `infrastructure.observation` 的职责。Flowable 维度的流程指标/审计数据源（全局事件监听器承载）见 7.7。
 
 #### 5.11.1 指标：MeterRegistry 公共标签
 
@@ -1585,6 +1586,60 @@ lifecycle:
 1. **停机顺序**：preStop sleep（摘流量）→ SIGTERM → Spring 优雅停机（拒绝新请求、等待在途请求）→ Flowable AsyncExecutor 关闭（`timeout-per-shutdown-phase` 覆盖此阶段，在途 Job 完成或超时中断靠重试恢复）。
 2. **可重试是兜底而非借口**：async 节点的 delegate 必须幂等（7.5.2 同纪律），超时中断的 Job 由 `failedJobRetryTimeCycle` 恢复，停机窗口内允许出现短暂重试、不允许出现死信激增——发布后巡检 deadletter job 指标（7.3③）。
 3. **多实体升级窗口**：两套部署的滚动发布日历错开编排，任一侧发布时通过 `entity` 维度告警（5.11）单独盯该实体，避免"一锅端"式联合回归。
+
+### 7.7 Flowable 公共组件沉淀（platform-core 的职责清单）
+
+> 落地状态：**目标职责清单**（演进参考，路线图外）。当前工程只落地了少数组件——`EntityContextAwareDelegate`（组件 3 的实体上下文重建部分，7.3③）、`EntityContextPropagatingTaskExecutor`（组件 9 的 entity 维度传播，7.3③）、`MetricsConfig`（组件 9 的指标支柱，5.11.1）。其余 11 类组件按需演进——本节作为 platform-core Flowable 集成的目标职责参考，避免临时引入时重复调研。
+
+7.1~7.6 讲 Flowable 在多实体下的**集成方式**（BPMN 放实体、引擎进内核、部署级隔离）；本节回答配套问题：**哪些 Flowable 相关能力应沉淀为 platform-core 的公共组件**。判断标准与第二章"差异隔离"一致——无实体差异的内核能力进 core，实体差异（候选人规则、专属 delegate）留在实体模块。以下 14 类组件按调研结果（Flowable 官方文档 + Spring 官方规范）压缩整理，分三组：引擎侧、集成与可观测性侧、工程化。
+
+#### 7.7.1 Flowable 引擎侧组件
+
+1. **全局事件监听器**：跨所有流程定义的统一审计日志与生命周期监控（`PROCESS_STARTED`、`TASK_CREATED`、`TASK_COMPLETED`、`JOB_EXECUTION_FAILURE` 等），避免每个 BPMN 重复声明监听器。实现 `FlowableEventListener`（或继承官方基类 `BaseEntityEventListener`），经 `EngineConfigurationConfigurer<SpringProcessEngineConfiguration>` 注册：`setEventListeners(...)` 全量订阅或 `setTypedEventListeners(Map)` 按类型订阅（性能更好）；运行时 `runtimeService.addEventListener(...)` 重启即失效，仅用于临时调试。**关键纪律：`isFailOnException()` 必须返回 `false`**——审计/监控失败不得回滚业务事务。本组件同时是 7.3③ 流程指标与 7.7.2 Outbox 的数据源挂点。
+2. **事件桥接（Flowable 事件 → Spring Event）**：引擎事件与业务模块解耦，业务方用熟悉的 `@EventListener` / `@TransactionalEventListener(AFTER_COMMIT)` 订阅，不依赖 Flowable API。在全局监听器内注入 `ApplicationEventPublisher`，把 FlowableEvent 包装为 Spring 领域事件转发（开源参考：yudao 的 `BpmProcessInstanceEventPublisher`），事务纪律同 7.5.3。
+3. **JavaDelegate / Listener 通用基类**：服务任务执行的统一入口日志、耗时统计、异常分类、上下文传递。模板方法模式：抽象基类实现 `JavaDelegate.execute()` 统一做日志/计时/异常分类，子类只实现 `doExecute(DelegateExecution)`；delegate 是单例，禁止实例字段存执行态（7.5.2）。当前工程已落地 `EntityContextAwareDelegate`（7.3③，承载 Job 线程的实体上下文重建），是本组件的实体维度特化；完整基类在此基础上补业务键注入与异常分类。引擎原生向 SLF4J MDC 注入 `mdcProcessDefinitionID` / `mdcProcessInstanceID` / `mdcExecutionId` / `mdcBusinessKey`，基类只需补业务键。TaskListener / ExecutionListener 同法处理，BPMN 统一用 `delegateExpression="${beanName}"` 引用以获得依赖注入。
+4. **AsyncExecutor 调优与死信 Job 运维**：引擎参数 `asyncExecutorActivate=true`、`asyncExecutorNumberOfRetries`（默认 3）、`asyncFailedJobWaitTime`；节点级独立重试用 `failedJobRetryTimeCycle`（需 `flowable:async="true"`，异步边界保证失败只重试出错任务、不回滚已提交的前序任务）。重试耗尽进 `ACT_RU_DEADLETTER_JOB` 死信表，运维组件提供 `createDeadLetterJobQuery()` 扫描 + 告警、`moveDeadLetterJobToExecutableJob(jobId, retries)` 复活；按异常类型分流——网络/IO 类自动复活、代码 bug 类修复后复活、非关键可删除。死信 Job 不含 businessKey，需经 processInstanceId 关联。
+5. **错误分类体系（BpmnError vs 技术异常）**：业务错误抛 `BpmnError(errorCode)` 由边界错误事件捕获走流程分支，**不触发 Job 重试**；技术异常直接抛 RuntimeException，配合 `failedJobRetryTimeCycle` 重试、耗尽进死信（官方 HTTP Task 的 `failStatusCodes` / `handleStatusCodes` 即此模式样板）。错误日志落库需 `REQUIRES_NEW` 独立事务——引擎回滚会带走同事务的业务库写入。
+6. **候选人策略 / ActivityBehaviorFactory**：全局统一审批人分配规则（角色/部门/发起人上级等多策略），避免每个流程硬编码。`setActivityBehaviorFactory(...)`（继承 `DefaultActivityBehaviorFactory`）+ `TaskCandidateStrategy` 策略接口按规则路由候选人/组（开源参考：yudao 的 `BpmActivityBehaviorFactory`）。候选人规则出现实体差异时，按 5.3 SPI 套路在实体模块覆盖实现。
+7. **自定义 IdGenerator 与 tenantId 上下文**：IdGenerator 实现 `org.flowable.common.engine.impl.cfg.IdGenerator#getNextId()` 经 Configurer 注册——注意一个引擎只有一个 IdGenerator 且对所有实体生效，选型需两实体共识。Flowable 原生 tenantId（部署/启动/查询均支持过滤）与本方案的"一实体一套引擎/库"是**备选对照**：严格分库下用后者（7.2 第 4 条），tenantId 仅作未来单部署混部演进时的储备知识，不引入当前实现。
+8. **JSON 流程变量与自定义 EL 函数**：变量用内置 `JsonType`（Jackson JsonNode，支持 trackObjects 变更追踪）替代 Java 序列化 BLOB——可读、可查、无 serialVersionUID 问题；自定义类型实现 `VariableType` 经 `customPreVariableTypes` 注册。**纪律：领域值对象不直接进流程变量**。EL 函数实现 `FlowableFunctionDelegate`（`functionPrefix()` / `localName()`），流程表达式里写 `${bpm:hasRole(userId, role)}` 替代冗长表达式，经 `setCustomFlowableFunctionDelegates(...)` 注册。
+
+#### 7.7.2 集成与可观测性侧组件
+
+9. **trace/MDC 全链路透传**：HTTP 入口 → 流程执行 → async executor 线程池 → 下游调用，traceId 断链是排障最大痛点。同步链路用 Micrometer Tracing + OpenTelemetry；**异步断点**（Flowable 自有线程池）需包装 Runnable 显式传播 MDC/Observation——与 5.2.3 的 EntityContext 传播同一机制，合并为一个装饰器组件（7.3③ 已落地 entity 维度，`EntityContextPropagatingTaskExecutor`）。流程维度指标在组件 1 的监听器里对接 Micrometer：`Timer` 记流程/节点耗时（tag=processDefinitionKey），`Gauge` 暴露任务积压数与死信 Job 数。引擎级审计日志：`enableDatabaseEventLogging`（ACT_EVT_LOG）+ 可插拔 `EventFlusher` 可改写 Kafka/ES。注意 Flowable 开源版无内置 OTel 支持，需基于事件监听器自建。
+10. **统一错误响应体系（ProblemDetail / RFC 9457）**：各服务错误格式不一致则下游无法统一解析。Spring Boot 内置 `ProblemDetail`（`application/problem+json`）：`@RestControllerAdvice extends ResponseEntityExceptionHandler`，业务异常继承 `ErrorResponseException`，扩展属性携带 `correlationId`（取 MDC traceId）与 `fieldErrors`。两个实测坑：`@ExceptionHandler` 必须返回 `ResponseEntity<ProblemDetail>`（否则状态码变 200）；全局 ObjectMapper 的 NON_DEFAULT 序列化会吞掉 properties 里的 traceId。
+11. **Resilience4j 容错封装 + HTTP 客户端拦截器**：防下游抖动级联故障、重试/熔断策略散落各处。注解式 `@CircuitBreaker` / `@Retry` / `@RateLimiter` / `@TimeLimiter` + YAML 按实例配置，`resilience4j-micrometer` 自动出指标；叠加注解时 Spring AOP 默认顺序可能使 `@Retry` 在 `@CircuitBreaker` 外层，需显式指定 order。correlationId 透传：RestClient 用 `ClientHttpRequestInterceptor`、WebClient 用 `ExchangeFilterFunction`、Feign 用 `RequestInterceptor` 统一注入 traceId/entity 头。**与流程的协作纪律：下游熔断/重试放在 delegate 内部，流程层重试交给 async executor（组件 4），流程重试 × HTTP 重试不叠加放大，次数要算总账**。
+12. **Transactional Outbox（流程事件可靠外发）**：解决 Flowable 流程状态变更 + 发 MQ 的双写不一致——delegate 直接发消息在事务回滚后产生脏消息（7.5.4）。业务表与 outbox 表同一本地事务写入，relay 用轮询发布或 Debezium CDC。与引擎的结合点：在组件 1 的全局监听器中**仅处理 `TRANSACTION_COMMITTED` 生命周期事件**（`isFireOnTransactionLifecycleEvent` + `getOnTransaction`）写 outbox，保证只在流程事务提交后落事件。**消费端必须幂等**（at-least-once 语义）：messageId 去重表唯一键或 Redis SETNX；流程启动防重：`startProcessInstanceByKey(key, businessKey, vars)` 的 businessKey 加唯一约束，天然幂等键。
+13. **ShedLock 与幂等防重**：`@EnableSchedulerLock(defaultLockAtMostFor)` + `@SchedulerLock(name, lockAtMostFor, lockAtLeastFor)`；严格分库下锁存储用 Redis / K8s Lease（5.2.6），JDBC 则 `usingDbTime()` 防时钟漂移；抢不到锁即跳过不等待；`lockAtMostFor` 必须远大于正常耗时（节点宕机安全网）；`LockAssert.assertLocked()` 防 AOP 配置错误；用默认 PROXY_METHOD 模式（PROXY_SCHEDULER 与 OTel 的 TaskScheduler 包装冲突）。典型用途：outbox relay、死信 Job 扫描、积压统计——即组件 4/12 的调度保护。ShedLock 是锁不是分布式调度器。
+
+#### 7.7.3 工程化：platform-flowable starter
+
+14. **企业内部 starter 骨架**（按 Spring 官方规范）：双模块 `xxx-spring-boot-autoconfigure`（逻辑）+ `xxx-spring-boot-starter`（纯依赖聚合）；注册文件 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（不再用 spring.factories）；条件组合 `@AutoConfiguration` + `@ConditionalOnClass` + `@ConditionalOnProperty(prefix="platform.flowable", name="enabled")` + `@ConditionalOnMissingBean`；配置属性独立命名空间 `@ConfigurationProperties` + `spring-boot-autoconfigure-processor` 生成 metadata，禁止占用 `spring.*` / `server.*`；测试用 `ApplicationContextRunner` + `FilteredClassLoader` 覆盖各条件分支。
+
+上述组件在 platform-core 内的包结构建议：
+
+```text
+platform-core
+├── observability/        # 组件 1/9：全局监听器 + MDC/trace 透传 + 流程指标
+├── delegate/             # 组件 3：JavaDelegate/TaskListener/ExecutionListener 基类
+├── jobops/               # 组件 4：死信扫描告警/复活（ShedLock 保护）
+├── error/                # 组件 5/10：BpmnError 分类 + ProblemDetail 体系
+├── integration/          # 组件 11/12：Resilience4j 封装、correlationId 拦截器、Outbox
+├── candidate/            # 组件 6：候选人策略接口 + 默认实现
+└── variable/             # 组件 8：JSON 变量类型 + EL 函数
+```
+
+分发形态：按组件 14 的规范打成 `platform-flowable-spring-boot-starter`，实体模块引入即用；`@ConditionalOnMissingBean` 允许实体覆盖个别策略（如候选人规则有实体差异时，按 5.3 SPI 套路在实体模块提供实现），与 5.10.1 的单一开关源原则一致。
+
+**参考来源**：
+
+- [Flowable 官方 ch03 Configuration — Event handlers / MDC](https://www.flowable.com/open-source/docs/bpmn/ch03-Configuration)
+- [Flowable 官方 ch18 Advanced — Async Executor / Event logging](https://www.flowable.com/open-source/docs/bpmn/ch18-Advanced)
+- [Flowable 官方 ch07b BPMN Constructs — HTTP Task error handling](https://www.flowable.com/open-source/docs/bpmn/ch07b-BPMN-Constructs)
+- [microservices.io — Transactional outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html)
+- [Resilience4j 官方仓库](https://github.com/resilience4j/resilience4j)
+- [ShedLock 官方仓库](https://github.com/lukas-krecan/ShedLock)
+- [Spring Boot 官方 — Developing auto-configuration](https://docs.spring.io/spring-boot/reference/features/developing-auto-configuration.html)
 
 ---
 
