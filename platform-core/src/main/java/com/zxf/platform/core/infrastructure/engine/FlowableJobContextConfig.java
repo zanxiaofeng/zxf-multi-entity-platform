@@ -84,4 +84,16 @@ public class FlowableJobContextConfig {
             FlowableEngineEventListener listener) {
         return configuration -> configuration.setEventListeners(java.util.List.of(listener));
     }
+
+    /**
+     * 自定义 EL 函数注册（7.7.1 组件 8）：BPMN 表达式可用 {@code ${bpm:currentEntity()}}。
+     *
+     * <p>JSON 流程变量（组件 8 另一半）由 Flowable 8 默认内置 {@code JsonType}，
+     * 无需显式注册——引擎启动即支持 {@code JsonNode} 变量类型。
+     */
+    @Bean
+    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> elFunctionConfigurer(
+            CurrentEntityElFunction elFunction) {
+        return configuration -> configuration.setCustomFlowableFunctionDelegates(java.util.List.of(elFunction));
+    }
 }
