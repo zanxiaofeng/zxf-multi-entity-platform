@@ -35,7 +35,7 @@ public class SendNotificationDelegate extends EntityContextAwareDelegate {
         // BpmnError 走 BPMN 边界事件分支，不重试。
         // demo 触发条件：orderId 以 "888" 开头（示范用）；正常订单（自增 id）不触发
         if (orderId != null && orderId.startsWith("888")) {
-            throw new RuntimeException("通知发送失败：下游不可达（orderId=" + orderId + "，示范重试→死信路径）");
+            throw new NotificationFailedException("通知发送失败：下游不可达（orderId=" + orderId + "，示范重试→死信路径）");
         }
         log.info("发送审批完成通知 orderId={} processInstanceId={}",
                 orderId, execution.getProcessInstanceId());

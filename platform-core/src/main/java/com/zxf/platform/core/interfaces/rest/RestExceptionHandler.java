@@ -1,5 +1,6 @@
 package com.zxf.platform.core.interfaces.rest;
 
+import com.zxf.platform.core.application.RuleViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -25,10 +26,12 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class RestExceptionHandler {
 
-    /** 参数不合法（Schema 校验失败等，文档 5.8.3）。 */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("请求被拒绝: {}", ex.getMessage());
+    /** Schema 驱动校验规则违反（文档 5.8.3）：客户端可修正的输入问题 → 400。
+     *  <p>与 {@code IllegalArgumentException}（{@code Assert} 契约违反，属编程错误）区分：
+     *  后者无独立 handler，落兜底 {@link #handleUnexpected} → 500（exception-handling §2）。 */
+    @ExceptionHandler(RuleViolationException.class)
+    public ProblemDetail handleRuleViolation(RuleViolationException ex) {
+        log.warn("校验规则违反: {}", ex.getMessage());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("请求参数不合法");
         return problem;

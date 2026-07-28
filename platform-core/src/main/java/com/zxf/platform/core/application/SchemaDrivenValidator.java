@@ -25,7 +25,7 @@ public class SchemaDrivenValidator {
      * 按当前实体配置的规则逐条校验订单。
      *
      * @param order 待校验订单（必须先完成计价，金额/币种规则以计价结果为目标）
-     * @throws IllegalArgumentException 违反配置约束（客户端可修正，映射 400）
+     * @throws RuleViolationException 违反配置约束（客户端可修正，映射 400）
      * @throws IllegalStateException 规则形态不认识或未计价即校验（配置/编排缺陷，属编程错误）
      */
     public void validate(Order order) {
@@ -45,7 +45,7 @@ public class SchemaDrivenValidator {
         Assert.state(rule.max() != null, "amount 规则必须配置 max");
         var amount = pricedAmount(order);
         if (amount.compareTo(BigDecimal.valueOf(rule.max())) > 0) {
-            throw new IllegalArgumentException(
+            throw new RuleViolationException(
                     "订单金额 %s 超过配置上限 %d".formatted(amount.toPlainString(), rule.max()));
         }
     }
@@ -54,7 +54,7 @@ public class SchemaDrivenValidator {
         Assert.state(rule.in() != null && !rule.in().isEmpty(), "currency 规则必须配置 in");
         var currency = pricedMoney(order).currency().getCurrencyCode();
         if (!rule.in().contains(currency)) {
-            throw new IllegalArgumentException("币种 %s 不在允许范围 %s".formatted(currency, rule.in()));
+            throw new RuleViolationException("币种 %s 不在允许范围 %s".formatted(currency, rule.in()));
         }
     }
 

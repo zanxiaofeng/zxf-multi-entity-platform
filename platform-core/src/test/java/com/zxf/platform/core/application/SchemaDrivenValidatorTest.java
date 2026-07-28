@@ -27,7 +27,7 @@ class SchemaDrivenValidatorTest {
         var validator = validatorWith(new Rule("amount", 100000L, null));
 
         assertThatThrownBy(() -> validator.validate(pricedOrder("100000.01")))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(RuleViolationException.class)
                 .hasMessageContaining("100000");
     }
 
@@ -44,7 +44,7 @@ class SchemaDrivenValidatorTest {
         var validator = validatorWith(new Rule("currency", null, List.of("USD")));
 
         assertThatThrownBy(() -> validator.validate(pricedOrder("1.00")))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(RuleViolationException.class)
                 .hasMessageContaining("CNY");
     }
 
