@@ -42,6 +42,7 @@ class ArchitectureGuardTest {
             .adapter("engine", "..infrastructure.engine..")
             .adapter("messaging", "..infrastructure.messaging..")
             .adapter("observation", "..infrastructure.observation..")
+            .adapter("scheduling", "..infrastructure.scheduling..")
             .withOptionalLayers(true);
 
     /**

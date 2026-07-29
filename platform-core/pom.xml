@@ -54,6 +54,19 @@
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
         </dependency>
+        <!-- ShedLock 定时任务选主（文档 7.7.2 组件 13）：多实例部署时保护 @Scheduled 防重。
+             7.7.0 基于 Spring Framework 7.0.6 / SB 4.0.3 基线编译，与本项目 SB 4.1.x 兼容。
+             shedlock-provider-jdbc-template 提供 JdbcTemplateLockProvider（基于 DataSource 的 JDBC 锁）。 -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>7.7.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>7.7.0</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
