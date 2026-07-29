@@ -33,6 +33,10 @@ platform:
     # 引擎级调优（文档 7.7.1 组件 4）：节点级可用 failedJobRetryTimeCycle 覆盖
     number-of-retries: 3
     failed-job-wait-time: 10
+  # 下游通知服务（文档 7.7.2 组件 11）：NotificationClient 经 RestClient 调用，
+  # 配合 Resilience4j CircuitBreaker + Retry。生产环境替换为真实通知服务地址。
+  notification:
+    base-url: http://localhost:8081
 
 # 可观测性：/actuator/info 输出当前实体（EntityInfoContributor），接入监控巡检（文档 6.3）
 # /actuator/metrics + /prometheus：指标支柱实体打标（MetricsConfig，文档 5.11.1）

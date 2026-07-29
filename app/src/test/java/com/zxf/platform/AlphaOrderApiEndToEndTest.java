@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.port.NotificationPort;
 import com.zxf.platform.core.domain.port.OutboxRepository;
 import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
@@ -22,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -48,6 +50,14 @@ class AlphaOrderApiEndToEndTest {
 
     @Autowired
     private OutboxRepository outboxRepository;
+
+    /**
+     * 组件 11（文档 7.7.2）：SendNotificationDelegate 现在经 NotificationPort 调真实下游。
+     * e2e 默认 doNothing——正常路径下通知静默成功，断言逻辑保持不变。
+     * 死信路径在 dedicated 测试中用 {@code doThrow(...)} stub。
+     */
+    @MockitoBean
+    private NotificationPort notificationPort;
 
     @Test
     void 下单按Alpha计价且创建后可查询() throws Exception {

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.zxf.platform.core.context.EntityContext;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.model.NotificationFailedException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.atomic.AtomicReference;
 import org.flowable.engine.delegate.BpmnError;

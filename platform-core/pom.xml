@@ -67,6 +67,25 @@
             <artifactId>shedlock-provider-jdbc-template</artifactId>
             <version>7.7.0</version>
         </dependency>
+        <!-- RestClient（SB4 模块化拆包，文档 7.7.2 组件 11）：下游 HTTP 客户端，
+             spring-boot-starter-restclient 同时提供 RestClient 与 RestTemplate 的自动配置。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-restclient</artifactId>
+        </dependency>
+        <!-- Resilience4j 核心库（文档 7.7.2 组件 11）：程序式 CircuitBreaker + Retry。
+             不引 resilience4j-spring-boot（SB4 自动配置兼容性未验证，程序式更可控）。
+             2.4.0 为 Maven Central 当前最新稳定版（2026-03 发布）。 -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>2.4.0</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
