@@ -49,6 +49,9 @@ public class NotificationClient implements NotificationPort {
     }
 
     private void doCall(String orderId, String processInstanceId) {
+        // 下游调用日志（downstream-conventions §8）：DEBUG 级记录 URL + 方法，不记请求体（可能含敏感数据）
+        log.debug("Calling notification downstream, method: POST, uri: /api/v1/notifications, orderId: {}",
+                orderId);
         notificationRestClient.post()
                 .uri("/api/v1/notifications")
                 .body(Map.of("orderId", orderId, "processInstanceId", processInstanceId))
