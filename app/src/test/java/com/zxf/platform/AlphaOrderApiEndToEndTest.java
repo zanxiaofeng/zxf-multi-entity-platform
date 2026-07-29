@@ -174,6 +174,15 @@ class AlphaOrderApiEndToEndTest {
     }
 
     @Test
+    void actuatorHealth包含Flowable健康检查() throws Exception {
+        // 文档 7.7.2 组件 14：platform-flowable-starter 装配 FlowableEngineHealthIndicator，
+        // /actuator/health 自动出现 flowable 组件（@ConditionalOnClass + AutoConfiguration.imports 激活）
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.flowable").exists());
+    }
+
+    @Test
     void 查询不存在订单返回404() throws Exception {
         mockMvc.perform(get("/api/v1/orders/999999"))
                 .andExpect(status().isNotFound());
