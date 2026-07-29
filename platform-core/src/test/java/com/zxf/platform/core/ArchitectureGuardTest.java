@@ -40,6 +40,7 @@ class ArchitectureGuardTest {
             .adapter("filter", "..interfaces.filter..")
             .adapter("persistence", "..infrastructure.persistence..")
             .adapter("engine", "..infrastructure.engine..")
+            .adapter("integration", "..infrastructure.integration..")
             .adapter("messaging", "..infrastructure.messaging..")
             .adapter("observation", "..infrastructure.observation..")
             .adapter("scheduling", "..infrastructure.scheduling..")
@@ -48,15 +49,16 @@ class ArchitectureGuardTest {
     /**
      * 允许感知实体的白名单包：context（上下文自身）、application.port（端口解析机制，
      * 文档 5.1.1 豁免）、interfaces.filter（上下文入口）、infrastructure.engine（引擎适配，
-     * 文档 7.3 与 Filter 同级豁免）、infrastructure.observation（审计打实体维度）、
-     * domain.port（{@code supports()} 以 EntityType 声明适配实体，属端口契约，文档 5.2.4）。
-     * 其余 core 包（application 业务编排、domain 核心、interfaces.rest、
+     * 文档 7.3 与 Filter 同级豁免）、infrastructure.integration（Outbox relay——调度线程
+     * 需手动重建 EntityContext + MDC，文档 7.7.2 组件 12）、infrastructure.observation（审计
+     * 打实体维度）、domain.port（{@code supports()} 以 EntityType 声明适配实体，属端口契约，
+     * 文档 5.2.4）。其余 core 包（application 业务编排、domain 核心、interfaces.rest、
      * infrastructure.persistence 及未来新增）一律禁止。
      */
     private static final String[] ENTITY_AWARE_PACKAGES = {
             "..core.context..", "..core.application.port..", "..core.interfaces.filter..",
-            "..core.infrastructure.engine..", "..core.infrastructure.observation..",
-            "..core.domain.port.."};
+            "..core.infrastructure.engine..", "..core.infrastructure.integration..",
+            "..core.infrastructure.observation..", "..core.domain.port.."};
 
     @ArchTest
     static final ArchRule 白名单外核心代码不得感知实体枚举 = noClasses()

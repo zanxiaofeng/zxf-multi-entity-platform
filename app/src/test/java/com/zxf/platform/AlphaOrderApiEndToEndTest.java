@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.port.OutboxRepository;
 import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
 import org.flowable.engine.RuntimeService;
@@ -44,6 +45,9 @@ class AlphaOrderApiEndToEndTest {
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    private OutboxRepository outboxRepository;
 
     @Test
     void 下单按Alpha计价且创建后可查询() throws Exception {
@@ -135,6 +139,20 @@ class AlphaOrderApiEndToEndTest {
         assertThat(links)
                 .anyMatch(link -> "candidate".equals(link.getType())
                         && "alpha-manager-1".equals(link.getUserId()));
+    }
+
+    @Test
+    void 下单后outbox事件被relay发布() throws Exception {
+        // Transactional Outbox（文档 7.7.2 组件 12）：OrderApplicationService.create 在事务内
+        // 写 outbox_event，与 orders 表同事务提交；OutboxRelay 每 5s 扫描未发布事件并标记。
+        mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated());
+
+        // relay fixedDelay=5s，等 relay 扫描并发布（findUnpublished 返回空即已全部标记）
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(outboxRepository.findUnpublished(10)).isEmpty());
     }
 
     @Test
