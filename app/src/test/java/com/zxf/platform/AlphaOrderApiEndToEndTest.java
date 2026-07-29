@@ -116,6 +116,28 @@ class AlphaOrderApiEndToEndTest {
     }
 
     @Test
+    void 审批任务创建后自动分配候选人() throws Exception {
+        // 候选人策略（文档 7.7.1 组件 6）：TASK_CREATED 时 TaskAssignmentListener 调用 AlphaTaskAssignmentRule
+        // 为 alphaApproveL1 写入候选人 alpha-manager-1——替代 ActivityBehaviorFactory 的更简洁示范
+        var result = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        var instance = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(orderId).singleResult();
+        var task = taskService.createTaskQuery()
+                .processInstanceId(instance.getId()).active().singleResult();
+
+        var links = taskService.getIdentityLinksForTask(task.getId());
+        assertThat(links)
+                .anyMatch(link -> "candidate".equals(link.getType())
+                        && "alpha-manager-1".equals(link.getUserId()));
+    }
+
+    @Test
     void actuator输出当前实体用于漂移巡检() throws Exception {
         // 文档 6.3 运行期防线：发现"A 的命名空间跑着 B 的镜像"立即告警
         mockMvc.perform(get("/actuator/info"))

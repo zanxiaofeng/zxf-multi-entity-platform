@@ -11,6 +11,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.port.OrderStep;
 import com.zxf.platform.core.domain.port.PricingPolicy;
+import com.zxf.platform.core.domain.port.TaskAssignmentRule;
 import com.zxf.platform.core.infrastructure.engine.EntityContextAwareDelegate;
 import org.flowable.engine.delegate.JavaDelegate;
 
@@ -38,6 +39,11 @@ class ArchitectureGuardTest {
     @ArchTest
     static final ArchRule 管道步骤实现必须限定ForEntity = classes()
             .that().implement(OrderStep.class)
+            .should().beAnnotatedWith(ForEntity.class);
+
+    @ArchTest
+    static final ArchRule 候选人策略实现必须限定ForEntity = classes()
+            .that().implement(TaskAssignmentRule.class)
             .should().beAnnotatedWith(ForEntity.class);
 
     @ArchTest

@@ -114,6 +114,28 @@ class BetaOrderApiEndToEndTest {
     }
 
     @Test
+    void 审批任务创建后自动分配候选人() throws Exception {
+        // 候选人策略（文档 7.7.1 组件 6）：TASK_CREATED 时 TaskAssignmentListener 调用 BetaTaskAssignmentRule
+        // 为 betaApproveL1 写入候选人 beta-approver-1——与 Alpha 对称
+        var result = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        var instance = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(orderId).singleResult();
+        var task = taskService.createTaskQuery()
+                .processInstanceId(instance.getId()).active().singleResult();
+
+        var links = taskService.getIdentityLinksForTask(task.getId());
+        assertThat(links)
+                .anyMatch(link -> "candidate".equals(link.getType())
+                        && "beta-approver-1".equals(link.getUserId()));
+    }
+
+    @Test
     void actuator输出当前实体用于漂移巡检() throws Exception {
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
