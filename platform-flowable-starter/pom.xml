@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zxf.platform</groupId>
+        <artifactId>multi-entity-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>platform-flowable-starter</artifactId>
+    <name>platform-flowable-starter</name>
+    <description>纯依赖聚合：引入即获得 Flowable 公共组件自动配置（文档 7.7.2 组件 14）</description>
+
+    <dependencies>
+        <!-- 自动配置模块：@AutoConfiguration + 条件组合 + AutoConfiguration.imports 注册 -->
+        <dependency>
+            <groupId>com.zxf.platform</groupId>
+            <artifactId>platform-flowable-autoconfigure</artifactId>
+        </dependency>
+        <!-- Flowable 引擎：满足 autoconfigure 的 @ConditionalOnClass(RuntimeService)。
+             版本由根 pom dependencyManagement 锚定（8.0.0）。 -->
+        <dependency>
+            <groupId>org.flowable</groupId>
+            <artifactId>flowable-spring-boot-starter-process</artifactId>
+        </dependency>
+    </dependencies>
+</project>

@@ -3,6 +3,7 @@ package com.zxf.platform.alpha.adapter;
 import com.zxf.platform.core.context.EntityType;
 import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.infrastructure.engine.EntityContextAwareDelegate;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.delegate.BpmnError;
 import org.flowable.engine.delegate.DelegateExecution;
@@ -30,6 +31,10 @@ public class AlphaRiskCheckDelegate extends EntityContextAwareDelegate {
 
     /** BpmnError errorCode——与 BPMN boundaryEvent errorRef 匹配。 */
     public static final String RISK_REJECTED_ERROR = "RISK_REJECTED";
+
+    public AlphaRiskCheckDelegate(MeterRegistry meterRegistry) {
+        super(meterRegistry);
+    }
 
     @Override
     protected void doExecute(DelegateExecution execution) {

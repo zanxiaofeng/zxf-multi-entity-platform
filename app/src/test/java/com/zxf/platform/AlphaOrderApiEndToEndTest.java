@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.port.NotificationPort;
+import com.zxf.platform.core.domain.port.OutboxRepository;
 import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
 import org.flowable.engine.RuntimeService;
@@ -21,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -44,6 +47,17 @@ class AlphaOrderApiEndToEndTest {
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    private OutboxRepository outboxRepository;
+
+    /**
+     * 组件 11（文档 7.7.2）：SendNotificationDelegate 现在经 NotificationPort 调真实下游。
+     * e2e 默认 doNothing——正常路径下通知静默成功，断言逻辑保持不变。
+     * 死信路径在 dedicated 测试中用 {@code doThrow(...)} stub。
+     */
+    @MockitoBean
+    private NotificationPort notificationPort;
 
     @Test
     void 下单按Alpha计价且创建后可查询() throws Exception {
@@ -116,11 +130,56 @@ class AlphaOrderApiEndToEndTest {
     }
 
     @Test
+    void 审批任务创建后自动分配候选人() throws Exception {
+        // 候选人策略（文档 7.7.1 组件 6）：TASK_CREATED 时 TaskAssignmentListener 调用 AlphaTaskAssignmentRule
+        // 为 alphaApproveL1 写入候选人 alpha-manager-1——替代 ActivityBehaviorFactory 的更简洁示范
+        var result = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        var instance = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(orderId).singleResult();
+        var task = taskService.createTaskQuery()
+                .processInstanceId(instance.getId()).active().singleResult();
+
+        var links = taskService.getIdentityLinksForTask(task.getId());
+        assertThat(links)
+                .anyMatch(link -> "candidate".equals(link.getType())
+                        && "alpha-manager-1".equals(link.getUserId()));
+    }
+
+    @Test
+    void 下单后outbox事件被relay发布() throws Exception {
+        // Transactional Outbox（文档 7.7.2 组件 12）：OrderApplicationService.create 在事务内
+        // 写 outbox_event，与 orders 表同事务提交；OutboxRelay 每 5s 扫描未发布事件并标记。
+        mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated());
+
+        // relay fixedDelay=5s，等 relay 扫描并发布（findUnpublished 返回空即已全部标记）
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(outboxRepository.findUnpublished(10)).isEmpty());
+    }
+
+    @Test
     void actuator输出当前实体用于漂移巡检() throws Exception {
         // 文档 6.3 运行期防线：发现"A 的命名空间跑着 B 的镜像"立即告警
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entity").value("ALPHA"));
+    }
+
+    @Test
+    void actuatorHealth包含Flowable健康检查() throws Exception {
+        // 文档 7.7.2 组件 14：platform-flowable-starter 装配 FlowableEngineHealthIndicator，
+        // /actuator/health 自动出现 flowable 组件（@ConditionalOnClass + AutoConfiguration.imports 激活）
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.flowable").exists());
     }
 
     @Test

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.port.NotificationPort;
 import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
 import org.flowable.engine.RuntimeService;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -43,6 +45,13 @@ class BetaOrderApiEndToEndTest {
 
     @Autowired
     private TaskService taskService;
+
+    /**
+     * 组件 11（文档 7.7.2）：SendNotificationDelegate 现在经 NotificationPort 调真实下游。
+     * e2e 默认 doNothing——正常路径下通知静默成功，断言逻辑保持不变。
+     */
+    @MockitoBean
+    private NotificationPort notificationPort;
 
     @Test
     void 下单按Beta计价且创建后可查询() throws Exception {
@@ -111,6 +120,28 @@ class BetaOrderApiEndToEndTest {
         await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
                 assertThat(runtimeService.createProcessInstanceQuery()
                         .processInstanceBusinessKey(orderId).count()).isZero());
+    }
+
+    @Test
+    void 审批任务创建后自动分配候选人() throws Exception {
+        // 候选人策略（文档 7.7.1 组件 6）：TASK_CREATED 时 TaskAssignmentListener 调用 BetaTaskAssignmentRule
+        // 为 betaApproveL1 写入候选人 beta-approver-1——与 Alpha 对称
+        var result = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        var instance = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(orderId).singleResult();
+        var task = taskService.createTaskQuery()
+                .processInstanceId(instance.getId()).active().singleResult();
+
+        var links = taskService.getIdentityLinksForTask(task.getId());
+        assertThat(links)
+                .anyMatch(link -> "candidate".equals(link.getType())
+                        && "beta-approver-1".equals(link.getUserId()));
     }
 
     @Test

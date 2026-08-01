@@ -11,12 +11,15 @@ import com.zxf.platform.core.domain.model.Order;
 import com.zxf.platform.core.domain.port.OrderStep;
 import com.zxf.platform.core.domain.port.PricingPolicy;
 import com.zxf.platform.core.domain.service.AbstractDocumentGenerator;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -39,6 +42,12 @@ class BetaAssemblySmokeTest {
     @Import(PolicyRegistry.class)
     @ComponentScan("com.zxf.platform.beta")
     static class TestAssembly {
+        // delegate 基类（组件 3）依赖 MeterRegistry；轻量上下文不含 Boot 自动配置，手工注册一个
+        // SimpleMeterRegistry 以满足装配（生产环境由 actuator 自动配置提供）
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
     }
 
     @Autowired

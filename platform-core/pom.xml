@@ -54,6 +54,38 @@
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
         </dependency>
+        <!-- ShedLock 定时任务选主（文档 7.7.2 组件 13）：多实例部署时保护 @Scheduled 防重。
+             7.7.0 基于 Spring Framework 7.0.6 / SB 4.0.3 基线编译，与本项目 SB 4.1.x 兼容。
+             shedlock-provider-jdbc-template 提供 JdbcTemplateLockProvider（基于 DataSource 的 JDBC 锁）。 -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>7.7.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>7.7.0</version>
+        </dependency>
+        <!-- RestClient（SB4 模块化拆包，文档 7.7.2 组件 11）：下游 HTTP 客户端，
+             spring-boot-starter-restclient 同时提供 RestClient 与 RestTemplate 的自动配置。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-restclient</artifactId>
+        </dependency>
+        <!-- Resilience4j 核心库（文档 7.7.2 组件 11）：程序式 CircuitBreaker + Retry。
+             不引 resilience4j-spring-boot（SB4 自动配置兼容性未验证，程序式更可控）。
+             2.4.0 为 Maven Central 当前最新稳定版（2026-03 发布）。 -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>2.4.0</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

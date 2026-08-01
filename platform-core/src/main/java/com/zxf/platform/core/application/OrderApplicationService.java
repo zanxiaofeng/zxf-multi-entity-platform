@@ -7,8 +7,10 @@ import com.zxf.platform.core.domain.event.OrderCreatedEvent;
 import com.zxf.platform.core.domain.model.Order;
 import com.zxf.platform.core.domain.model.OrderContext;
 import com.zxf.platform.core.domain.model.OrderId;
+import com.zxf.platform.core.domain.model.OutboxEvent;
 import com.zxf.platform.core.domain.port.OrderApprovalPort;
 import com.zxf.platform.core.domain.port.OrderRepository;
+import com.zxf.platform.core.domain.port.OutboxRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,10 +36,12 @@ public class OrderApplicationService {
     private final PolicyRegistry policies;
     private final OrderPipeline pipeline;
     private final OrderApprovalPort approval;
+    private final OutboxRepository outboxRepository;
     private final ApplicationEventPublisher events;
 
     /**
      * 创建订单：定价（策略端口）→ 管道步骤（装配差异）→ 持久化 → 发起审批（引擎端口）
+     * → 写 Outbox 事件（与业务表同事务，文档 7.7.2 组件 12）
      * → 发布领域事件（审计等副作用 AFTER_COMMIT 消费，文档 8.1 规则 11）。
      *
      * @param cmd 创建命令（不允许 {@code null}）
@@ -51,6 +55,7 @@ public class OrderApplicationService {
         pipeline.run(new OrderContext(order));
         var saved = repository.save(order);
         var processInstanceId = approval.startApproval(saved);
+        outboxRepository.save(new OutboxEvent("ORDER", saved.id().value(), "ORDER_CREATED", null));
         events.publishEvent(new OrderCreatedEvent(saved.id(), processInstanceId));
         log.info("订单已创建 orderId={} processInstanceId={}", saved.id().value(), processInstanceId);
         return saved;

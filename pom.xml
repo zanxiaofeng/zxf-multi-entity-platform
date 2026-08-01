@@ -22,6 +22,8 @@
         <module>platform-core</module>
         <module>entity-alpha</module>
         <module>entity-beta</module>
+        <module>platform-flowable-autoconfigure</module>
+        <module>platform-flowable-starter</module>
         <module>app</module>
     </modules>
 
@@ -62,6 +64,18 @@
                 <artifactId>entity-beta</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!-- 文档 7.7.2 组件 14：platform-flowable starter 模块化（autoconfigure + 纯依赖聚合 starter）。
+                 版本由本 BOM 统一锚定，与 platform-core 同源。 -->
+            <dependency>
+                <groupId>com.zxf.platform</groupId>
+                <artifactId>platform-flowable-autoconfigure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zxf.platform</groupId>
+                <artifactId>platform-flowable-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
@@ -70,6 +84,13 @@
             <dependency>
                 <groupId>org.flowable</groupId>
                 <artifactId>flowable-spring-boot-starter-process</artifactId>
+                <version>${flowable.version}</version>
+            </dependency>
+            <!-- autoconfigure 模块以 provided 引入 flowable-engine（仅需 RuntimeService 类签名），
+                 与 starter 引入的 flowable-spring-boot-starter-process 同源，版本必须由 BOM 统一锚定 -->
+            <dependency>
+                <groupId>org.flowable</groupId>
+                <artifactId>flowable-engine</artifactId>
                 <version>${flowable.version}</version>
             </dependency>
         </dependencies>

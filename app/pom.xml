@@ -19,6 +19,13 @@
             <groupId>com.zxf.platform</groupId>
             <artifactId>platform-core</artifactId>
         </dependency>
+        <!-- platform-flowable-starter（文档 7.7.2 组件 14）：聚合 platform-flowable-autoconfigure
+             + flowable-spring-boot-starter-process。autoconfigure 通过 AutoConfiguration.imports
+             被 Boot 装配，在 app classpath 上注册 FlowableEngineHealthIndicator 到 /actuator/health -->
+        <dependency>
+            <groupId>com.zxf.platform</groupId>
+            <artifactId>platform-flowable-starter</artifactId>
+        </dependency>
 
         <!-- Flyway：Boot 4 模块化拆包后需显式引入 spring-boot-flyway 自动配置模块（见文档 5.0） -->
         <dependency>

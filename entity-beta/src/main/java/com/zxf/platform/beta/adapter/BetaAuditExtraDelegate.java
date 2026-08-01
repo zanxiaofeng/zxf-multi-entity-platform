@@ -3,6 +3,7 @@ package com.zxf.platform.beta.adapter;
 import com.zxf.platform.core.context.EntityType;
 import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.infrastructure.engine.EntityContextAwareDelegate;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,10 @@ import org.springframework.stereotype.Component;
 @Component("betaAuditExtraDelegate")
 @ForEntity(EntityType.BETA)
 public class BetaAuditExtraDelegate extends EntityContextAwareDelegate {
+
+    public BetaAuditExtraDelegate(MeterRegistry meterRegistry) {
+        super(meterRegistry);
+    }
 
     @Override
     protected void doExecute(DelegateExecution execution) {

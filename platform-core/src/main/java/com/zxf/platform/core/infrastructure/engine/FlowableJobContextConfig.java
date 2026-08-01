@@ -72,17 +72,21 @@ public class FlowableJobContextConfig {
     }
 
     /**
-     * 全局事件监听器注册（7.7.1 组件 1 + 组件 2）。
+     * 全局事件监听器注册（7.7.1 组件 1 + 组件 2 + 组件 6）。
      *
      * <p>{@link FlowableEngineEventListener} 是 Spring 单例，注册到引擎后所有流程定义的事件
      * 都经它——指标对接（Counter 按事件类型/processDefinitionKey/entity）+ Spring Event 桥接。
      * {@code setEventListeners} 全量订阅；按类型订阅可用 {@code setTypedEventListeners}（性能更好，
      * 但 demo 全量订阅即可）。{@code isFailOnException()=false} 保证审计/监控失败不回滚业务事务。
+     *
+     * <p>组件 6（候选人分配）：{@link TaskAssignmentListener} 订阅 {@code TASK_CREATED} 事件，
+     * 按 {@link com.zxf.platform.core.domain.port.TaskAssignmentRule} 策略自动分配候选人——
+     * 注册顺序在指标/桥接监听器之后，业务事务提交前完成候选人写入。
      */
     @Bean
     public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> eventListenerConfigurer(
-            FlowableEngineEventListener listener) {
-        return configuration -> configuration.setEventListeners(java.util.List.of(listener));
+            FlowableEngineEventListener listener, TaskAssignmentListener assignmentListener) {
+        return configuration -> configuration.setEventListeners(java.util.List.of(listener, assignmentListener));
     }
 
     /**

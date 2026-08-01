@@ -1,12 +1,16 @@
 package com.zxf.platform.core.infrastructure.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.zxf.platform.core.context.EntityContext;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.model.NotificationFailedException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.atomic.AtomicReference;
+import org.flowable.engine.delegate.BpmnError;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -15,13 +19,18 @@ import org.slf4j.MDC;
 /**
  * 文档 7.3③ 双保险闭环：同步路径不动上下文；async Job 线程（无请求上下文）
  * 从流程变量 {@code entity} 重建并在执行后彻底清理；变量缺失不臆造。
+ *
+ * <p>文档 7.7.1 组件 3 横切能力：基类统一注册 Timer 耗时指标、BpmnError 记 WARN、
+ * 技术异常记 ERROR 后传播。
  */
 class EntityContextAwareDelegateTest {
+
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     private final AtomicReference<EntityType> seenContext = new AtomicReference<>();
     private final AtomicReference<String> seenMdc = new AtomicReference<>();
 
-    private final EntityContextAwareDelegate delegate = new EntityContextAwareDelegate() {
+    private final EntityContextAwareDelegate delegate = new EntityContextAwareDelegate(meterRegistry) {
         @Override
         protected void doExecute(DelegateExecution execution) {
             seenContext.set(EntityContext.currentOrNull());
@@ -71,6 +80,46 @@ class EntityContextAwareDelegateTest {
         assertThat(seenContext.get()).isNull();
         assertThat(EntityContext.currentOrNull()).isNull();
         assertThat(MDC.get("entity")).isNull();
+    }
+
+    @Test
+    void 执行后注册耗时指标() {
+        var execution = executionWithEntityVariable("BETA");
+        delegate.execute(execution);
+
+        assertThat(meterRegistry.find("flowable.delegate.execution").timers())
+                .as("基类应注册 flowable.delegate.execution Timer")
+                .hasSize(1);
+    }
+
+    @Test
+    void 技术异常记ERROR后传播() {
+        var errorDelegate = new EntityContextAwareDelegate(meterRegistry) {
+            @Override
+            protected void doExecute(DelegateExecution execution) {
+                throw new NotificationFailedException("下游不可达");
+            }
+        };
+        var execution = executionWithEntityVariable("ALPHA");
+
+        assertThatThrownBy(() -> errorDelegate.execute(execution))
+                .isInstanceOf(NotificationFailedException.class);
+        // Timer 仍记录了这次执行（含失败）
+        assertThat(meterRegistry.find("flowable.delegate.execution").timers()).hasSize(1);
+    }
+
+    @Test
+    void bpmnError记WARN后传播不走重试路径() {
+        var bpmnDelegate = new EntityContextAwareDelegate(meterRegistry) {
+            @Override
+            protected void doExecute(DelegateExecution execution) {
+                throw new BpmnError("RISK_REJECTED", "风控拒绝");
+            }
+        };
+        var execution = executionWithEntityVariable("ALPHA");
+
+        assertThatThrownBy(() -> bpmnDelegate.execute(execution))
+                .isInstanceOf(BpmnError.class);
     }
 
     private static DelegateExecution executionWithEntityVariable(String entityName) {
