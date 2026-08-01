@@ -100,28 +100,23 @@ public abstract class EntityContextAwareDelegate implements JavaDelegate {
         var sample = Timer.start(meterRegistry);
         try {
             doExecute(execution);
-            sample.stop(Timer.builder(TIMER_NAME)
-                    .tag("delegate", delegateName)
-                    .tag("entity", entityTag())
-                    .register(meterRegistry));
+            stopTimer(sample, delegateName, "success");
             log.info("delegate 执行完成 name={} orderId={}", delegateName, orderId);
         } catch (BpmnError e) {
-            sample.stop(Timer.builder(TIMER_NAME)
-                    .tag("delegate", delegateName)
-                    .tag("entity", entityTag())
-                    .tag("outcome", "bpmn-error")
-                    .register(meterRegistry));
+            stopTimer(sample, delegateName, "bpmn-error");
             log.warn("delegate 业务错误 name={} orderId={} errorCode={}", delegateName, orderId, e.getErrorCode());
             throw e;
         } catch (Exception e) {
-            sample.stop(Timer.builder(TIMER_NAME)
-                    .tag("delegate", delegateName)
-                    .tag("entity", entityTag())
-                    .tag("outcome", "error")
-                    .register(meterRegistry));
+            stopTimer(sample, delegateName, "error");
             log.error("delegate 技术异常 name={} orderId={}", delegateName, orderId, e);
             throw e;
         }
+    }
+
+    /** 统一 Timer 注册：消除三路重复的 builder 链 + 统一 outcome tag（含 success 路径）。 */
+    private void stopTimer(Timer.Sample sample, String delegateName, String outcome) {
+        sample.stop(meterRegistry.timer(TIMER_NAME,
+                "delegate", delegateName, "entity", entityTag(), "outcome", outcome));
     }
 
     private String entityTag() {

@@ -20,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>调度线程无请求上下文：手动从 {@link PlatformProperties#entity()} 重建 {@link EntityContext}
  * 与 MDC（与引擎 Job 线程的 delegate 基类同构，文档 7.3③）；try/finally 保证线程池复用时清理。
  *
- * <p>{@code @Transactional} 让 {@code markPublished} 的脏检查生效——同一事务内 findById 加载
- * 的实体，调用 {@code markPublished()} 后由 Hibernate 在提交时 flush 写回 {@code published_at}。
+ * <p>{@code @Transactional} 让脏检查生效——{@code findUnpublished} 加载的实体在同一事务内
+ * 调用 {@code markPublished()}，由 Hibernate 在提交时 flush 写回 {@code published_at}。
  */
 @Slf4j
 @Component
@@ -42,8 +42,9 @@ public class OutboxRelay {
     @SchedulerLock(name = "outbox-relay", lockAtMostFor = "PT4M", lockAtLeastFor = "PT5S")
     @Transactional
     public void relay() {
-        EntityContext.set(properties.entity());
-        MDC.put(EntityContext.MDC_KEY, properties.entity().name());
+        var entity = properties.entity();
+        EntityContext.set(entity);
+        MDC.put(EntityContext.MDC_KEY, entity.name());
         try {
             var events = repository.findUnpublished(10);
             if (events.isEmpty()) {
@@ -51,7 +52,7 @@ public class OutboxRelay {
             }
             events.forEach(event -> {
                 log.info("outbox 发布 eventType={} aggregateId={}", event.eventType(), event.aggregateId());
-                repository.markPublished(event.id());
+                event.markPublished();
             });
         } finally {
             MDC.clear();
