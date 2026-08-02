@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Alpha 流程装配冒烟（文档 7.4）：Flowable 引擎<b>不做启动期 delegate 校验</b>——
@@ -26,7 +27,12 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("alpha")
 @EnabledIfSystemProperty(named = "assembly.entity", matches = "alpha")
+// 每测试类独立 H2 库：原因见 AlphaOrderApiEndToEndTest 同位置注释
+@TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:alpha-process-smoke-db;DB_CLOSE_DELAY=-1")
 class AlphaProcessAssemblySmokeTest {
+
+    /** 匹配 {@code ${beanName}} 形式的委托表达式（类级缓存，避免每次调用重新编译）。 */
+    private static final Pattern DELEGATE_EXPRESSION_PATTERN = Pattern.compile("^\\$\\{(.+)}$");
 
     @Autowired
     private RepositoryService repositoryService;
@@ -77,7 +83,7 @@ class AlphaProcessAssemblySmokeTest {
         if (implementation == null) {
             return null;
         }
-        var matcher = Pattern.compile("^\\$\\{(.+)}$").matcher(implementation);
+        var matcher = DELEGATE_EXPRESSION_PATTERN.matcher(implementation);
         return matcher.matches() ? matcher.group(1) : null;
     }
 }

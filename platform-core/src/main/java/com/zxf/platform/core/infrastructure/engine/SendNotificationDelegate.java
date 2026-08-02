@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 /**
  * 通用任务：审批链结束后发送通知——两个实体的流程定义共用（文档 7.2 任务实现分流：
@@ -31,24 +32,25 @@ import org.springframework.stereotype.Component;
 @Component("sendNotificationDelegate")
 public class SendNotificationDelegate extends EntityContextAwareDelegate {
 
-    private final NotificationPort notificationClient;
+    private final NotificationPort notificationPort;
     private final AuditPort audit;
 
     public SendNotificationDelegate(MeterRegistry meterRegistry,
-                                    NotificationPort notificationClient,
+                                    NotificationPort notificationPort,
                                     AuditPort audit) {
         super(meterRegistry);
-        this.notificationClient = notificationClient;
+        this.notificationPort = notificationPort;
         this.audit = audit;
     }
 
     @Override
     protected void doExecute(DelegateExecution execution) {
         var orderId = (String) execution.getVariable("orderId");
+        Assert.hasText(orderId, "流程变量 orderId 缺失");
         // 失败源 = NotificationClient 下游调用：技术异常（连接失败 / 5xx 等）经 Resilience4j
         // Retry 耗尽后抛 NotificationFailedException，配合 failedJobRetryTimeCycle（R3/PT5S）
         // 走 Job 重试→死信路径（文档 7.7.1 组件 4）；BpmnError 走 BPMN 边界事件分支不重试（组件 5）
-        notificationClient.send(orderId, execution.getProcessInstanceId());
+        notificationPort.send(orderId, execution.getProcessInstanceId());
         audit.record("APPROVAL_NOTIFICATION", "orderId=" + orderId);
         log.info("发送审批完成通知 orderId={} processInstanceId={}",
                 orderId, execution.getProcessInstanceId());

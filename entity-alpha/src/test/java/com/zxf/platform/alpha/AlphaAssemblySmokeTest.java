@@ -8,6 +8,7 @@ import com.zxf.platform.core.context.EntityType;
 import com.zxf.platform.core.context.PlatformProperties;
 import com.zxf.platform.core.domain.model.Money;
 import com.zxf.platform.core.domain.model.Order;
+import com.zxf.platform.core.domain.port.OrderRepository;
 import com.zxf.platform.core.domain.port.OrderStep;
 import com.zxf.platform.core.domain.port.PricingPolicy;
 import com.zxf.platform.core.domain.service.AbstractDocumentGenerator;
@@ -17,6 +18,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +53,13 @@ class AlphaAssemblySmokeTest {
         @Bean
         MeterRegistry meterRegistry() {
             return new SimpleMeterRegistry();
+        }
+
+        // AlphaRiskCheckDelegate（组件 5）依赖 OrderRepository 端口；轻量上下文不含 JPA 适配器，
+        // 注册 mock 满足装配（本测试只验证装配不执行风控逻辑）
+        @Bean
+        OrderRepository orderRepository() {
+            return Mockito.mock(OrderRepository.class);
         }
     }
 

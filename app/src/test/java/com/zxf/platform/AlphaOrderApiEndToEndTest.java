@@ -2,6 +2,9 @@ package com.zxf.platform;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -9,10 +12,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.zxf.platform.core.context.EntityType;
+import com.zxf.platform.core.domain.model.NotificationFailedException;
 import com.zxf.platform.core.domain.port.NotificationPort;
 import com.zxf.platform.core.domain.port.OutboxRepository;
+import com.zxf.platform.core.infrastructure.engine.DeadLetterJobOperations;
 import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
+import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.task.api.Task;
@@ -23,6 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -34,6 +41,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @ActiveProfiles("alpha")
 @EnabledIfSystemProperty(named = "assembly.entity", matches = "alpha")
+// 每测试类独立 H2 库：Spring 上下文缓存会让多个测试上下文的 Flowable 引擎同时存活，
+// 共享库（yaml 默认 alpha-db）下引擎跨上下文抢 Job——mock 隔离失效且重试/死信时序不确定
+@TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:alpha-e2e-db;DB_CLOSE_DELAY=-1")
 class AlphaOrderApiEndToEndTest {
 
     @Autowired
@@ -50,6 +60,12 @@ class AlphaOrderApiEndToEndTest {
 
     @Autowired
     private OutboxRepository outboxRepository;
+
+    @Autowired
+    private DeadLetterJobOperations deadLetterJobOperations;
+
+    @Autowired
+    private HistoryService historyService;
 
     /**
      * 组件 11（文档 7.7.2）：SendNotificationDelegate 现在经 NotificationPort 调真实下游。
@@ -130,6 +146,32 @@ class AlphaOrderApiEndToEndTest {
     }
 
     @Test
+    void 风控命中黑名单走BpmnError分支且不产生死信() throws Exception {
+        // 组件 5（文档 7.7.1）：业务错误（BpmnError RISK_REJECTED）由边界错误事件捕获走
+        // "风控拒绝"分支——不触发 Job 重试、不产生死信（与技术异常 failedJobRetryTimeCycle 对照）。
+        // 触发条件请求可控：item 以 "risk-" 开头（AlphaRiskCheckDelegate.RISK_ITEM_PREFIX）
+        var result = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"risk-widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        // 风控是同步节点：下单返回时流程已被边界事件捕获并走到"风控拒绝"终态——
+        // 订单照常创建（201），但运行中实例归零（历史表留痕）
+        assertThat(runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(orderId).count()).isZero();
+        var historic = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceBusinessKey(orderId).singleResult();
+        assertThat(historic).isNotNull();
+        assertThat(historic.getEndTime()).isNotNull();
+
+        // BpmnError 走分支不重试：本实例不产生死信 Job
+        assertThat(deadLetterJobOperations.list())
+                .noneMatch(job -> historic.getId().equals(job.processInstanceId()));
+    }
+
+    @Test
     void 审批任务创建后自动分配候选人() throws Exception {
         // 候选人策略（文档 7.7.1 组件 6）：TASK_CREATED 时 TaskAssignmentListener 调用 AlphaTaskAssignmentRule
         // 为 alphaApproveL1 写入候选人 alpha-manager-1——替代 ActivityBehaviorFactory 的更简洁示范
@@ -149,6 +191,55 @@ class AlphaOrderApiEndToEndTest {
         assertThat(links)
                 .anyMatch(link -> "candidate".equals(link.getType())
                         && "alpha-manager-1".equals(link.getUserId()));
+    }
+
+    @Test
+    void 通知持续失败耗尽重试进死信且复活后流程走完() throws Exception {
+        // 组件 4 全链路（文档 7.7.1）：技术异常 → failedJobRetryTimeCycle R3/PT5S 耗尽
+        // → ACT_RU_DEADLETTER_JOB 死信 → 运维复活 → 流程走完。
+        // 与组件 5 对照：BpmnError 走分支不重试，技术异常走重试→死信
+        doThrow(new NotificationFailedException("模拟通知下游持续故障", new RuntimeException("下游不可用")))
+                .when(notificationPort).send(anyString(), anyString());
+        try {
+            var result = mockMvc.perform(post("/api/v1/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"item\":\"gadget\",\"quantity\":1}"))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+            var instance = runtimeService.createProcessInstanceQuery()
+                    .processInstanceBusinessKey(orderId).singleResult();
+            assertThat(instance).isNotNull();
+
+            // 走完三级审批 → async sendNotification 每次执行都抛 NotificationFailedException
+            Task task;
+            while ((task = taskService.createTaskQuery().processInstanceId(instance.getId()).active().singleResult()) != null) {
+                taskService.complete(task.getId());
+            }
+
+            // R3/PT5S 重试耗尽（约 15s + Job acquisition 轮询，预算放宽到 90s）后进死信表
+            await().atMost(Duration.ofSeconds(90)).untilAsserted(() ->
+                    assertThat(deadLetterJobOperations.list())
+                            .anyMatch(job -> instance.getId().equals(job.processInstanceId())));
+
+            // 下游恢复（reset 解除 stub）→ 复活死信 Job → 通知成功、流程走完
+            reset(notificationPort);
+            var deadLetter = deadLetterJobOperations.list().stream()
+                    .filter(job -> instance.getId().equals(job.processInstanceId()))
+                    .findFirst().orElseThrow();
+            deadLetterJobOperations.retry(deadLetter.jobId());
+
+            await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+                assertThat(runtimeService.createProcessInstanceQuery()
+                        .processInstanceBusinessKey(orderId).count()).isZero();
+                // 死信已随复活执行清空（本实例）
+                assertThat(deadLetterJobOperations.list())
+                        .noneMatch(job -> instance.getId().equals(job.processInstanceId()));
+            });
+        } finally {
+            // 兜底解除 stub：即使中途失败也不污染同类的其它测试
+            reset(notificationPort);
+        }
     }
 
     @Test
@@ -194,6 +285,13 @@ class AlphaOrderApiEndToEndTest {
         mockMvc.perform(get("/api/v1/orders/0"))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/v1/orders/-1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 非数字订单id返回400() throws Exception {
+        // MethodArgumentTypeMismatchException → 400（exception-handling §6.2），不得回落兜底 500
+        mockMvc.perform(get("/api/v1/orders/abc"))
                 .andExpect(status().isBadRequest());
     }
 

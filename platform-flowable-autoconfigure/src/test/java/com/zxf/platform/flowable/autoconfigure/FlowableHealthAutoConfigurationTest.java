@@ -39,4 +39,17 @@ class FlowableHealthAutoConfigurationTest {
                 .withPropertyValues("platform.flowable.health.enabled=false")
                 .run(context -> assertThat(context).doesNotHaveBean(HealthIndicator.class));
     }
+
+    @Test
+    void 自定义同名健康指标时保留业务方bean() {
+        // @ConditionalOnMissingBean(name="flowableHealthIndicator")：业务方自定义同名 bean 优先，
+        // 自动配置退让（starter 标准覆盖模式）
+        var custom = mock(HealthIndicator.class);
+        runner.withBean(RuntimeService.class, () -> mock(RuntimeService.class))
+                .withBean("flowableHealthIndicator", HealthIndicator.class, () -> custom)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(HealthIndicator.class);
+                    assertThat(context.getBean("flowableHealthIndicator")).isSameAs(custom);
+                });
+    }
 }

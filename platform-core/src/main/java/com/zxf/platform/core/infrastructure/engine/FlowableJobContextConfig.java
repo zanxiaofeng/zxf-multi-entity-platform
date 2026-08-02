@@ -1,5 +1,6 @@
 package com.zxf.platform.core.infrastructure.engine;
 
+import java.util.List;
 import org.flowable.common.engine.impl.persistence.StrongUuidGenerator;
 import org.flowable.common.spring.async.SpringAsyncTaskExecutor;
 import org.flowable.spring.SpringProcessEngineConfiguration;
@@ -86,7 +87,7 @@ public class FlowableJobContextConfig {
     @Bean
     public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> eventListenerConfigurer(
             FlowableEngineEventListener listener, TaskAssignmentListener assignmentListener) {
-        return configuration -> configuration.setEventListeners(java.util.List.of(listener, assignmentListener));
+        return configuration -> configuration.setEventListeners(List.of(listener, assignmentListener));
     }
 
     /**
@@ -98,6 +99,6 @@ public class FlowableJobContextConfig {
     @Bean
     public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> elFunctionConfigurer(
             CurrentEntityElFunction elFunction) {
-        return configuration -> configuration.setCustomFlowableFunctionDelegates(java.util.List.of(elFunction));
+        return configuration -> configuration.setCustomFlowableFunctionDelegates(List.of(elFunction));
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Beta 流程装配冒烟（文档 7.4）：与 Alpha 对称——同 key 定义唯一、delegate 全装配、
@@ -24,7 +25,12 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("beta")
 @EnabledIfSystemProperty(named = "assembly.entity", matches = "beta")
+// 每测试类独立 H2 库：原因见 AlphaOrderApiEndToEndTest 同位置注释
+@TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:beta-process-smoke-db;DB_CLOSE_DELAY=-1")
 class BetaProcessAssemblySmokeTest {
+
+    /** 匹配 {@code ${beanName}} 形式的委托表达式（类级缓存，避免每次调用重新编译）。 */
+    private static final Pattern DELEGATE_EXPRESSION_PATTERN = Pattern.compile("^\\$\\{(.+)}$");
 
     @Autowired
     private RepositoryService repositoryService;
@@ -74,7 +80,7 @@ class BetaProcessAssemblySmokeTest {
         if (implementation == null) {
             return null;
         }
-        var matcher = Pattern.compile("^\\$\\{(.+)}$").matcher(implementation);
+        var matcher = DELEGATE_EXPRESSION_PATTERN.matcher(implementation);
         return matcher.matches() ? matcher.group(1) : null;
     }
 }

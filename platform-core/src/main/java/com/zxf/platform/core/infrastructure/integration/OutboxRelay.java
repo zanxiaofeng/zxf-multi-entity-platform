@@ -55,7 +55,7 @@ public class OutboxRelay {
                 event.markPublished();
             });
         } finally {
-            MDC.clear();
+            MDC.remove(EntityContext.MDC_KEY);
             EntityContext.clear();
         }
     }

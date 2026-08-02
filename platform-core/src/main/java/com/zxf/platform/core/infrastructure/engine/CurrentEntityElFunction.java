@@ -22,6 +22,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class CurrentEntityElFunction implements FlowableFunctionDelegate {
 
+    /** EL 目标方法引用：类加载时解析一次并缓存，避免每次表达式求值都走反射查找。 */
+    private static final Method CURRENT_ENTITY_METHOD = resolveMethod();
+
+    private static Method resolveMethod() {
+        try {
+            return CurrentEntityElFunction.class.getMethod("currentEntity");
+        } catch (NoSuchMethodException ex) {
+            throw new IllegalStateException("currentEntity 静态方法不存在", ex);
+        }
+    }
+
     @Override
     public String prefix() {
         return "bpm";
@@ -34,11 +45,7 @@ public class CurrentEntityElFunction implements FlowableFunctionDelegate {
 
     @Override
     public Method functionMethod() {
-        try {
-            return CurrentEntityElFunction.class.getMethod("currentEntity");
-        } catch (NoSuchMethodException ex) {
-            throw new IllegalStateException("currentEntity 静态方法不存在", ex);
-        }
+        return CURRENT_ENTITY_METHOD;
     }
 
     /** EL 表达式实际调用的方法：返回当前实体名（无上下文时 "none"）。 */

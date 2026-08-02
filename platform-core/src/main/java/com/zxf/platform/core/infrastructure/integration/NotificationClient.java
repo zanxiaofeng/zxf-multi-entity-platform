@@ -8,6 +8,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -36,6 +37,8 @@ public class NotificationClient implements NotificationPort {
 
     @Override
     public void send(String orderId, String processInstanceId) {
+        Assert.hasText(orderId, "orderId 不能为空");
+        Assert.hasText(processInstanceId, "processInstanceId 不能为空");
         // 装饰顺序：Retry 包裹实际调用，CircuitBreaker 包裹 Retry（每次重试计入 CB 统计）
         var retryDecorated = Retry.decorateRunnable(notificationRetry,
                 () -> doCall(orderId, processInstanceId));

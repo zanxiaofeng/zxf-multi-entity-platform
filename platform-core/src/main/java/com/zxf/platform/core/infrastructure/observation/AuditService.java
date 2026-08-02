@@ -9,7 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.Assert;
@@ -24,7 +24,7 @@ import org.springframework.util.Assert;
  * <p>demo 用内存审计轨迹（便于测试断言）；生产替换为审计库 / 审计消息。
  */
 @Slf4j
-@Service
+@Component
 public class AuditService implements AuditPort {
 
     private final List<AuditEntry> trail = new CopyOnWriteArrayList<>();

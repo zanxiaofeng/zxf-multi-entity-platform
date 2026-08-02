@@ -8,6 +8,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Alpha 完整装配冒烟（文档 5.7 / 5.8.1）：真实启动全部自动配置（Web/JPA/Flyway），
@@ -22,6 +23,8 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("alpha")
 @EnabledIfSystemProperty(named = "assembly.entity", matches = "alpha")
+// 每测试类独立 H2 库：原因见 AlphaOrderApiEndToEndTest 同位置注释
+@TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:alpha-assembly-smoke-db;DB_CLOSE_DELAY=-1")
 class AlphaAssemblySmokeTest {
 
     @Autowired

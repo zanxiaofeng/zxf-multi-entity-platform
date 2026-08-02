@@ -11,6 +11,10 @@
              xmlns:flowable="http://flowable.org/bpmn"
              targetNamespace="http://zxf.com/platform/order">
 
+    <!-- 错误定义（BPMN 2.0 规范）：boundaryEvent 的 errorRef 指向此 id；
+         引擎按 errorCode 与 BpmnError 匹配，缺定义虽可运行但属不规范建模 -->
+    <error id="RISK_REJECTED" errorCode="RISK_REJECTED"/>
+
     <process id="order-approval" name="Alpha 订单三级审批">
         <startEvent id="start"/>
         <sequenceFlow id="flow-start-risk" sourceRef="start" targetRef="alphaRiskCheck"/>

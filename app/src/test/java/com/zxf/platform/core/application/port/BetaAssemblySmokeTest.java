@@ -8,6 +8,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Beta 完整装配冒烟（文档 5.7 / 5.8.1）：与 Alpha 对称，仅在 {@code mvn -Pbeta} 装配下运行。
@@ -15,6 +16,8 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("beta")
 @EnabledIfSystemProperty(named = "assembly.entity", matches = "beta")
+// 每测试类独立 H2 库：原因见 AlphaOrderApiEndToEndTest 同位置注释
+@TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:beta-assembly-smoke-db;DB_CLOSE_DELAY=-1")
 class BetaAssemblySmokeTest {
 
     @Autowired

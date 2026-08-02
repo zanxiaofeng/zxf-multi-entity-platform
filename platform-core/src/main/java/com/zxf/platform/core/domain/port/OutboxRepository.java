@@ -7,7 +7,8 @@ import java.util.List;
  * Outbox 持久化端口（文档 7.7.2 组件 12）：纯契约，零框架注解。
  * JPA 适配器在 {@code infrastructure.persistence}。
  *
- * <p>{@code markPublished} 依赖 JPA 脏检查——调用方必须在事务内（事务提交时 flush）。
+ * <p>发布标记不走端口方法：{@code OutboxRelay} 在同一事务内对 {@code findUnpublished}
+ * 加载的实体直接调用 {@link OutboxEvent#markPublished()}，由 JPA 脏检查写回。
  */
 public interface OutboxRepository {
 
@@ -25,11 +26,4 @@ public interface OutboxRepository {
      * @return 未发布事件列表（空列表表示无待发布）
      */
     List<OutboxEvent> findUnpublished(int limit);
-
-    /**
-     * 标记指定事件为已发布（依赖调用方事务——脏检查写回）。
-     *
-     * @param id 事件标识（不允许 {@code null}）
-     */
-    void markPublished(Long id);
 }

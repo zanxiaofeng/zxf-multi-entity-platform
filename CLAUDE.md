@@ -41,6 +41,7 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 - **ACT_ID_*（IDM）表不能漏**：引擎启动对 common/process/idm/eventregistry 四类 schema 逐一校验；IDM DDL 在独立的 `flowable-idm-engine` jar 里（不在流程引擎 jar），缺失时报极具误导性的 `db version is 5.99.0.0`（`IdmDbSchemaManager` 对缺表场景的升级起点默认值）
 - Flowable 8 的 `SpringAsyncExecutor.setTaskExecutor` 接收引擎侧 `org.flowable.common.engine.api.async.AsyncTaskExecutor`，Spring 执行器需经 `org.flowable.common.spring.async.SpringAsyncTaskExecutor` 适配
 - BPMN 在实体模块 `processes/` 目录，两实体同 key（`order-approval`）不同拓扑；引擎不做启动期 delegate 校验——装配冒烟兜底（同 key 唯一 + delegate 全装配）
+- **app 测试类必须各自独立 H2 库**（`@TestPropertySource` 覆盖 `spring.datasource.url` 为唯一库名）：Spring 上下文缓存让多个测试上下文的 Flowable 引擎同时存活，共享库下引擎跨上下文抢 Job——`@MockitoBean` 隔离失效（对侧上下文用真实 bean 执行）且重试/死信时序不确定
 - `infrastructure.engine` 是引擎适配层（允许接触 EntityContext，与 Filter 同级）；`application`/`domain` 仍禁止（ArchUnit 守护）
 
 ## .claude/rules 规范库（每会话必读纪律）
@@ -66,3 +67,7 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 ### 骨架适用范围
 
 本骨架是架构演示工程：`core.{context,interfaces,application,domain,infrastructure}` 分包与评审红线以本文件「硬性约束」+ README「Review 硬性规则」+ ArchUnit/Enforcer 护栏为准，**不套用四层分包**；`BusinessException`/`ApiResponse`、Contract Test、WireMock MockFactory 等规范项**面向后续新增业务模块**，引入对应能力时再生效；`java-coding-standard`/`logging`/`db-*`/`test-*` 等通用规范**现在即生效**。
+
+风格约定（评审时不再作为发现提出）：
+- **测试方法命名**：全仓统一使用中文自然语言命名（如 `下单按Alpha计价且创建后可查询`），不套 `test{Action}{Entity}[{Condition}]` 模板——规则库模板面向英文命名的业务项目，本骨架以中文场景描述为准；断言语义以方法体内 Given/When/Then 注释与 AssertJ 链表达。
+- **Javadoc 风格**：采用描述性段落 + 文档章节引用（如「文档 7.7.1 组件 4」），公共方法不强制 `@param/@return/@throws` 标签形式；参数约束在契约编程（`Assert`）与注解（JSpecify）层表达。

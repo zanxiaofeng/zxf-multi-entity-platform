@@ -29,7 +29,7 @@ public class ShedLockConfig {
      * <p>默认 {@code lockAtMostFor = PT5M}（5 分钟）作为兜底——任务异常未释放锁时，
      * 5 分钟后自动过期，避免死锁；正常执行完毕时 ShedLock 会主动释放（缩短至实际执行时长）。
      *
-     * @param DataSource per-entity 主数据源（Flyway 已在该库建好 {@code shedlock} 表）
+     * @param dataSource per-entity 主数据源（Flyway 已在该库建好 {@code shedlock} 表）
      * @return LockProvider 装配给 {@code @SchedulerLock} AOP 拦截器
      */
     @Bean

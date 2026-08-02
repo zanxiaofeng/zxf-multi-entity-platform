@@ -32,6 +32,10 @@ import org.springframework.util.Assert;
 @RequiredArgsConstructor
 public class OrderApplicationService {
 
+    /** Outbox 聚合类型与事件类型常量（MQ 路由键，避免魔法字符串散落）。 */
+    private static final String OUTBOX_AGGREGATE_ORDER = "ORDER";
+    private static final String OUTBOX_EVENT_ORDER_CREATED = "ORDER_CREATED";
+
     private final OrderRepository repository;
     private final PolicyRegistry policies;
     private final OrderPipeline pipeline;
@@ -55,7 +59,7 @@ public class OrderApplicationService {
         pipeline.run(new OrderContext(order));
         var saved = repository.save(order);
         var processInstanceId = approval.startApproval(saved);
-        outboxRepository.save(new OutboxEvent("ORDER", saved.id().value(), "ORDER_CREATED", null));
+        outboxRepository.save(new OutboxEvent(OUTBOX_AGGREGATE_ORDER, saved.id().value(), OUTBOX_EVENT_ORDER_CREATED, null));
         events.publishEvent(new OrderCreatedEvent(saved.id(), processInstanceId));
         log.info("订单已创建 orderId={} processInstanceId={}", saved.id().value(), processInstanceId);
         return saved;

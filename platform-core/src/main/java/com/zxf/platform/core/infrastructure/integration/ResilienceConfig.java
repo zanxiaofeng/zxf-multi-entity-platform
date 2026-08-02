@@ -9,6 +9,8 @@ import io.github.resilience4j.retry.RetryRegistry;
 import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 /**
  * Resilience4j 手动配置（文档 7.7.2 组件 11）：核心库程序式配置，不依赖 spring-boot autoconfigure。
@@ -45,12 +47,17 @@ public class ResilienceConfig {
 
     /**
      * 通知服务重试器：3 次尝试（首调 + 2 重试），间隔 500ms。
+     *
+     * <p>重试范围收窄（downstream-conventions §4 错误分类）：只对连接失败/超时
+     * （{@link ResourceAccessException}）与 5xx（{@link HttpServerErrorException}）重试；
+     * 4xx 是客户端错误，重试无意义，默认不重试（首次失败即向上抛）。
      */
     @Bean
     public Retry notificationRetry() {
         var config = RetryConfig.custom()
                 .maxAttempts(3)
                 .waitDuration(Duration.ofMillis(500))
+                .retryExceptions(ResourceAccessException.class, HttpServerErrorException.class)
                 .build();
         return RetryRegistry.of(config).retry("notification");
     }

@@ -1,6 +1,7 @@
 package com.zxf.platform.core.interfaces.rest;
 
 import com.zxf.platform.core.application.RuleViolationException;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -25,6 +27,10 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @Slf4j
 @RestControllerAdvice
 public class RestExceptionHandler {
+
+    /** 校验错误回显时对敏感字段脱敏（exception-handling §6.2 / logging 脱敏表）。 */
+    private static final Set<String> SENSITIVE_FIELDS = Set.of(
+            "password", "secret", "token", "apiKey", "accessToken", "refreshToken");
 
     /** Schema 驱动校验规则违反（文档 5.8.3）：客户端可修正的输入问题 → 400。
      *  <p>与 {@code IllegalArgumentException}（{@code Assert} 契约违反，属编程错误）区分：
@@ -44,9 +50,24 @@ public class RestExceptionHandler {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "请求体校验失败");
         problem.setTitle("请求参数不合法");
         var fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> "%s: %s（当前值: %s）".formatted(fe.getField(), fe.getDefaultMessage(), fe.getRejectedValue()))
+                .map(fe -> "%s: %s（当前值: %s）".formatted(
+                        fe.getField(), fe.getDefaultMessage(), maskRejectedValue(fe.getField(), fe.getRejectedValue())))
                 .toList();
         problem.setProperty("errors", fieldErrors);
+        return problem;
+    }
+
+    /**
+     * 路径/查询参数类型不匹配（如 id 传了非数字）→ 400。
+     * 客户端消息含参数名即可，不回显原始值（exception-handling §6.2）。
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("参数类型不匹配: {} 期望 {}", ex.getName(), ex.getRequiredType() != null
+                ? ex.getRequiredType().getSimpleName() : "未知");
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "参数 " + ex.getName() + " 类型不合法");
+        problem.setTitle("请求参数不合法");
         return problem;
     }
 
@@ -92,5 +113,13 @@ public class RestExceptionHandler {
     public ProblemDetail handleUnexpected(Exception ex) {
         log.error("未预期的异常", ex);
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误");
+    }
+
+    /** 敏感字段的回显值脱敏为 {@code "***"}，其余原样返回。 */
+    private static Object maskRejectedValue(String field, Object rejectedValue) {
+        if (SENSITIVE_FIELDS.contains(field)) {
+            return "***";
+        }
+        return rejectedValue;
     }
 }

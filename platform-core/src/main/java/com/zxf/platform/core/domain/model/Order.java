@@ -54,7 +54,7 @@ public class Order {
     /** 通用：结构。入参为标量而非应用层 command——领域模型不依赖 application 层（文档 5.1.1）。 */
     public static Order from(String item, int quantity) {
         Assert.hasText(item, "item 不能为空");
-        Assert.isTrue(quantity > 0, "quantity 必须为正数");
+        Assert.isTrue(quantity > 0, () -> "quantity 必须为正数，实际值: " + quantity);
         return new Order(item, quantity);
     }
 
