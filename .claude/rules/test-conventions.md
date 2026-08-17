@@ -6,6 +6,10 @@ paths:
 ---
 # Testing Conventions
 
+> **职责边界：** 本文件是测试规范**总则**——测试分层、包结构、单元测试模式、Spring Test Context 管理、测试独立性。API Test 详细编码规范（命名、Fixture、模板、Support 类、三层断言）见 `integration-test-guide.md`，契约测试见 `contract-test.md`，TDD 工作流见 `tdd-workflow.md`。
+
+***
+
 ## Three-Layer Test Pyramid
 
 | Layer | Package | Scope | Tools | DB | Downstream | Naming Convention |
@@ -16,6 +20,8 @@ paths:
 | **Repository Slice** | `support/` | JPA adapter (@DataJpaTest) | @DataJpaTest + H2 | H2 | None | `{Entity}JpaAdapterTest` |
 
 **Layer dependency rule:** A failing unit test points to a bug in a single class. A failing API test points to an integration issue. A failing contract test points to a broken API agreement. Always fix from the bottom up.
+
+***
 
 ## Test Package Structure
 
@@ -47,6 +53,8 @@ src/test/java/{base-package}/
 - `integration/` — 启动完整 Spring Boot 应用(WebTestClient + RANDOM_PORT + H2 + WireMock),即原 `apitest/`
 - `contract/` — Spring Cloud Contract(MockMvc + RestAssuredMockMvc),验证 API 契约
 - `support/` — 跨测试类型共享的工具类(`JsonAssert`、`MockFileLoader`、`DatabaseVerifier` 等)+ `{Entity}JpaAdapterTest`(@DataJpaTest 切片)
+
+***
 
 ## Unit Test Patterns
 
@@ -107,7 +115,7 @@ Use `@DataJpaTest` for testing JPA adapter implementations. This loads only the 
 @Import({Entity}JpaAdapter.class)
 class {Entity}JpaAdapterTest {
 
-    @Autowired  // 测试切片允许字段注入(Spring Test 业内惯例);生产代码必须构造器注入(见 java-coding-standard §6)
+    @Autowired  // 测试切片允许字段注入(Spring Test 业内惯例);生产代码必须构造器注入(见 java-coding-standard.md §1.5)
     private {Entity}Repository repository; // domain port
 
     @Autowired
@@ -157,6 +165,8 @@ class {Entity}MapperTest {
 }
 ```
 
+***
+
 ## Spring Test Context Management
 
 ### Test-Specific Beans with @TestConfiguration
@@ -196,6 +206,8 @@ Spring Test caches the `ApplicationContext` by configuration. Breaking the cache
 1. Group tests with the same `@MockitoBean` configuration into the same test class
 2. Use `@Sql` for data cleanup instead of `@DirtiesContext`
 3. Keep API test classes focused on a single controller to share the same context
+
+***
 
 ## Test Independence Rules
 
@@ -251,6 +263,8 @@ static class TestClockConfig {
 
 Never use `OffsetDateTime.now()` in test assertions — always use the fixed clock value.
 
+***
+
 ## Comprehensive API Test Reference
 
-For API test conventions including naming, fixtures, templates, support class reference, WireMock patterns, assertion system, and checklists, see `.claude/rules/integration-test-guide.md`.
+For API test conventions including naming, fixtures, templates, support class reference, WireMock patterns, assertion system, and checklists, see `integration-test-guide.md`.

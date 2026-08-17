@@ -13,7 +13,7 @@ paths:
 3. **Write Failing API Test (Red)**: Write an API test (`*ApiTests`) using WebTestClient + JSON fixtures + @Sql seed data. Stub downstream calls via MockFactory where applicable.
 4. **Write Failing Unit Tests (Red)**: Write unit tests for Service logic, Mapper transformations, and Entity domain methods. These tests isolate individual classes and must fail before implementation exists.
 5. **Minimal Implementation (Green)**: Implement Controller → Service → Repository in layers. Write only enough code to make the API test and unit tests pass.
-6. **Refactor**: Check against `.claude/rules/`, extract duplicates, optimize naming
+6. **Refactor**: Check against `.claude/rules/` (see `code-review.md` for unified checklist), extract duplicates, optimize naming
 7. **Contract Test (API layer)**: Write Contract for each new endpoint, generate Stub and verify API contract
 8. **Documentation Update**: Update `docs/design/api-spec-v1.md`, `docs/design/domain-model.md`, and `CLAUDE.md` Sprint status
 

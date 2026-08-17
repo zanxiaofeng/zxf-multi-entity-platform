@@ -8,6 +8,10 @@ paths:
 ---
 # DB Migration Guide
 
+> **职责边界：** 本文件定义 Flyway 迁移文件的目录结构、版本编号、回滚策略、数据迁移模式。Entity 映射规则与 H2 兼容性见 `db-conventions.md`。
+
+***
+
 ## Directory Structure
 ```
 src/main/resources/db/
@@ -25,6 +29,8 @@ src/test/resources/sql-data/ -- Test data (@Sql scripts, NOT managed by Flyway)
     └── user-bio-test.sql
 ```
 
+***
+
 ## Flyway Version Numbering
 
 - 格式：`V{version}__{description}.sql`（**双下划线**分隔版本号和描述）
@@ -32,12 +38,16 @@ src/test/resources/sql-data/ -- Test data (@Sql scripts, NOT managed by Flyway)
 - 分支冲突解决：协调版本号或使用 `spring.flyway.out-of-order=true`
 - 文件名描述：kebab-case，简洁描述变更内容
 
+***
+
 ## Repeatable Migrations (R__)
 
 `R__{description}.sql` — 每次校验和变化时重新执行：
 - 用途：视图（VIEW）、存储过程、函数
 - 不使用版本号，按描述排序执行
 - 示例：`R__create_user_stats_view.sql`
+
+***
 
 ## Rollback Strategy
 
@@ -50,6 +60,8 @@ Flyway 社区版**不支持 UNDO 迁移**。采用补偿式正向迁移：
 3. 在下一个版本 Migration 中清理旧列
 4. 记录决策到 docs/design/adr/
 ```
+
+***
 
 ## Data Migration Patterns
 
@@ -78,6 +90,8 @@ UPDATE users SET first_name = SUBSTRING_INDEX(name, ' ', 1),
 -- Step 3: 后续版本中删除旧列
 ```
 
+***
+
 ## Flyway Configuration
 
 > **Spring Boot 4：** Flyway 现需专用 starter `spring-boot-starter-flyway`（不再仅引入第三方 Flyway 依赖）。
@@ -92,9 +106,13 @@ spring:
     out-of-order: false          # 禁止乱序（生产环境推荐 false）
 ```
 
+***
+
 ## H2 Compatibility
 
-For H2 compatibility syntax mapping, see `.claude/rules/db-conventions.md`.
+For H2 compatibility syntax mapping, see `db-conventions.md` H2 Compatibility 小节。
+
+***
 
 ## Destructive Change Process
 1. Create new Migration file (e.g., V4__add_user_phone.sql)

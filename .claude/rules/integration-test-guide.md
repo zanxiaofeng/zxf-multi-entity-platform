@@ -7,6 +7,10 @@ paths:
 
 # API Test 编码规范
 
+> **职责边界：** 本文件是 API Test 的**详细编码指南**——命名、Fixture、模板、Support 类、三层断言、WireMock 模式、SFTP Mock、配置。测试分层、包结构、Context 管理、独立性规则见 `test-conventions.md`。
+
+***
+
 ## 1. 总览与设计原则
 
 API Test 是端到端集成测试，启动完整的 Spring Boot 应用（RANDOM_PORT），通过 `WebTestClient` 发起真实 HTTP 请求，验证整个请求链路（Controller -> Service -> Repository -> Database + Downstream）。
@@ -34,39 +38,7 @@ API Test 是端到端集成测试，启动完整的 Spring Boot 应用（RANDOM_
 > ```
 > 并需 test scope 引入 `spring-boot-starter-webflux`（提供 WebTestClient 客户端类，不启动 reactive server）。
 
-### 目录结构概览
-
-```
-src/test/
-├── java/{base-package}/
-│   ├── support/                              # 共享测试工具 + Repository 切片测试
-│   │   ├── json/JsonAssert.java              # json-unit 断言工具
-│   │   ├── mocks/MockFileLoader.java         # mock-data 文件加载器（${variable} 模板替换）
-│   │   │        {Service}MockFactory.java    # WireMock stub 创建（使用 MockFileLoader）
-│   │   │        {Service}MockVerifier.java   # WireMock 调用验证
-│   │   ├── sftp/@EnableSftpMock.java         # 内嵌 SFTP 服务器注解
-│   │   │       SftpMockSupport.java          # SFTP 文件验证工具
-│   │   ├── sql/DatabaseVerifier.java         # JDBC 数据库状态验证
-│   │   └── {Entity}JpaAdapterTest.java       # @DataJpaTest 切片测试（归 support）
-│   ├── unit/                                 # Unit 测试根包（Mockito / 纯 JUnit）
-│   │   ├── {Entity}ServiceTest.java
-│   │   └── {Entity}MapperTest.java
-│   ├── integration/                          # API / 集成测试根包（原 apitest/）
-│   │   ├── {Entity}ApiTests.java             # 测试类
-│   │   └── support/                          # integration 专属基础设施
-│   │       ├── BaseApiTest.java              # 抽象基类（WebTestClient + WireMock + @Sql）
-│   │       └── fixture/FixtureFileLoader.java # JSON fixture 加载器
-│   └── contract/                             # Contract 测试根包
-│       ├── ContractBaseTest.java             # 契约测试基类
-│       └── {Entity}ContractTest.java
-├── resources/
-│   ├── sql-data/{cleanup|init|cases}/        # @Sql 脚本
-│   ├── test-data/{entity}/{operation}/       # JSON Fixture
-│   ├── mock-data/{mappings|__files}/         # WireMock 静态资源
-│   ├── mock-data/request/                    # WireMock 请求体模板（${json-unit.ignore} 通配）
-│   ├── mock-data/response/                   # WireMock 响应体模板
-│   └── application-test.yml                  # 测试配置
-```
+> **测试包结构：** 完整目录结构见 `test-conventions.md` Test Package Structure。
 
 ***
 
@@ -201,6 +173,8 @@ public class {Service}MockFactory {
 ```
 
 > WireMock 的 `equalToJson()` 底层使用 json-unit，因此支持 `${json-unit.ignore}` 占位符。
+
+> 下游 Mock 的完整规范见 `downstream-conventions.md` §9。
 
 ***
 
@@ -358,7 +332,7 @@ app:
 
 ### Support 类扩展
 
-- [ ] 工具类用 `@UtilityClass`(统一规范见 `java-coding-standard.md` §2.2「工具类(@UtilityClass)」;main 与 test 一致),Spring Bean 用 `@Component` + `@RequiredArgsConstructor`
+- [ ] 工具类用 `@UtilityClass`(统一规范见 `java-coding-standard.md` §5.2「工具类(@UtilityClass)」;main 与 test 一致),Spring Bean 用 `@Component` + `@RequiredArgsConstructor`
   - **调用必须用显式 `类名.方法`(如 `JsonAssert.assertJsonEquals(...)`、`FixtureFileLoader.load(...)`),禁止 `import static`** —— Lombok 生成的 static 方法与 javac static-import 不兼容(SB4 + Lombok 1.18.46 实测 test-compile 报 `cannot find symbol`)。规则 §8 模板已据此改用显式调用
 - [ ] MockFactory: `mock{Service}{Scenario}`，使用 MockFileLoader 加载模板 | MockVerifier: `verify{Service}{Action}`
 - [ ] DatabaseVerifier: `{verb}{Entity}{Field}` 或 `{verb}{Entity}By{Condition}`

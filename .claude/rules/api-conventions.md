@@ -22,7 +22,7 @@ paths:
 ## Response Body
 ```json
 {
-  "code": "SUCCESS",
+  "code": "000000",
   "data": { },
   "message": null,
   "timestamp": "2026-04-27T12:00:00+08:00",
@@ -90,7 +90,7 @@ public ResponseEntity<ApiResponse<Page<{Entity}Response>>> list(
 
 ```json
 {
-  "code": "SUCCESS",
+  "code": "000000",
   "data": {
     "content": [
       { "id": 1, "name": "example" }
@@ -156,3 +156,5 @@ public ResponseEntity<ApiResponse<{Entity}Response>> getById(
 - This applies to all HTTP methods: GET, PUT, PATCH, DELETE
 - `@Positive` rejects `0` and negative values(按 Jakarta Validation 规范,**null 视为 valid**;若需非空请叠加 `@NotNull`。`@PathVariable` 缺失时 Spring 已先返回 400,不会进入方法为 null)
 - For composite keys or non-ID path variables, use the most appropriate constraint (`@NotBlank`, `@Pattern`, etc.)
+
+> 参数校验的完整规范（声明式 Bean Validation、命令式断言、`@Valid` vs `@Validated` 等）见 `validation.md`。

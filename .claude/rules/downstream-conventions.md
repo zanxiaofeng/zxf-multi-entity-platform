@@ -10,12 +10,18 @@ paths:
 ---
 # Downstream Integration Conventions
 
+> **职责边界：** 本文件是下游集成的**唯一权威**——设计原则、HTTP 客户端实现（RestClient/RestTemplate）、错误分类、弹性模式、连接池、接口设计、日志、测试配置。`architecture.md` §3.4/§5.2 仅概述 Port/Impl 位置，`service-conventions.md` §3/§7 定义事务内禁止调用与 Domain Event 委托。
+
+***
+
 ## 1. Design Principle
 
 - 下游服务接口在 **domain 层** (`domain/downstream/`)，实现在 **infrastructure 层** (`infrastructure/downstream/`)
 - 使用 `RestClient`（首选，Spring Framework 7，需 `spring-boot-starter-restclient`）或 `RestTemplate` 做 HTTP 调用
 - 禁止 Controller 或 Service 直接调用下游，必须通过 domain 接口
 - 方法参数使用 Event DTO 或 record，**禁止超过 3 个原始参数**
+
+***
 
 ## 2. RestClient 实现（首选）
 
@@ -63,6 +69,8 @@ public class {Service}ClientImpl implements {Service}Client {
 }
 ```
 
+***
+
 ## 3. RestTemplate 实现（已有项目）
 
 ```java
@@ -74,6 +82,10 @@ public RestTemplate downstreamRestTemplate(RestTemplateBuilder builder) {
             .build();
 }
 ```
+
+> 已有项目使用 `RestTemplate` 可继续使用。新模块推荐 `RestClient`。
+
+***
 
 ## 4. 错误分类处理
 
@@ -98,6 +110,10 @@ public RestTemplate downstreamRestTemplate(RestTemplateBuilder builder) {
     log.error("Downstream 5xx: {} {}", res.getStatusCode(), req.getURI());
 })
 ```
+
+> 下游异常的完整捕获/处理规范见 `exception-handling.md` §5。
+
+***
 
 ## 5. 弹性模式（生产推荐）
 
@@ -150,6 +166,8 @@ resilience4j:
           - org.springframework.web.client.ResourceAccessException
 ```
 
+***
+
 ## 6. 连接池配置（生产环境）
 
 默认 `RestTemplate` / `RestClient` 每个请求打开新 TCP 连接。生产环境推荐连接池：
@@ -170,6 +188,8 @@ public RestTemplate downstreamRestTemplate(RestTemplateBuilder builder) {
 }
 ```
 
+***
+
 ## 7. 下游接口设计
 
 ```java
@@ -184,11 +204,17 @@ public interface {Service}Client {
 }
 ```
 
+***
+
 ## 8. 下游调用日志
 
 - **DEBUG 级别**：请求 URL、HTTP 方法、响应状态码
 - **ERROR 级别**：调用失败，包含下游服务名称和关键参数（脱敏后）
 - **禁止**：记录完整请求体/响应体（可能包含敏感数据）
+
+> 日志规范详见 `logging.md`。
+
+***
 
 ## 9. 测试配置
 
@@ -275,3 +301,5 @@ public class {Service}MockVerifier {
 ```
 
 > WireMock 的 `equalToJson()` 底层使用 json-unit，支持 `${json-unit.ignore}` 占位符进行结构匹配。
+
+> WireMock 测试模式与 MockFactory/MockVerifier 完整规范见 `integration-test-guide.md` §6。

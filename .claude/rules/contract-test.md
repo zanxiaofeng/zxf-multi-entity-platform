@@ -5,6 +5,10 @@ paths:
 ---
 # Contract Test Guide
 
+> **职责边界：** 本文件定义契约测试的目录结构、Groovy DSL 模板、Base Test 类、Checklist。测试分层与包结构见 `test-conventions.md`，API 设计规范（URL/Method/状态码）见 `api-conventions.md`。
+
+***
+
 ## Contract Test vs API Test
 
 | 维度 | API Test | Contract Test |
@@ -15,6 +19,8 @@ paths:
 | 产出 | 测试结果 | 消费者端 Stub（供其他服务使用） |
 
 Contract test 保证 API 契约不变，即 URL、HTTP 方法、请求/响应结构保持稳定。
+
+***
 
 ## Directory
 
@@ -37,9 +43,13 @@ src/test/java/{base-package}/contract/
 └── {Entity}ContractTest.java       # extends ContractBaseTest
 ```
 
+***
+
 ## Groovy DSL Templates
 
 所有响应体必须匹配 `ApiResponse<T>` 结构：`{ code, data: { ... }, timestamp }`。
+
+> **成功响应 code 统一为 `"000000"`，错误响应 code 按模块编号（如 `"001001"`）。** ErrorCode 枚举定义见 `exception-handling.md` §3.2。
 
 ### Create (POST 201)
 ```groovy
@@ -165,7 +175,10 @@ Contract.make {
 }
 ```
 
-### Delete (DELETE 200)
+### Delete (DELETE 204)
+
+> **DELETE 返回 204 No Content，无响应体。** 与 `api-conventions.md` DELETE Convention 一致。
+
 ```groovy
 Contract.make {
     description("should delete {entity} successfully")
@@ -174,15 +187,12 @@ Contract.make {
         url "/api/v1/{resources}/1"
     }
     response {
-        status 200
-        headers { header("Content-Type", "application/json") }
-        body([
-            code     : "000000",
-            timestamp: $(regex(iso8601WithOffset()))
-        ])
+        status 204
     }
 }
 ```
+
+***
 
 ## Base Test Class
 
@@ -209,8 +219,12 @@ public abstract class ContractBaseTest {
 
 **注意：** Base test class 需要使用 `@Sql` 加载种子数据，确保 contract 验证时有数据可用。
 
+***
+
 ## Checklist
 - [ ] 所有响应体匹配 `ApiResponse<T>` 结构（`code`/`data`/`timestamp`）
+- [ ] 成功响应 code 为 `"000000"`，错误响应 code 按模块编号（如 `"001001"`）
+- [ ] DELETE 契约返回 204 No Content，无响应体
 - [ ] Request/Response 字段匹配 `docs/design/api-spec-v1.md`
 - [ ] 使用 regex 处理动态值（id、timestamp、email）
 - [ ] 覆盖 success + error 场景（400、404）

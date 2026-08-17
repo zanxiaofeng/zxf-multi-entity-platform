@@ -8,6 +8,10 @@ paths:
 ---
 # Database Conventions
 
+> **职责边界：** 本文件定义 Entity 映射规则、`@Version` 乐观锁、H2 兼容性、索引策略、N+1 查询防护。迁移文件规范见 `db-migration.md`，Entity 领域方法与 Lombok 模板见 `architecture.md` §3.1。
+
+***
+
 ## Migration Rules
 - All DDL via Flyway migration
 - Naming: `V{version}__{description}.sql`
@@ -16,17 +20,101 @@ paths:
 - MySQL-specific in `db/migration/mysql/`
 - **Never modify merged migrations** — add corrective migrations instead
 
+> 完整迁移规范见 `db-migration.md`。
+
+***
+
 ## Entity Rules
 
-> 本节基于 **JPA / Hibernate 7**(Spring Boot 默认持久层)。**MyBatis Plus** 项目的对应方案见下方「MyBatis Plus 替代」小节。
+> 基于 **JPA / Hibernate 7**（Spring Boot 默认持久层）。**MyBatis Plus** 项目的对应方案见下方「MyBatis Plus 替代」小节。
 
-- Id: auto-generated (`IDENTITY` for MySQL, `SEQUENCE` for PostgreSQL)
-- Timestamps: 用 `@PrePersist` / `@PreUpdate` 生命周期回调(见 architecture.md §3.1/§7.1),`OffsetDateTime` 类型;不依赖 `@Builder.Default`,纯时间戳场景不引入 JPA Auditing
-- Enums: use `@Enumerated(EnumType.STRING)`, **never ORDINAL**
-- Columns: never nullable for required fields, use `nullable = false`
-- **存在并发更新的核心业务实体必须启用乐观锁**(`@Version`);只读 / 查找表 / append-only / 低并发实体可选(避免无谓开销)
+### Entity 模板
+
+```java
+@Entity
+@Table(name = "{table_name}")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+@ToString(of = {"id", "{key_field}"})
+public class {Entity} {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // 必须字段：nullable = false + 业务约束
+    @Column(nullable = false, unique = true, length = 50)
+    private String name;
+
+    // 枚举：必须 STRING 持久化，禁止 ORDINAL
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Builder.Default
+    private {Entity}Status status = {Entity}Status.ACTIVE;
+
+    // 乐观锁：所有可变实体必须
+    @Version
+    private Long version;
+
+    // 时间戳：OffsetDateTime，不用 Date/LocalDateTime
+    @Column(updatable = false)
+    private OffsetDateTime createdAt;
+
+    private OffsetDateTime updatedAt;
+
+    // ── 生命周期回调 ──
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = OffsetDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
+
+    // ── 领域方法：封装业务规则 ──
+
+    public void rename(String newName) {
+        Assert.hasText(newName, "name must not be blank");
+        this.name = newName;
+    }
+
+    // ── equals/hashCode：基于 id (JPA Identity Pattern) ──
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof {Entity} that)) return false;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+### 关键规则
+
+| 规则 | 说明 |
+|------|------|
+| Id | auto-generated (`IDENTITY` for MySQL, `SEQUENCE` for PostgreSQL) |
+| Timestamps | 用 `@PrePersist` / `@PreUpdate` 生命周期回调（见 `architecture.md` §7.1），`OffsetDateTime` 类型；不依赖 `@Builder.Default`，纯时间戳场景不引入 JPA Auditing |
+| Enums | use `@Enumerated(EnumType.STRING)`, **never ORDINAL** |
+| Columns | never nullable for required fields, use `nullable = false` |
+| **乐观锁** | **所有可变实体必须启用 `@Version`**（防止并发更新丢失数据） |
+| 构造器保护 | `@NoArgsConstructor(access = PROTECTED)` + `@AllArgsConstructor(access = PRIVATE)`，强制通过 Builder 或工厂创建 |
+| equals/hashCode | 基于 id（JPA Identity Pattern）；未持久化实体（id 为 null）用 `getClass().hashCode()` 避免冲突 |
+| 领域方法 | 状态变更通过意图明确的方法（`activate()` / `rename()`），替代 setter |
 
 ### @Version (Optimistic Locking)
+
+**所有可变实体必须添加 `@Version`：**
 
 ```sql
 -- DDL
@@ -43,7 +131,9 @@ CREATE TABLE {table} (
 private Long version;
 ```
 
-Service 层处理 `OptimisticLockingFailureException` 见 `service-conventions.md`。
+JPA 自动处理：更新时检查 version，不匹配抛出 `OptimisticLockingFailureException`。
+
+> Service 层乐观锁异常处理见 `service-conventions.md` §5。异常处理完整规范见 `exception-handling.md`。
 
 ### MyBatis Plus 替代(JPA → MyBatis Plus)
 
@@ -57,6 +147,8 @@ Service 层处理 `OptimisticLockingFailureException` 见 `service-conventions.m
 | 分页 | Spring Data `Pageable` | `IPage` + `MybatisPlusInterceptor` + `PaginationInnerInterceptor` |
 | 枚举持久化 | `@Enumerated(EnumType.STRING)` | `@EnumValue` 标记码值,或配置 `default-enum-type-handler` |
 | 表/列映射 | `@Entity` / `@Table` / `@Column` | `@TableName` / `@TableField` |
+
+***
 
 ## H2 Compatibility
 
@@ -75,6 +167,8 @@ Service 层处理 `OptimisticLockingFailureException` 见 `service-conventions.m
 
 **OffsetDateTime 与 MySQL 的时区行为：** MySQL 的 `TIMESTAMP` 列存储时转换为 UTC，读取时转换为会话时区（不保留时区偏移）。`DATETIME` 不做转换。H2 的 `TIMESTAMP WITH TIME ZONE` 保留完整偏移量。生产 DDL 使用 `TIMESTAMP` 或 `DATETIME`，测试用 H2 的 `TIMESTAMP WITH TIME ZONE`。
 
+***
+
 ## Index Strategy
 
 **何时创建索引：**
@@ -92,6 +186,8 @@ Service 层处理 `OptimisticLockingFailureException` 见 `service-conventions.m
 - 唯一索引：`uk_{table}_{column}`
 - 外键：`fk_{table}_{referenced_table}`
 
+***
+
 ## N+1 Query Prevention
 
 ```java
@@ -108,6 +204,8 @@ Optional<User> findWithOrders(@Param("id") Long id);
 @OneToMany(mappedBy = "user")
 private List<Order> orders;
 ```
+
+***
 
 ## Spring Boot 4 / Hibernate 7 数据层变化
 

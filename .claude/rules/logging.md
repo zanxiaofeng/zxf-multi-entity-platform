@@ -216,7 +216,7 @@ if (at > 0) {
 For repeated masking logic, create a utility method:
 
 ```java
-@UtilityClass               // lombok.experimental.UtilityClass;工具类规范见 java-coding-standard.md §2.2
+@UtilityClass               // lombok.experimental.UtilityClass;工具类规范见 java-coding-standard.md §5.2
 public class MaskUtils {
 
     /**

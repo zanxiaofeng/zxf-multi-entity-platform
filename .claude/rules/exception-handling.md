@@ -1,15 +1,12 @@
 ---
 paths:
-  - "**/domain/**/*.java"
-  - "**/application/**/*.java"
-  - "**/infrastructure/**/*.java"
-  - "**/interfaces/**/*.java"
+  - "**/*.java"
 ---
 # 异常处理规范
 
 **适用范围：** JDK 21 + Spring Boot 4 + Spring MVC（Servlet 栈）REST API
 
-**与其他规范的分工：** 本文件定义异常的**分类、抛出、捕获、边界处理**全流程；`architecture.md §3.5/§6.3` 定义异常体系骨架，`validation.md` 定义输入校验（校验失败如何变成异常），`downstream-conventions.md §4` 定义下游错误分类，`logging.md` 定义日志细节。冲突时以本文件为准。
+> **职责边界：** 本文件是异常处理的**唯一权威**——异常分类、体系结构、抛出规范、捕获规范、全局处理、边界外异常、反模式。`architecture.md` §3.5 仅概述异常体系位置，`validation.md` 定义输入校验（校验失败如何变成异常），`downstream-conventions.md` §4 定义下游错误分类，`logging.md` 定义日志细节。冲突时以本文件为准。
 
 ***
 
@@ -30,10 +27,10 @@ paths:
 | 场景 | 机制 | 最终 HTTP |
 |------|------|-----------|
 | 业务规则违反（已存在、状态非法、余额不足） | `BusinessException` + `ErrorCode` | 4xx（由 ErrorCode 决定） |
-| 输入格式校验（非空、长度、格式） | Bean Validation 注解，不手写 if-throw（见 validation.md） | 400 |
+| 输入格式校验（非空、长度、格式） | Bean Validation 注解，不手写 if-throw（见 `validation.md`） | 400 |
 | 资源不存在 | `BusinessException(ErrorCode.{ENTITY}_NOT_FOUND, id)`；**禁止裸 `Optional.get()`** | 404 |
-| 编程错误 / 契约违反（参数为 null、非法内部状态） | `Assert` / `IllegalArgumentException` / `IllegalStateException`（见 java-coding-standard.md 契约编程篇） | 500（兜底） |
-| 下游调用失败 | 按 downstream-conventions.md §4 分类：降级返回 / 包装为 `BusinessException` 传播（保留 cause） | 由业务决策 |
+| 编程错误 / 契约违反（参数为 null、非法内部状态） | `Assert` / `IllegalArgumentException` / `IllegalStateException`（见 `java-coding-standard.md` §4） | 500（兜底） |
+| 下游调用失败 | 按 `downstream-conventions.md` §4 分类：降级返回 / 包装为 `BusinessException` 传播（保留 cause） | 由业务决策 |
 | 基础设施故障 / 未预期异常（NPE、DB 连接断开） | **不捕获**，交全局兜底 | 500 |
 
 **关键判断：** 「调用方能合理恢复吗？」——能恢复的不是异常（用返回值）；不能恢复但属于业务语义的是 `BusinessException`；属于编程失误的是 JDK 运行时异常，让它崩到兜底并修复代码。
@@ -44,7 +41,7 @@ paths:
 
 ### 3.1 单一基类 + 错误码枚举（禁止异常类爆炸）
 
-全项目只有一个业务异常基类 `BusinessException`（domain 层）和一个 `ErrorCode` 枚举（domain 层），结构见 architecture.md §3.5。
+全项目只有一个业务异常基类 `BusinessException`（domain 层）和一个 `ErrorCode` 枚举（domain 层）。
 
 **规则：**
 - **新增业务错误 = 新增 `ErrorCode` 枚举值，而不是新增异常类**。禁止 `UserNotFoundException` / `OrderNotFoundException` × N 的类爆炸
@@ -52,9 +49,42 @@ paths:
 - 错误码按模块编号分段：`{模块号}{错误序号}`（`000`=通用，`001`=用户，`002`=订单……），模块号约定维护在枚举注释中
 - 新增枚举值 checklist：code 未被占用 → message 客户端安全（无 SQL/堆栈/内部主机）→ httpStatus 符合 §6.2 映射语义
 
-### 3.2 BusinessException 规范
+### 3.2 ErrorCode 枚举定义
 
 ```java
+// domain/common/ErrorCode.java
+@Getter @RequiredArgsConstructor
+public enum ErrorCode {
+    // 通用成功 (000000)
+    SUCCESS("000000", "Success", HttpStatus.OK),
+
+    // 通用错误 (000xxx)
+    INTERNAL_ERROR("000001", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR),
+    VALIDATION_ERROR("000002", "Validation failed", HttpStatus.BAD_REQUEST),
+    BAD_REQUEST("000003", "Bad request", HttpStatus.BAD_REQUEST),
+    NOT_FOUND("000004", "Resource not found", HttpStatus.NOT_FOUND),
+    ACCESS_DENIED("000005", "Access denied", HttpStatus.FORBIDDEN),
+    UNAUTHORIZED("000006", "Unauthorized", HttpStatus.UNAUTHORIZED),
+    VERSION_CONFLICT("000007", "Version conflict", HttpStatus.CONFLICT),
+
+    // {模块}错误 ({模块号}xxxx)
+    USER_NOT_FOUND("001001", "User not found", HttpStatus.NOT_FOUND),
+    USER_ALREADY_EXISTS("001002", "User already exists", HttpStatus.CONFLICT),
+
+    // 编码规则：{模块编号}{错误序号}
+    // 000 = 通用, 001 = 用户, 002 = 订单, ...
+    ;
+
+    private final String code;
+    private final String defaultMessage;
+    private final HttpStatus httpStatus;
+}
+```
+
+### 3.3 BusinessException 规范
+
+```java
+// domain/common/BusinessException.java
 public class BusinessException extends RuntimeException {
     private final ErrorCode errorCode;
     private final Object[] args;          // 业务上下文（id、字段值），供 handler 记日志
@@ -77,7 +107,7 @@ public class BusinessException extends RuntimeException {
 **规则：**
 - 必须携带 `ErrorCode`；禁止只传字符串消息（错误码是客户端的稳定契约，消息文案可随时改）
 - `args` 携带排查所需业务上下文（实体 id、冲突字段值），**不得含密码、token 等敏感数据**
-- 包装底层异常时必须用带 `cause` 的构造器（见 java-coding-standard.md §11 异常链）
+- 包装底层异常时必须用带 `cause` 的构造器（见 `java-coding-standard.md` §6.1 异常链）
 
 **可选优化 —— 高频异常无堆栈构造：** 对于每秒可能抛出成千上万次、仅作结果信号的业务异常，可用 `super(msg, null, true, false)` 关闭堆栈填充（填堆栈是异常最昂贵的操作）。权衡：排查时无堆栈可依赖，只能靠 ErrorCode + args + 日志上下文定位。**仅对已被监控证实为热点的异常使用**，默认仍保留堆栈。
 
@@ -188,7 +218,7 @@ catch 之后只有三种合法出路：**恢复**（降级返回默认值）、*
 
 ### 5.3 事务与异常（WebMVC 项目高频坑）
 
-- `@Transactional` **默认仅对 RuntimeException/Error 回滚**；checked exception 需要回滚时显式 `@Transactional(rollbackFor = Exception.class)`（service-conventions.md §2）
+- `@Transactional` **默认仅对 RuntimeException/Error 回滚**；checked exception 需要回滚时显式 `@Transactional(rollbackFor = Exception.class)`（见 `service-conventions.md` §2）
 - **rollback-only 陷阱**：`@Transactional` 方法内 catch 了 RuntimeException 但未重抛，事务已被标记 rollback-only，提交时抛 `UnexpectedRollbackException`：
 
 ```java
@@ -206,7 +236,7 @@ public void process(Long id) {
 // GOOD 方式二: 内层方法用 REQUIRES_NEW 独立事务，内层回滚不影响外层
 ```
 
-- 事务方法内**不做下游 HTTP 调用**（service-conventions.md §3），也就无需在事务内处理下游异常——下游异常处理只发生在事件监听器（事务外）
+- 事务方法内**不做下游 HTTP 调用**（`service-conventions.md` §3），也就无需在事务内处理下游异常——下游异常处理只发生在事件监听器（事务外）
 
 ***
 
@@ -215,7 +245,7 @@ public void process(Long id) {
 ### 6.1 单一 `@RestControllerAdvice`
 
 - 全项目**唯一** `GlobalExceptionHandler`（`interfaces/common/`），所有 Controller 异常在此收敛
-- 所有 handler 返回 `ResponseEntity<ApiResponse<Void>>`，响应头携带 `X-Trace-Id`（与 MDC 中 traceId 一致，见 logging.md）
+- 所有 handler 返回 `ResponseEntity<ApiResponse<Void>>`，响应头携带 `X-Trace-Id`（与 MDC 中 traceId 一致，见 `logging.md`）
 - Controller 不写 try-catch，不返回裸 `ResponseEntity<String>` 错误体
 - handler 方法自身必须**防御性**（不抛异常）：对 `rejectedValue`、`ex.getMessage()` 等可能为 null 的值先判空
 
@@ -234,8 +264,8 @@ public void process(Long id) {
 | `HttpMediaTypeNotSupportedException` | 415 | `BAD_REQUEST` | WARN | Content-Type 不支持 |
 | `NoResourceFoundException` | 404 | `NOT_FOUND` | WARN | **SF 6.1+**：无匹配路由时的默认行为（取代旧的 `NoHandlerFoundException` 配置开关） |
 | `MaxUploadSizeExceededException` | 413 | `BAD_REQUEST` | WARN | 上传超限 |
-| `AccessDeniedException` | 403 | 权限类错误码 | WARN | **必须显式处理**，见 §6.3 陷阱 |
-| `DataIntegrityViolationException` | 409 | 通用冲突码 | WARN | 唯一键冲突等；**禁止映射为实体特定错误码**（architecture.md §8 反模式 #6），实体语义在 Service 层先校验 |
+| `AccessDeniedException` | 403 | `ACCESS_DENIED` | WARN | **必须显式处理**，见 §6.3 陷阱 |
+| `DataIntegrityViolationException` | 409 | 通用冲突码 | WARN | 唯一键冲突等；**禁止映射为实体特定错误码**（`architecture.md` §8 反模式 #6），实体语义在 Service 层先校验 |
 | `OptimisticLockingFailureException` | 409 | `VERSION_CONFLICT` | WARN | Service 层已显式转换时的兜底（JPA flush 直接抛出的情况） |
 | `Exception`（兜底） | 500 | `INTERNAL_ERROR` | **ERROR + 完整堆栈** | 固定通用文案，**绝不回显 `ex.getMessage()`** |
 
@@ -336,12 +366,12 @@ Interceptor 的 `preHandle` 抛出的异常**会**经过 DispatcherServlet 的�
 
 ***
 
-## 8. 日志与异常的配合（衔接 logging.md）
+## 8. 日志与异常的配合（衔接 `logging.md`）
 
 - **WARN**：可预期异常（业务异常、4xx 客户端错误）——消息含 traceId + 错误码 + 关键业务上下文，**不附异常对象**（堆栈对已知问题无信息量）
 - **ERROR**：未预期异常（兜底 500、`@Async`/`@Scheduled` 未捕获）——必须附完整异常对象为最后一个参数（输出堆栈）
 - 一处记录：抛出点不记，转换点不记（新异常带 cause），只有最终处理点记
-- 脱敏：FieldError `rejectedValue`、日志参数中的敏感字段按 logging.md 的 `MaskUtils` 处理
+- 脱敏：FieldError `rejectedValue`、日志参数中的敏感字段按 `logging.md` 的 `MaskUtils` 处理
 
 ***
 
@@ -380,4 +410,4 @@ Interceptor 的 `preHandle` 抛出的异常**会**经过 DispatcherServlet 的�
 - [ ] `@Async` / `@Scheduled` 是否有异常处置（UncaughtExceptionHandler / 方法内 catch）？
 - [ ] Filter / Security 入口点异常是否输出与 `ApiResponse` 一致的错误体？
 - [ ] 错误响应与日志中的敏感字段是否脱敏？
-- [ ] 错误场景是否有对应 API 测试（400/404/409/422，见 tdd-workflow.md "Done" 标准）？
+- [ ] 错误场景是否有对应 API 测试（400/404/409/422，见 `tdd-workflow.md` "Done" 标准）？
