@@ -12,7 +12,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
  * <p>以 {@code platform.entity} 为唯一开关源：注解属性即 {@link EntityType}（与 {@code supports()}
  * 同源，消除字符串漂移），实际值取自 environment。两者一致即 match，否则 noMatch——
  * {@code platform.entity} 未配置时返回 noMatch，由 {@code PlatformProperties} 启动校验兜底报错
- * （文档 5.2.2：{@code Assert.notNull(entity, "platform.entity 必须配置")}）。
+ * （文档 5.2.2：{@code @Validated} + {@code @NotNull}，validation.md §2.8）。
  *
  * <p>等价语义可由裸 {@code @Profile("alpha")} + 部署清单 {@code SPRING_PROFILES_ACTIVE=alpha} 表达，
  * 但那构成两套开关源（profile 与 {@code platform.entity}），漂移即事故（文档 5.3 唯一事实来源规约）。

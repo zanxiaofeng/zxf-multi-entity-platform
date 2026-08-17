@@ -6,7 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -88,6 +91,40 @@ public class RestExceptionHandler {
     public ProblemDetail handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         log.warn("请求体解析失败: {}", ex.getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "请求体格式不合法或缺失");
+    }
+
+    /**
+     * HTTP 方法不支持（如 DELETE 打到只有 GET/POST 的路径）→ 405。
+     * <p>必须显式声明：advice 已有 {@link #handleUnexpected} 兜底，缺本 handler 时
+     * 此类客户端错误会被兜底捕获成 500 + ERROR 堆栈（exception-handling §6.2 矩阵）。
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.warn("HTTP 方法不支持: {}", ex.getMethod());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.METHOD_NOT_ALLOWED,
+                "请求方法不支持: " + ex.getMethod());
+        problem.setTitle("请求参数不合法");
+        return problem;
+    }
+
+    /** Content-Type 不支持（如 POST 传 {@code text/plain}）→ 415。同上：兜底会吞掉协议异常，须显式声明。 */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        log.warn("Content-Type 不支持: {}", ex.getContentType() != null ? ex.getContentType() : "未知");
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "请求的 Content-Type 不支持");
+        problem.setTitle("请求参数不合法");
+        return problem;
+    }
+
+    /** 缺少必填请求参数 → 400。客户端消息含参数名即可，不回显原始值（exception-handling §6.2）。 */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        log.warn("缺少必填请求参数: {}", ex.getParameterName());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "缺少必填请求参数: " + ex.getParameterName());
+        problem.setTitle("请求参数不合法");
+        return problem;
     }
 
     /** SF 6.1+：无匹配路由（取代旧的 NoHandlerFoundException 配置开关）。 */

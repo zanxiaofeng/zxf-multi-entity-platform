@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.MDC;
+import org.springframework.dao.DataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +55,11 @@ public class OutboxRelay {
                 log.info("outbox 发布 eventType={} aggregateId={}", event.eventType(), event.aggregateId());
                 event.markPublished();
             });
+        } catch (DataAccessException ex) {
+            // @Scheduled 异常不外抛（exception-handling §7.3）：外抛只打印到容器日志，无结构化上下文。
+            // catch 在 finally 之前——此刻 MDC/entity 仍在，ERROR 日志带实体维度。
+            // 未发布事件下轮重扫（published_at 仍为 NULL，查询天然幂等）
+            log.error("outbox relay 执行失败，本轮跳过，未发布事件下轮重扫", ex);
         } finally {
             MDC.remove(EntityContext.MDC_KEY);
             EntityContext.clear();

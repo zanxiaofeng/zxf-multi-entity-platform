@@ -81,7 +81,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 - **JDK 21**：虚拟线程经 `spring.threads.virtual.enabled=true` 开启（Enforcer 强制 JDK ≥ 21）。
 - **模块化拆包**：Flyway 自动配置在 `spring-boot-flyway` 模块，需显式引入；`@AutoConfigureMockMvc` 移至 `org.springframework.boot.webmvc.test.autoconfigure`（`spring-boot-webmvc-test` 模块）。
 - **Jackson 3**：DTO/命令对象用 record，Jackson 3 原生序列化，无需自定义适配。
-- **`@ConfigurationProperties`**：record 构造器绑定 + compact constructor 校验（`PlatformProperties`，无需 `@Validated`）。
+- **`@ConfigurationProperties`**：record 构造器绑定 + `@Validated` 声明式校验（`PlatformProperties` / `PlatformValidationProperties`，validation.md §2.8；compact constructor 仅保留默认值处理）。
 - **JSpecify**：`EntityContext.currentOrNull()`、`AuditEntry` 标注 `@Nullable`。
 
 ## 配置一致性（三个开关成对，文档 6.3）

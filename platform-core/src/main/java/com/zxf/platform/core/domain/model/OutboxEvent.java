@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.jspecify.annotations.Nullable;
@@ -46,6 +47,10 @@ public class OutboxEvent {
 
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
+
+    /** 乐观锁（db-conventions：所有可变实体必须 @Version；列由 V10 迁移提供）。ShedLock 已保证 relay 单实例执行，此处为并发更新丢失的代码级兜底。 */
+    @Version
+    private Long version;
 
     /** JPA 要求：无参构造（protected 防止应用层直接new）。 */
     protected OutboxEvent() {

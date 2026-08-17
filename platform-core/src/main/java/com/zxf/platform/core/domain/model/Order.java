@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.jspecify.annotations.Nullable;
@@ -39,6 +40,10 @@ public class Order {
 
     @Column(name = "price", length = 32, nullable = false)
     private Money price;
+
+    /** 乐观锁（db-conventions：所有可变实体必须 @Version；列由 V10 迁移提供，persist 时 Hibernate 自动置 0）。 */
+    @Version
+    private Long version;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

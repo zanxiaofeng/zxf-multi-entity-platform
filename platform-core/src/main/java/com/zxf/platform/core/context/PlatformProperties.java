@@ -1,7 +1,8 @@
 package com.zxf.platform.core.context;
 
+import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.util.Assert;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * 平台级配置。
@@ -10,13 +11,11 @@ import org.springframework.util.Assert;
  * 必须与 {@code SPRING_PROFILES_ACTIVE}、构建产物（Maven profile）三者一致，
  * 漂移由启动期校验与 CI 装配矩阵兜底（文档 6.3）。
  *
- * <p>record 构造器绑定（文档 5.2.2）：不可变、无需 {@code @Validated} 切面——
- * 必填校验收敛在紧凑构造器里，绑定即校验。
+ * <p>record 构造器绑定（文档 5.2.2）+ {@code @Validated} 声明式校验
+ * （validation.md §2.8）：绑定后由 {@code ConfigurationPropertiesBinder} 执行
+ * Bean Validation，配置缺失时启动即失败（Fail Fast），错误信息含属性名。
  */
+@Validated
 @ConfigurationProperties(prefix = "platform")
-public record PlatformProperties(EntityType entity) {
-
-    public PlatformProperties {
-        Assert.notNull(entity, "platform.entity 必须配置");
-    }
+public record PlatformProperties(@NotNull(message = "platform.entity 必须配置") EntityType entity) {
 }

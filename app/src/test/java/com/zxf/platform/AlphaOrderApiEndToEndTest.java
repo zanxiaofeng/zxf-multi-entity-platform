@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -293,6 +294,23 @@ class AlphaOrderApiEndToEndTest {
         // MethodArgumentTypeMismatchException → 400（exception-handling §6.2），不得回落兜底 500
         mockMvc.perform(get("/api/v1/orders/abc"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 不支持的HTTP方法返回405() throws Exception {
+        // HttpRequestMethodNotSupportedException → 405（exception-handling §6.2 矩阵）：
+        // advice 兜底 handler 会吞掉未显式声明的协议异常，本用例防 405 回落成 500
+        mockMvc.perform(delete("/api/v1/orders/1"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    void 不支持的ContentType返回415() throws Exception {
+        // HttpMediaTypeNotSupportedException → 415（exception-handling §6.2 矩阵）：同上防回落 500
+        mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not-json"))
+                .andExpect(status().isUnsupportedMediaType());
     }
 
     @Test
