@@ -24,9 +24,11 @@ multi-entity-platform/
 ## 快速开始
 
 ```bash
-# 装配矩阵验证（两实体分别全量构建 + 测试）
-mvn verify -Palpha
-mvn verify -Pbeta
+# 装配矩阵验证（两实体分别全量构建 + 测试）。
+# 本地开发注意：IDE 增量编译会污染 target/classes，直接 verify 可能产生假失败——
+# 始终带 clean 且在根 reactor 跑（CI 全新检出无此问题）
+mvn clean verify -Palpha
+mvn clean verify -Pbeta
 
 # 运行 Alpha 实体（产物名带实体标识）
 SPRING_PROFILES_ACTIVE=alpha java -jar app/target/app-1.0.0-SNAPSHOT-alpha.jar
@@ -40,8 +42,9 @@ SPRING_PROFILES_ACTIVE=beta SERVER_PORT=8081 java -jar app/target/app-1.0.0-SNAP
 ```bash
 curl -X POST localhost:8080/api/v1/orders -H 'Content-Type: application/json' \
      -d '{"item":"widget","quantity":2}'
-# Alpha → {"price":{"amount":226.00,"currency":"CNY"}}   （200 × 1.13 增值税）
-# Beta  → {"price":{"amount":190.00,"currency":"CNY"}}   （200 × 0.95 折）
+# Alpha → {"price":{"amount":226,"currency":"CNY"}}   （200 × 1.13 增值税）
+# Beta  → {"price":{"amount":190,"currency":"CNY"}}   （200 × 0.95 折）
+# 金额经 Money 构造期 scale 归一化，对外恒为最简十进制形态（write-bigdecimal-as-plain，无科学计数法）
 
 curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移巡检（文档 6.3）
 ```

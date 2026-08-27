@@ -71,7 +71,7 @@ class NotificationClientTest {
         server.expect(ExpectedCount.manyTimes(), MockRestRequestMatchers.anything())
                 .andRespond(MockRestResponseCreators.withServerError());
 
-        // 异常链规范（java-coding-standard §11）：包装异常必须保留 cause
+        // 异常链规范（java-coding-standard §6.1）：包装异常必须保留 cause
         Throwable thrown = catchThrowable(() -> newClient(builder.build()).send("order-1", "pi-1"));
 
         assertThat(thrown).isInstanceOf(NotificationFailedException.class);

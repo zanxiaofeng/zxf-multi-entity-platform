@@ -21,7 +21,7 @@ import org.springframework.web.client.RestClient;
  *
  * <p><b>异常翻译</b>：下游任何异常（连接失败 / 4xx / 5xx）统一包装为
  * {@link NotificationFailedException}，交由 Flowable Job 重试→死信机制处理
- * （文档 7.7.1 组件 4 技术异常路径示范）。cause 保留以满足异常链规范（java-coding-standard §11）。
+ * （文档 7.7.1 组件 4 技术异常路径示范）。cause 保留以满足异常链规范（java-coding-standard §6.1）。
  *
  * <p>同步调用：暂不需要 {@code ContextPropagator}——当前由 Flowable Job 线程
  * 直调，{@code CorrelationIdInterceptor} 在同线程读取 MDC / {@code EntityContext} 即可。

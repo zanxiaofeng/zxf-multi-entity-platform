@@ -32,7 +32,7 @@ class ArchitectureGuardTest {
      */
     @ArchTest
     static final ArchRule 六边形分层 = Architectures.onionArchitecture()
-            .domainModels("..domain.model..", "..domain.event..")
+            .domainModels("..domain.model..", "..domain.event..", "..domain.exception..")
             .domainServices("..domain.service..", "..domain.port..")
             .applicationServices("..application..")
             .adapter("rest", "..interfaces.rest..")
@@ -75,13 +75,14 @@ class ArchitectureGuardTest {
     /**
      * 领域核心零实体感知（文档 5.1.1）。文档原文范围为 {@code ..domain..}，与文档自身布局
      * 矛盾（{@code domain.port.PricingPolicy.supports()} 返回 EntityType）——按布局语义
-     * 收窄为 model/service/event：领域核心不知道"有几个实体"，端口契约除外。
+     * 收窄为 model/service/event/exception：领域核心不知道"有几个实体"，端口契约除外。
      */
     @ArchTest
     static final ArchRule 领域核心零实体感知 = noClasses()
             .that().resideInAPackage("..domain.model..")
             .or().resideInAPackage("..domain.service..")
             .or().resideInAPackage("..domain.event..")
+            .or().resideInAPackage("..domain.exception..")
             .should().dependOnClassesThat().areAssignableTo(EntityType.class);
 
     /** 应用层仅端口解析器可感知实体（文档 5.1.1 原文）。 */

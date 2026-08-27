@@ -43,4 +43,7 @@ jobs:
           PRICE=$(curl -sf -X POST localhost:8080/api/v1/orders -H 'Content-Type: application/json' \
             -d '{"item":"widget","quantity":2}' | grep -o '"amount":[0-9.]*' | cut -d: -f2)
           echo "entity=${{ matrix.entity }} price=$PRICE expected=$EXPECTED"
-          test "$PRICE" = "$EXPECTED"
+          # 数值比较：Money 构造期归一化（stripTrailingZeros）后对外序列化为最简形态
+          # （226 / 190，write-bigdecimal-as-plain），与 226.00 / 190.00 数值相等——
+          # 字符串相等断言（test "$PRICE" = "$EXPECTED"）会因形态差异恒失败，禁止回退
+          awk -v actual="$PRICE" -v expected="$EXPECTED" 'BEGIN { exit (actual + 0 == expected + 0) ? 0 : 1 }'

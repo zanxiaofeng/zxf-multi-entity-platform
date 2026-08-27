@@ -33,6 +33,7 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 - `@AutoConfigureMockMvc` 在 `org.springframework.boot.webmvc.test.autoconfigure`（`spring-boot-webmvc-test` 模块）；`-test` starter 只含测试自动配置切片，JUnit/AssertJ/Awaitility 仍要显式引 `spring-boot-starter-test`
 - 测试中覆盖 `application-*.yaml` 里的属性要用命令行参数（`app.run("--k=v")`），`SpringApplicationBuilder.properties()` 是 defaultProperties，优先级低于 yaml
 - 工程存在多个 `TaskExecutor` bean 时（如 `applicationTaskExecutor` + `flowableJobExecutor`），无 qualifier 的 `@Async` 按类型取唯一执行器失败会**静默退回 `SimpleAsyncTaskExecutor`**——TaskDecorator 丢失、上下文断链且无报错。`applicationTaskExecutor` 必须 `@Primary`
+- Boot 4 / Jackson 3 已**移除 `spring.jackson.generator.*` 属性绑定**（StreamWriteFeature 不再是 `JsonGenerator.Feature` 内部枚举，yaml 写了会被静默忽略）——stream 级 feature 经 `JsonMapperBuilderCustomizer` bean 开启（见 `JacksonConfig` 的 `WRITE_BIGDECIMAL_AS_PLAIN`，否则 `Money` 归一化后负 scale 金额会以 `1.9E+2` 科学计数法进对外 JSON）
 
 ## Flowable 注意点（第七章）
 
@@ -67,6 +68,8 @@ Spring Boot 4（4.1.x）单代码库多实体部署骨架。设计文档：`docs
 ### 骨架适用范围
 
 本骨架是架构演示工程：`core.{context,interfaces,application,domain,infrastructure}` 分包与评审红线以本文件「硬性约束」+ README「Review 硬性规则」+ ArchUnit/Enforcer 护栏为准，**不套用四层分包**；`BusinessException`/`ApiResponse`、Contract Test、WireMock MockFactory 等规范项**面向后续新增业务模块**，引入对应能力时再生效；`java-coding-standard`/`logging`/`db-*`/`test-*` 等通用规范**现在即生效**。
+
+**db-conventions 的测试数据库策略暂缓**：骨架 demo 定位是「生产 Oracle + 测试 H2」（每测试类独立 H2 库、`V3__flowable_engine_tables.sql` 为 H2 方言、换库需重提取方言脚本），与 db-conventions「集成/e2e 用 Testcontainers 真实 MySQL、H2 仅降级」的方向相反，属有意选型——接入真实业务模块、转生产化时再切换 Testcontainers 并重提取 ACT_* 方言脚本。
 
 风格约定（评审时不再作为发现提出）：
 - **测试方法命名**：全仓统一使用中文自然语言命名（如 `下单按Alpha计价且创建后可查询`），不套 `test{Action}{Entity}[{Condition}]` 模板——规则库模板面向英文命名的业务项目，本骨架以中文场景描述为准；断言语义以方法体内 Given/When/Then 注释与 AssertJ 链表达。

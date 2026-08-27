@@ -1,11 +1,15 @@
 package com.zxf.platform.core.interfaces.rest;
 
 import com.zxf.platform.core.application.RuleViolationException;
+import com.zxf.platform.core.domain.exception.OrderNotFoundException;
+import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,7 +18,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -52,12 +55,35 @@ public class RestExceptionHandler {
         log.warn("请求体校验失败: {}", ex.getMessage());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "请求体校验失败");
         problem.setTitle("请求参数不合法");
-        var fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> "%s: %s（当前值: %s）".formatted(
-                        fe.getField(), fe.getDefaultMessage(), maskRejectedValue(fe.getField(), fe.getRejectedValue())))
-                .toList();
-        problem.setProperty("errors", fieldErrors);
+        problem.setProperty("errors", fieldErrors(ex));
         return problem;
+    }
+
+    /**
+     * {@code @ModelAttribute} 表单绑定校验失败 → 400（exception-handling §6.2 矩阵，与
+     * {@code @RequestBody} 的 {@link MethodArgumentNotValidException} 须分别声明；后者是
+     * {@link BindException} 子类，Spring 按最具体 handler 匹配，二者互不遮蔽）。
+     */
+    @ExceptionHandler(BindException.class)
+    public ProblemDetail handleBindException(BindException ex) {
+        log.warn("参数绑定校验失败: {}", ex.getMessage());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "参数绑定校验失败");
+        problem.setTitle("请求参数不合法");
+        problem.setProperty("errors", ex.getFieldErrors().stream()
+                .map(fe -> new FieldErrorDetail(fe.getField(), fe.getDefaultMessage(),
+                        maskRejectedValue(fe.getField(), fe.getRejectedValue())))
+                .toList());
+        return problem;
+    }
+
+    /**
+     * 唯一键冲突等数据完整性违反 → 409（exception-handling §6.2 / db-conventions 约束三层对齐的兜底）。
+     * 固定文案不回显 {@code ex.getMessage()}（可能含约束名/SQL 片段）；实体语义应由 Service 层前置校验给出。
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("数据完整性冲突: {}", ex.getMostSpecificCause().getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "数据冲突（如唯一键重复），请检查后重试");
     }
 
     /**
@@ -103,7 +129,7 @@ public class RestExceptionHandler {
         log.warn("HTTP 方法不支持: {}", ex.getMethod());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.METHOD_NOT_ALLOWED,
                 "请求方法不支持: " + ex.getMethod());
-        problem.setTitle("请求参数不合法");
+        problem.setTitle("请求方法不被允许");
         return problem;
     }
 
@@ -113,7 +139,7 @@ public class RestExceptionHandler {
         log.warn("Content-Type 不支持: {}", ex.getContentType() != null ? ex.getContentType() : "未知");
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
                 "请求的 Content-Type 不支持");
-        problem.setTitle("请求参数不合法");
+        problem.setTitle("不支持的媒体类型");
         return problem;
     }
 
@@ -135,14 +161,16 @@ public class RestExceptionHandler {
     }
 
     /**
-     * {@link ResponseStatusException}（Controller 主动抛出的状态码异常，如
-     * {@code OrderController.get} 找不到订单时抛 404）：透传状态码到 ProblemDetail，
-     * 不走兜底 handler（否则 404 会被吞成 500）。
+     * 订单不存在（exception-handling §6.2 矩阵：领域 {@code NotFound} 异常 → 404）。
+     * {@code code} 属性暴露 {@link OrderNotFoundException#CODE} 稳定契约（e2e 断言守护）。
      */
-    @ExceptionHandler(ResponseStatusException.class)
-    public ProblemDetail handleResponseStatus(ResponseStatusException ex) {
-        log.warn("ResponseStatus 异常: {} {}", ex.getStatusCode(), ex.getReason());
-        return ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ProblemDetail handleOrderNotFound(OrderNotFoundException ex) {
+        log.warn("订单不存在 orderId={}", ex.getOrderId());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("资源不存在");
+        problem.setProperty("code", OrderNotFoundException.CODE);
+        return problem;
     }
 
     /** 兜底：未预期的异常 → 500，固定文案不回显内部细节，ERROR + 完整堆栈。 */
@@ -158,5 +186,21 @@ public class RestExceptionHandler {
             return "***";
         }
         return rejectedValue;
+    }
+
+    /** 字段级校验明细 → 结构化对象数组（api-conventions errors[] 形态：field / message / rejectedValue）。 */
+    private static List<FieldErrorDetail> fieldErrors(MethodArgumentNotValidException ex) {
+        return ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> new FieldErrorDetail(fe.getField(), fe.getDefaultMessage(),
+                        maskRejectedValue(fe.getField(), fe.getRejectedValue())))
+                .toList();
+    }
+
+    /**
+     * 字段级校验明细条目（api-conventions Error Response 的 {@code errors[]} 结构：
+     * {@code {field, message, rejectedValue}}，敏感字段回显已脱敏）——结构化对象优于
+     * 拼接字符串，客户端可按字段名定位。
+     */
+    record FieldErrorDetail(String field, String message, Object rejectedValue) {
     }
 }

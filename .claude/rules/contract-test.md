@@ -9,12 +9,12 @@ paths:
 
 ***
 
-## Contract Test vs API Test
+## Contract Test vs E2E Test
 
-| 维度 | API Test | Contract Test |
+| 维度 | E2E Test | Contract Test |
 |------|----------|---------------|
 | 目的 | 验证**行为**（代码做了什么） | 验证**接口**（API 长什么样） |
-| 运行方式 | WebTestClient + RANDOM_PORT | MockMvc + RestAssuredMockMvc |
+| 运行方式 | MockMvc（@SpringBootTest + @AutoConfigureMockMvc） | MockMvc + RestAssuredMockMvc |
 | 数据 | @Sql 种子数据 + JSON fixtures | 内联或文件引用的固定数据 |
 | 产出 | 测试结果 | 消费者端 Stub（供其他服务使用） |
 
@@ -49,7 +49,7 @@ src/test/java/{base-package}/contract/
 
 所有响应体必须匹配 `ApiResponse<T>` 结构：`{ code, data: { ... }, timestamp }`。
 
-> **成功响应 code 统一为 `"000000"`，错误响应 code 按模块编号（如 `"001001"`）。** ErrorCode 枚举定义见 `exception-handling.md` §3.2。
+> **成功响应 code 统一为 `"000000"`，错误响应 code 为语义化字符串**（领域异常的 `CODE` 常量，如 `"{ENTITY}_NOT_FOUND"`、`"VALIDATION_ERROR"`）。见 `exception-handling.md` §3.2 与 `api-conventions.md`。
 
 ### Create (POST 201)
 ```groovy
@@ -118,7 +118,7 @@ Contract.make {
         status 404
         headers { header("Content-Type", "application/json") }
         body([
-            code     : "001001",
+            code     : "{ENTITY}_NOT_FOUND",
             message  : $(regex(nonEmpty())),
             timestamp: $(regex(iso8601WithOffset()))
         ])
@@ -140,7 +140,7 @@ Contract.make {
         status 400
         headers { header("Content-Type", "application/json") }
         body([
-            code     : "000002",
+            code     : "VALIDATION_ERROR",
             message  : $(regex(nonEmpty())),
             timestamp: $(regex(iso8601WithOffset()))
         ])
@@ -223,7 +223,7 @@ public abstract class ContractBaseTest {
 
 ## Checklist
 - [ ] 所有响应体匹配 `ApiResponse<T>` 结构（`code`/`data`/`timestamp`）
-- [ ] 成功响应 code 为 `"000000"`，错误响应 code 按模块编号（如 `"001001"`）
+- [ ] 成功响应 code 为 `"000000"`，错误响应 code 为语义化字符串（如 `"{ENTITY}_NOT_FOUND"`）
 - [ ] DELETE 契约返回 204 No Content，无响应体
 - [ ] Request/Response 字段匹配 `docs/design/api-spec-v1.md`
 - [ ] 使用 regex 处理动态值（id、timestamp、email）

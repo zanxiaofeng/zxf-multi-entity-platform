@@ -4,6 +4,9 @@ spring:
     virtual:
       # JDK 21+ 虚拟线程（文档 5.0）。ThreadLocal 语义不变，EntityContext 传播方案不变
       enabled: true
+  # 金额的 BigDecimal 序列化须保持十进制 plain 形态（190 而非 1.9E+2）——
+  # Boot 4 / Jackson 3 已移除 spring.jackson.generator.* 属性绑定，
+  # 经 core 的 JacksonConfig（JsonMapperBuilderCustomizer）开启，见该类
   jpa:
     hibernate:
       # schema 由 Flyway 管理，启动时校验实体映射与迁移脚本一致

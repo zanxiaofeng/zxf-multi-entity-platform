@@ -11,9 +11,10 @@ import org.springframework.util.Assert;
 /**
  * Schema 驱动校验解释器（文档 5.8.3）：无实体判断，规则全来自配置。
  *
- * <p>违反约束抛 {@link IllegalArgumentException}（客户端可修正的输入问题，
- * 经 {@code RestExceptionHandler} 映射为 400）；规则形态不认识抛
- * {@link IllegalStateException}（配置缺陷，属编程错误）。
+ * <p>违反约束抛 {@link RuleViolationException}（客户端可修正的输入问题，
+ * 经 {@code RestExceptionHandler} 映射为 400——与契约编程抛的
+ * {@code IllegalArgumentException} 语义分流，见 {@link RuleViolationException}）；
+ * 规则形态不认识抛 {@link IllegalStateException}（配置缺陷，属编程错误）。
  */
 @Component
 @RequiredArgsConstructor

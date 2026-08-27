@@ -1,34 +1,35 @@
 ---
 paths:
+  - "**/application/port/out/**/*.java"
   - "**/infrastructure/**/*.java"
-  - "**/domain/downstream/**/*.java"
   - "**/integration/**/*.java"
-  - "**/apitest/**/*.java"
+  - "**/e2e/**/*.java"
   - "**/*.yml"
   - "**/*.yaml"
   - "**/*.properties"
 ---
 # Downstream Integration Conventions
 
-> **职责边界：** 本文件是下游集成的**唯一权威**——设计原则、HTTP 客户端实现（RestClient/RestTemplate）、错误分类、弹性模式、连接池、接口设计、日志、测试配置。`architecture.md` §3.4/§5.2 仅概述 Port/Impl 位置，`service-conventions.md` §3/§7 定义事务内禁止调用与 Domain Event 委托。
+> **职责边界：** 本文件是下游集成的**唯一权威**——设计原则、HTTP 客户端实现（RestClient/RestTemplate）、错误分类、弹性模式、连接池、接口设计、日志、测试配置。`architecture.md` §5.2 仅概述 Port/Impl 位置，`service-conventions.md` §3 定义事务内禁止外部调用与事件委托。
 
 ***
 
 ## 1. Design Principle
 
-- 下游服务接口在 **domain 层** (`domain/downstream/`)，实现在 **infrastructure 层** (`infrastructure/downstream/`)
+- 下游服务接口（Gateway）在 **application 层**（`application/port/out/{Service}Gateway.java`），实现在 **infrastructure 出站适配器**（`infrastructure/adapter/out/external/{Service}GatewayAdapter.java`）
 - 使用 `RestClient`（首选，Spring Framework 7，需 `spring-boot-starter-restclient`）或 `RestTemplate` 做 HTTP 调用
-- 禁止 Controller 或 Service 直接调用下游，必须通过 domain 接口
-- 方法参数使用 Event DTO 或 record，**禁止超过 3 个原始参数**
+- 禁止 Controller 或 Service 直接调用下游，必须通过 Gateway 端口；外部 HTTP 客户端、序列化细节止步于出站适配器
+- 方法参数使用 Command/事件 record，**禁止超过 3 个原始参数**
+- 下游调用不得出现在 `@Transactional` 方法内——经 `EventPublisher` 发布事件，出站适配器 `afterCommit` 后调用（见 `service-conventions.md` §3）
 
 ***
 
 ## 2. RestClient 实现（首选）
 
 ```java
-// Config — infrastructure/config/{Feature}Config.java
+// Config — infrastructure/adapter/out/external/config/{Service}Config.java（就近管理）
 @Configuration
-public class DownstreamConfig {
+public class {Service}Config {
     @Bean
     public RestClient {service}RestClient(RestClient.Builder builder,
             @Value("${app.downstream.{service}.base-url}") String baseUrl) {
@@ -39,11 +40,12 @@ public class DownstreamConfig {
     }
 }
 
-// Implementation — infrastructure/downstream/{Service}ClientImpl.java
+// Implementation — infrastructure/adapter/out/external/{Service}GatewayAdapter.java
+// implements application/port/out/{Service}Gateway
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class {Service}ClientImpl implements {Service}Client {
+public class {Service}GatewayAdapter implements {Service}Gateway {
     private final RestClient {service}RestClient;
 
     @Override
@@ -68,6 +70,8 @@ public class {Service}ClientImpl implements {Service}Client {
     }
 }
 ```
+
+> 出站适配器调用外部系统失败时，按业务决策：降级返回（`boolean` / 默认值）或翻译为领域异常（带 cause，`exception-handling.md` §2）——不把 HTTP 客户端异常泄露到应用层。
 
 ***
 
@@ -129,7 +133,7 @@ public RestTemplate downstreamRestTemplate(RestTemplateBuilder builder) {
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class {Service}ClientImpl implements {Service}Client {
+public class {Service}GatewayAdapter implements {Service}Gateway {
     private final RestClient {service}RestClient;
 
     @Override
@@ -190,16 +194,18 @@ public RestTemplate downstreamRestTemplate(RestTemplateBuilder builder) {
 
 ***
 
-## 7. 下游接口设计
+## 7. Gateway 接口设计
 
 ```java
-// GOOD: 使用 Event DTO/record
-public interface {Service}Client {
+// application/port/out/{Service}Gateway.java
+
+// GOOD: 使用 Command/Event DTO
+public interface {Service}Gateway {
     boolean sendNotification({Event}CreatedEvent event);
 }
 
 // BAD: 超过 3 个原始参数
-public interface {Service}Client {
+public interface {Service}Gateway {
     boolean sendNotification(Long userId, String username, String email); // 违反规则
 }
 ```

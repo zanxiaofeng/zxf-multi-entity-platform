@@ -15,6 +15,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.zxf.platform.core.context.EntityType;
 import com.zxf.platform.core.domain.model.NotificationFailedException;
 import com.zxf.platform.core.domain.port.NotificationPort;
+import com.zxf.platform.core.domain.port.OutboxRepository;
 import com.zxf.platform.core.infrastructure.engine.DeadLetterJobOperations;
 import com.zxf.platform.core.infrastructure.observation.AuditService;
 import java.time.Duration;
@@ -55,6 +56,9 @@ class BetaOrderApiEndToEndTest {
     @Autowired
     private TaskService taskService;
 
+    @Autowired
+    private OutboxRepository outboxRepository;
+
     /**
      * 组件 11（文档 7.7.2）：SendNotificationDelegate 现在经 NotificationPort 调真实下游。
      * e2e 默认 doNothing——正常路径下通知静默成功，断言逻辑保持不变。
@@ -75,6 +79,10 @@ class BetaOrderApiEndToEndTest {
                 .andExpect(jsonPath("$.price.amount").value(190.00)) // 200 * 0.95，Beta 专属
                 .andExpect(jsonPath("$.price.currency").value("CNY"))
                 .andReturn();
+
+        // 金额序列化形态守护：190.00 经 Money 归一化为 scale=-1（toString 是 1.9E+2），
+        // write-bigdecimal-as-plain 保证对外恒为十进制——该配置回退时 190 侧最先暴露
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("E+");
 
         String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
 
@@ -206,6 +214,20 @@ class BetaOrderApiEndToEndTest {
     }
 
     @Test
+    void 下单后outbox事件被relay发布() throws Exception {
+        // Transactional Outbox（文档 7.7.2 组件 12，core 共用逻辑）：与 Alpha 侧对称覆盖——
+        // 两产物互不背书，beta 装配下 outbox 写入/relay 标记同样需要自有回归
+        mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"widget\",\"quantity\":1}"))
+                .andExpect(status().isCreated());
+
+        // relay fixedDelay=5s，等 relay 扫描并发布（findUnpublished 返回空即已全部标记）
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(outboxRepository.findUnpublished(10)).isEmpty());
+    }
+
+    @Test
     void actuator输出当前实体用于漂移巡检() throws Exception {
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
@@ -213,9 +235,20 @@ class BetaOrderApiEndToEndTest {
     }
 
     @Test
+    void actuatorHealth包含Flowable健康检查() throws Exception {
+        // 文档 7.7.2 组件 14：与 Alpha 侧对称——platform-flowable-starter 在 beta 产物上
+        // 同样装配 FlowableEngineHealthIndicator（@ConditionalOnClass + AutoConfiguration.imports）
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.flowable").exists());
+    }
+
+    @Test
     void 查询不存在订单返回404() throws Exception {
+        // 领域异常（exception-handling §3.1）：与 Alpha 同一契约——code 属性钉住 CODE
         mockMvc.perform(get("/api/v1/orders/999999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
 
     @Test

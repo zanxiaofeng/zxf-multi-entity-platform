@@ -4,9 +4,11 @@ paths:
 ---
 # 参数校验规范（声明式 + 命令式）
 
+**版本：** 1.7（2026-08-22 同步主线规范源：§2.10 统一为通用「按需启用」版（原强制策略改为项目选型，记录于项目 CLAUDE.md「规范适配」段）。此前 1.6：同步 §2.8 `@DefaultValue` 六事实表、`@ConstructorBinding` 按需标注、`BindValidationException` 包装链；§4 注解来源表纠错）
+
 **适用范围：** JDK 21 + Spring Boot 4.0 + Jakarta Validation 3.1
 
-> **职责边界：** 本文件定义参数校验的**完整规范**——声明式 Bean Validation（Controller / Service / ConfigurationProperties）和命令式断言（Domain Entity / VO / 内部不变式）。全局异常处理见 `exception-handling.md`，Controller 层 `@PathVariable` / 分页参数规范见 `api-conventions.md`。
+> **职责边界：** 本文件定义参数校验的**完整规范**——声明式 Bean Validation（Controller / Service / ConfigurationProperties）和命令式断言（Domain Entity / VO / 内部不变式）。全局异常处理与业务异常表达模式选型（§2.1）见 `exception-handling.md`，Controller 层 `@PathVariable` / 分页参数规范见 `api-conventions.md`。判空坏味道识别（NC 规则表）与存量代码改造执行流程见 `null-check-governance.md`。
 
 ***
 
@@ -78,7 +80,7 @@ public record McpProperties(
 | 层 | 验证方式 | 验证内容 |
 |----|---------|---------|
 | Controller | `@Valid` / `@Validated` | 格式验证（非空、长度、格式、正则） |
-| Service | `@Validated` + Bean Validation 或 `Assert` | 业务验证（存在性、状态、权限） |
+| Service | `@Validated` + Bean Validation；依赖外部状态的语义校验用 `if + 领域异常` | 业务验证（存在性、状态、权限） |
 | Entity | `@PrePersist` / `@PreUpdate` | 不变式（数据一致性约束） |
 | Configuration | `@ConfigurationProperties` + `@Validated` | 配置属性约束（必填、范围、格式），启动时 Fail Fast |
 
@@ -91,6 +93,7 @@ public record McpProperties(
 | `@ConfigurationProperties` 类/record | `@Validated` + 字段注解 | Spring 绑定后自动校验，启动 Fail Fast |
 | DTO / Request / Response record | 字段 Bean Validation 注解 | Controller `@Valid` 自动触发 |
 | Service 方法参数（Bean 类型） | `@Validated`（类级）+ `@Valid`（参数） | 框架 AOP 代理自动校验 |
+| Service 用例中的语义校验（唯一性、存在性、状态前置条件 — 需查库或下游） | 用例代码 `if + 领域异常`（见 `exception-handling.md` §4.2） | 语义校验依赖外部状态，注解约束必须自包含、无副作用；业务拒绝抛类型化领域异常（4xx），区别于编程契约违反（`IllegalArgumentException` → 500） |
 | Domain Entity / Value Object | `Assert` / `Objects.requireNonNull` | 非 Spring 管理，Bean Validation 不触发 |
 | 内部不变式 / 后置条件 | `assert` 或 `Assert.state` | 代码内部逻辑假设 |
 
@@ -469,6 +472,38 @@ public class {Feature}Properties {
 | **启动失败 = Fail Fast** | 校验失败时抛出 `ConstraintViolationException`，应用上下文初始化失败、拒绝启动。这是期望行为 —— 宁可启动失败也不带病运行 |
 | **敏感字段脱敏** | `password`、`secret`、`token` 等字段加 `@ToString.Exclude`，防止 `@Data` 生成的 `toString()` 泄露到日志 |
 | **默认值与验证不冲突** | 有默认值的字段（如 `port = 22`）仍可加验证注解；验证针对**绑定后的最终值**，默认值也必须满足约束 |
+| **`@ConstructorBinding` 按需标注** | 构造器绑定对 record 始终生效；普通类**单一构造器**自 Boot 3 起隐式构造器绑定，注解可省略；仅存在**多个构造器**（如紧凑构造器 + 便捷构造器并存）时才需显式指定绑定构造器 |
+
+#### `@DefaultValue` 默认值（消灭可空的源头手段）
+
+**机制六事实：**
+
+| 事实 | 说明 |
+|------|------|
+| **Spring Boot 专属 + 构造器绑定专属** | `@DefaultValue`（`org.springframework.boot.context.properties.bind`）的 `@Target` 为 `PARAMETER`，只被构造器绑定（record / 不可变类）的 `ValueObjectBinder` 消费——**setter 绑定的 `@Data` 类不支持**，等价物是字段初始化器（`private List<X> x = List.of();`）；也管不到 `@Value` 注入（其默认值语法是 `${key:default}`） |
+| **缺失时代入缺省而非 null** | `@DefaultValue("true")` 的字符串值经 ConversionService 转为目标类型；无参 `@DefaultValue` 为「空」语义——集合/Map/数组 → **空集合**，聚合类型 → **递归绑定空实例**（嵌套组件的 `@DefaultValue` 继续生效） |
+| **默认值也参与校验** | 默认值代入发生在校验之前，`@Validated` 校验的是兜底后的最终值——默认值自身必须满足约束注解 |
+| **集合形式与显式配置边界** | 集合默认值可用数组形式 `@DefaultValue({"a", "b"})` 或逗号分隔字符串；**显式配置（含空串）优先于默认值**——仅当属性完全缺失时才代入缺省 |
+| **不支持占位符解析** | 值必须是常量字符串，不能写 `${...}` 引用其他属性/环境变量；需占位符默认值时用 `@Value("${key:default}")`（零散项）或 `application.yml` 占位符 `${ENV:default}`（见 `null-check-governance.md` §10） |
+| **与 `@Valid` 正交** | 无值形式 `@DefaultValue` 保证嵌套对象绑定非 null 实例，`@Valid` 负责级联校验其内部约束——两者各司其职，无值形式不能替代 `@Valid` |
+
+```java
+@Validated
+@ConfigurationProperties(prefix = "{feature}")
+public record {Feature}Properties(
+        @DefaultValue List<@NotNull @Valid {Feature}Definition> definitions,   // 缺省 → 空集合，消费方直接 for-each
+        @DefaultValue Map<String, @Min(100) @Max(599) Integer> errorMappings,
+        @DefaultValue("true") boolean enabled,                                 // primitive，类型上不可空
+        @DefaultValue Trace trace) {                                           // 缺省 → 递归空实例
+    ...
+}
+```
+
+**选型直觉（与跨框架共识一致）：**
+
+- **缺失即错误的必填项**（host、credential、URL 等环境相关值）→ **不给默认**，`@NotBlank` 系约束 fail-fast——给默认值是反模式：忘了配生产值会静默连上默认地址
+- **缺失有合理缺省语义的可选项** → `@DefaultValue` / 字段初始化器，让 null 从源头不存在（消费方零判空；这是判空治理「减量」目标成本最低的一手，见 `null-check-governance.md` §9；Java/Spring 各层的完整默认值手段目录见该文件 §10）
+- **禁止用 `@Value("${key:default}")` 在各注入点散落默认值**——同一 key 的默认值多处定义必然漂移；默认值集中声明在类型化配置类（NC-014 反散落 `@Value` 的延伸）
 
 #### Hibernate Validator Duration 约束注解
 
@@ -546,10 +581,14 @@ app:
 #### 避免做法
 
 - **忘记 `@Validated`** — 仅加字段注解不加 `@Validated`，校验被静默跳过
-- **忘记嵌套 `@Valid`** — 嵌套 `Pool` 等内部类的约束注解不会自动触发
+- **忘记嵌套 `@Valid`** — 嵌套 `Pool` 等内部类的约束注解不会自动触发。**Boot 3.4 起严格遵循 Bean Validation 规范**：缺 `@Valid` 的嵌套属性被**静默跳过**——启动照常成功而校验未执行，只能通过探针测试发现（NC-014，见 `null-check-governance.md` §3）；集合元素级联写在泛型实参位置 `List<@Valid Endpoint>`
 - **用 `Assert` 代替 Bean Validation 注解** — `@ConfigurationProperties` 类/record 禁止在 compact constructor 或构造器中用 `Assert.hasText` / `Assert.isTrue` 做字段级校验；改用 `@Validated` + `@NotBlank` / `@Positive` / `@Min` / `@Max` 等声明式注解。跨字段约束用 `@AssertTrue` 方法或自定义类级约束
 - **配置层做业务逻辑校验** — 配置只验证「值合法」，跨字段业务规则在 Service / Domain 层处理
 - **用配置验证替代测试** — 配置验证是启动时防线，不替代测试中的配置绑定测试
+
+> **元数据通道 ≠ 校验通道：** `spring-boot-configuration-processor`、`@NestedConfigurationProperty`、`@DeprecatedConfigurationProperty` 只在**编译期**生成元数据，服务 IDE 补全与弃用告警，「对实际绑定过程无影响」——`@NestedConfigurationProperty` **不能**触发嵌套校验（须 `@Valid`），处理器缺失也**不会**导致校验失效（只丢 IDE 体验）。
+
+> **校验失败行为：** 校验发生在 bean 初始化期，违例先抛 `BindValidationException`（含 `ValidationErrors` 明细），再由 `ConfigurationPropertiesBindingPostProcessor` 统一包装为 `ConfigurationPropertiesBindException`——绑定失败（类型转换错误等）的 cause 为 `BindException`，校验失败的 cause 为 `BindValidationException`（Boot 4.1.0 字节码实证）。FailureAnalyzer 输出 `Property`（实际键名）+ `Origin`（来源文件与行列号）+ `Reason`——排错第一落点是 `Origin`。
 
 ### 2.9 声明式校验最佳实践
 
@@ -599,11 +638,67 @@ public void createUser(@Valid UserCreateDTO dto) { ... }
 
 > **全局异常处理：** Bean Validation 校验失败后的异常处理（`MethodArgumentNotValidException`、`ConstraintViolationException` 等 → HTTP 响应映射）完整规范见 `exception-handling.md` §6.2。
 
+### 2.10 错误消息外化管理（按需启用）
+
+> **按需启用：** 本节是引入 i18n / 消息外化需求时的规范——无国际化需求的项目（消息用本地化字面量）不强制消息键三段式；各项目的启用状态记录于项目 `CLAUDE.md`「规范适配」段。
+
+注解的 `message` 支持三类占位符：注解属性名（`{min}`/`{max}`）、`{validatedValue}`（被拒值）、`${...}` EL 表达式。硬编码消息会耦合文案与代码、无法国际化；启用外化后**注解里只写消息键**：
+
+```java
+// GOOD — 消息键三段式：<域>.<字段>.<约束>
+public record CreateUserCommand(
+        @NotBlank(message = "{user.username.notBlank}")
+        @Size(max = 32, message = "{user.username.size}")
+        String username) {}
+```
+
+```properties
+# src/main/resources/ValidationMessages.properties（规范默认 basename，按 locale 国际化）
+user.username.notBlank=用户名不能为空
+user.username.size=用户名长度不能超过 {max} 个字符
+```
+
+**规则（启用后）：**
+- 消息键用 `<域>.<字段>.<约束>` 三段式；对外 API 的错误定位依赖 `ApiResponse.errors[]` 的 `field` 与机器可读错误码（`api-conventions.md`），**不依赖消息文本**
+- 改造存量代码时，散落的本地化字面量消息（NC-010，见 `null-check-governance.md` §3）统一收敛到资源文件
+
+### 2.11 校验行为调优
+
+默认收集全部约束冲突后一次性返回。两个调优点：
+
+**快速失败（fail fast）**——第一个约束冲突即终止校验：
+
+```properties
+hibernate.validator.fail_fast=true
+```
+
+> **注意：** 该属性是 Hibernate Validator 专有扩展，不属规范，更换实现即失效；代价是客户端一次只能看到一个错误，应按端点语义权衡，**不作全局默认开启**。
+
+**组序列（`@GroupSequence`）**——校验有成本顺序时（先廉价约束、再昂贵约束），控制执行顺序，前组未过则后续不执行：
+
+```java
+@GroupSequence({CheapChecks.class, ExpensiveChecks.class})
+public interface OrderedChecks {}
+```
+
+组序列只编排执行顺序，**不解决创建/更新场景差异**——后者优先拆 DTO（`service-conventions.md` §4）。
+
 ***
 
 ## 3. 命令式校验 — 契约编程
 
 > 当场景不受 Spring 管理（Domain Entity、Value Object、内部逻辑）时，使用命令式校验。以下规范适用于这些场景。
+
+> **边界说明 — Service 层的语义校验：** Service 用例中还有一类显式代码校验——依赖外部状态的语义校验（唯一性、存在性、状态前置条件），它不适用上述「是否被 Spring 管理」的判断标准，产物是类型化领域异常（业务拒绝 → 4xx），而非本节的契约异常（`IllegalArgumentException` → 500 兜底）。写法见 `exception-handling.md` §4.2：
+>
+> ```java
+> // 语义校验：需查库才能判断，写在该业务用例的 Service 方法中
+> if ({entity}Repository.existsByName(request.name())) {
+>     throw new {Entity}AlreadyExistsException(request.name());
+> }
+> ```
+>
+> 原则：**注解管「语法」约束**（自包含、无副作用），**用例代码管「语义」约束**（需查库、需业务上下文）。不要为了免写 if 把数据库查询塞进自定义 ConstraintValidator。
 
 ### 3.1 参数校验（前置条件）
 
@@ -711,10 +806,11 @@ public class BankAccount {
 
 | 注解 | 来源 | 用途 |
 |------|------|------|
-| `@NonNull` / `@Nullable` | `jakarta.annotation` (Jakarta EE 11) | 应用代码标准注解（SB4 仍可用） |
+| `@Nonnull` / `@Nullable` | `jakarta.annotation` (Jakarta EE 11) | 应用代码标准注解（SB4 仍可用） |
 | `@Nullable` / `@NullMarked` | `org.jspecify.annotations` (JSpecify) | **SB4 框架首选**，见下方 JSpecify 小节 |
-| `@Nonnull` / `@CheckForNull` | `jakarta.annotation` | Jakarta 注解 |
-| `@NonNull` | `lombok` | Lombok 项目使用 |
+| `@NonNull` | `lombok` | Lombok 项目使用（见 `java-coding-standard.md` §5.2） |
+
+> **注意：** `@CheckForNull` 不属于 `jakarta.annotation`（Jakarta EE 11 仅含 `@Nonnull`/`@Nullable`），它来自 SpotBugs / JSR-305（`edu.umd.cs.findbugs.annotations`），禁止新引入。
 
 > **注意：** Spring Boot 4 基于 Jakarta EE 11，`javax.*` 工件已完全移除（非 deprecated）。应用代码统一使用 `jakarta.annotation`，禁止使用旧版 `javax.annotation`。
 
@@ -741,7 +837,7 @@ public class OrderService {
 
 **关键规则：**
 - `@NullMarked` 标注在包（`package-info.java`）或类上，范围内所有类型默认 non-null，仅需为可空处加 `@Nullable`
-- 搭配 null checker（如 Checker Framework）或 Kotlin 可在编译期发现潜在 NPE
+- 搭配 NullAway 等 null checker 可在编译期强制检查（推荐接入，集成与代码形态约定见 `java-coding-standard.md` §4.2）
 - **Actuator endpoint 参数禁止使用 `org.springframework.lang.Nullable`**，必须改用 `org.jspecify.annotations.Nullable`（SB4 已移除对前者的支持）
 
 **强制要求：** 校验逻辑必须与注解声明的契约保持一致。
@@ -787,6 +883,7 @@ void updateUser_InvalidAge_ShouldThrowException(int invalidAge) {
 
 - [ ] DTO / `@ConfigurationProperties` 字段是否用 Bean Validation 注解（而非手动 `Assert`）？
 - [ ] `@ConfigurationProperties` 类是否加了 `@Validated`？嵌套配置是否加了 `@Valid`？
+- [ ] record / 构造器绑定配置类的默认值是否用 `@DefaultValue`（而非字段初始化）？关键配置是否未滥用默认值？（§2.8）
 - [ ] Controller 是否用 `@Valid` / `@Validated` 触发验证，而非手动校验？
 - [ ] 验证注解是否优先加在 Bean 字段上，而非方法参数上？
 - [ ] 嵌套对象是否加了 `@Valid` 级联验证？

@@ -73,6 +73,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-restclient</artifactId>
         </dependency>
+        <!-- Apache HttpClient 5（tech-stack.md Infrastructure 节）：classpath 存在时
+             RestClient 的请求工厂自动切换为 httpclient5 连接池（带 stale 连接校验），
+             规避 JDK HttpURLConnection keep-alive 复用已关闭连接的 EOF 读错误。
+             版本由 Boot BOM 管理；runtime 即可（应用代码不直接引用其 API）。 -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!-- Resilience4j 核心库（文档 7.7.2 组件 11）：程序式 CircuitBreaker + Retry。
              不引 resilience4j-spring-boot（SB4 自动配置兼容性未验证，程序式更可控）。
              2.4.0 为 Maven Central 当前最新稳定版（2026-03 发布）。 -->

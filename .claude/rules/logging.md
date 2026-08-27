@@ -1,9 +1,14 @@
 ---
 paths:
   - "**/*.java"
+  - "**/logback*.xml"
+  - "**/application*.yml"
+  - "**/application*.yaml"
 ---
 
 # Logging Conventions
+
+**版本：** 1.1（2026-08-22 同步主线规范：触发面补 xml/yml；Trace Filter 示例修正——`Optional.filter` 的 predicate 只在有值时调用，删除多余 `id != null` 判空；「Spring Boot 4.0」措辞统一为「Spring Boot 4」）
 
 Use `@Slf4j` (Lombok). Never declare a manual `Logger` field.
 
@@ -98,7 +103,7 @@ public class TraceIdFilter implements Filter {
             throws IOException, ServletException {
         // 上游 traceId 必须白名单校验(防日志注入 / 响应头分裂 CRLF),不合法则丢弃重新生成
         String traceId = Optional.ofNullable(((HttpServletRequest) request).getHeader("X-Trace-Id"))
-                .filter(id -> id != null && id.matches("[A-Za-z0-9_-]{8,128}"))
+                .filter(id -> id.matches("[A-Za-z0-9_-]{8,128}"))
                 .orElse(UUID.randomUUID().toString());
         MDC.put("traceId", traceId);
 
@@ -124,9 +129,9 @@ public class TraceIdFilter implements Filter {
 
 ## Structured Logging
 
-### Spring Boot 4.0 Built-in JSON Logging
+### Spring Boot 4 Built-in JSON Logging
 
-Spring Boot 4.0+ supports structured logging natively via configuration:
+Spring Boot 4+ supports structured logging natively via configuration:
 
 ```yaml
 # application.yml — SB4.1 结构化日志:合法格式 id 仅 ecs / gelf / logstash(json 非合法 id 会被静默忽略)

@@ -4,11 +4,11 @@ paths:
 ---
 # Java 编码规范
 
-**版本：** 3.0
+**版本：** 3.11（2026-08-22 通用化：同步主线规范源——项目状态断言与项目标识符移出正文，改为条件式与通用表述；项目选型记录迁至项目 CLAUDE.md「规范适配」段。此前 3.10：同步 §4.2 JSpecify/NullAway 扩充、§5.1 工具表默认值手段、§5.2 构造器小节）
 **生效日期：** 2026-08-05
 **适用范围：** 所有基于 Java 21+ 的后端项目（含 Spring Boot 4.0+）
 
-> **相关规范：** 校验与契约编程（声明式 Bean Validation / 命令式断言 / 不变式）见 `validation.md`；对象健身操（OO 设计约束）见 `java-object-calisthenics.md`；异常处理（分类/抛出/捕获/全局处理）见 `exception-handling.md`；日志规范见 `logging.md`。
+> **相关规范：** 校验与契约编程（声明式 Bean Validation / 命令式断言 / 不变式）见 `validation.md`；对象健身操（OO 设计约束）见 `java-object-calisthenics.md`；SOLID 原则与迪米特法则（LoD）见 `java-solid-lod.md`；异常处理（分类/§2.1 业务异常模式选型/抛出/捕获/全局处理）见 `exception-handling.md`；日志规范见 `logging.md`。
 
 ***
 
@@ -76,7 +76,7 @@ paths:
 | 布尔方法 | `is` / `has` / `can` / `should` 前缀 | `isExpired`, `hasAccess` |
 | 变量 / 字段 | camelCase | `userName`, `createdAt` |
 | 常量（`static final`） | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`, `DEFAULT_PAGE_SIZE` |
-| 包 | 全小写，不缩写 | `com.example.demo.domain.user` |
+| 包 | 全小写，不缩写 | `com.example.{project}.domain.user` |
 | Record 组件 | camelCase（与字段一致） | `record User(Long id, String name)` |
 | 测试方法 | `test{Action}{Entity}[{Condition}]` | `testCreateUserWithValidationError` |
 
@@ -125,7 +125,7 @@ if (user.isActive()) process(user);
  *
  * @param request the creation request containing required fields
  * @return the created entity response with generated ID
- * @throws BusinessException if entity with same name already exists
+ * @throws {Entity}AlreadyExistsException if entity with same name already exists
  */
 EntityResponse create(CreateRequest request);
 ```
@@ -255,7 +255,7 @@ switch (d) {
 // 链式操作
 return repository.findById(id)
     .map(mapper::toResponse)
-    .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND, id));
+    .orElseThrow(() -> new {Entity}NotFoundException(id));
 
 // 条件执行
 optional.ifPresent(this::process);
@@ -424,7 +424,7 @@ public class OrderService {
     // 默认非空返回 —— 调用方无需 null 检查
     public Order findById(Long id) {
         return repository.findById(id)
-            .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, id));
+            .orElseThrow(() -> new OrderNotFoundException(id));
     }
 
     // Optional 返回 —— 调用方链式处理
@@ -444,10 +444,44 @@ public class OrderService {
 ```
 
 **规则：**
-- `@NullMarked` 标注在包（`package-info.java`）或类上，范围内所有类型默认 non-null
+- `@NullMarked` 首选**包级**（`package-info.java`），范围内所有类型默认 non-null；类级标注仅用于过渡期的存量类。新增包必须随包创建 `package-info.java`
+- 容器/泛型的可空性标注在类型实参位置：`Map<String, @Nullable Object>`（值可空）、`List<@Nullable Item>`；可空泛型返回写 `<T> @Nullable T`
+- 覆写框架接口时，参数/返回值的可空性必须与父接口声明对齐（父接口 `@Nullable` 参数，覆写处同样 `@Nullable`），否则静态分析结果与运行期行为脱节
+- 绑定类上 `@NotBlank` 与 `@Nullable` **同框不是冲突**，两者管不同时刻：jakarta 约束在绑定后的运行期校验拒绝 null/空白；jspecify `@Nullable` 表达「校验完成前实例字段确实可空」（绑定器可省略该属性）。按消费方式二选一世界观并保持类内一致：record 绑定类取**校验前真相**（组件 `@Nullable` + 约束注解，消费方按可空读）；`@Data` 配置类取**校验后真相**（字段非空 + 类级 `@SuppressWarnings("NullAway.Init")`，消费方只见已校验实例、不做 null check）。两种世界观的裁定标准是**绑定与校验是否分离**：`@ConfigurationProperties` 属两阶段（绑定器与 Validator 各自独立触发，校验完成前实例可能被读到）→ record 取校验前真相；**绑定与校验原子化**的入口（绑定或校验失败即抛、消费方只拿校验通过实例，如 Jackson `convertValue` + 手动 `validate` 一体的编程式装配入口）不存在校验前窗口 → record 可直接声明**非空组件**（`@NotBlank`/`@NotEmpty` 对 null 同样拒绝，null 无法逃逸到消费方）。注意 jakarta 规范：除 `@NotNull`/`@NotBlank`/`@NotEmpty` 外所有约束对 null 一律放行——「可选但须合规」写 `@Nullable` + `@Min/@Max`，「必填」写 `@NotBlank` 系
+- 绑定类上还有**第三条路，且优先于上述两种世界观**：配置项缺失有合理缺省语义时（空集合、`false`、递归空实例），用 `@DefaultValue`（构造器绑定）或字段初始化器（setter 绑定）代入缺省——组件既不加 `@Nullable` 也不加约束注解，null 从源头不存在，消费方零判空。这是减量成本最低的手段（机制与选型边界见 `validation.md` §2.8；横切 Java/Spring 各层的默认值手段完整目录——`Optional.orElse` 系、`Objects.requireNonNullElse`、字段初始化器、`@RequestParam(defaultValue)` 等及适用边界——见 `null-check-governance.md` §10）；只有「缺失即错误」的必填项才落入两种世界观
 - 新代码推荐 JSpecify（`org.jspecify.annotations`），`jakarta.annotation` 仍可用
 - **禁止** `org.springframework.lang.Nullable`（SB4 已移除支持，Actuator endpoint 会报错）
 - 应用代码统一使用 `jakarta.annotation` 或 JSpecify，**禁止**旧版 `javax.annotation`（SB4 已完全移除）
+
+#### NullAway + Error Prone 编译期强制（推荐接入）
+
+JSpecify 注解本身不产生检查（javac 不消费注解），需静态分析器消费。推荐接入 **NullAway**（Uber，作为 Error Prone 的空值规则运行，JSpecify 模式）：`@NullMarked` 包内违规传参/解引用在编译期即被拦截——空值契约成为「不修复就无法合并」的门禁。
+
+**渐进引入策略（禁止全局一次开启）：**
+
+1. 新包从第一天起 `@NullMarked`（零成本区）
+2. 存量包逐个加 `@NullMarked` 并修复报错，**按包提交 PR**（包少的小型项目可全量一次性标注）
+3. 未覆盖的包不加标注，按未标注语义跳过
+4. NullAway 先设 `WARN` 级，存量达标后再升 `ERROR`
+5. 达标后把「新增包必须随包创建 `package-info.java`」写入评审清单防回潮
+
+切忌反向操作——先全局启用再逐包豁免，豁免清单只增不减。关键开关：`NullAway:AnnotatedPackages` 限定检查范围、`NullAway:JSpecifyMode=true` 按 `@NullMarked` 语义推断非空默认；`-XepDisableAllChecks` 关闭 Error Prone 其余检查、聚焦空值。
+
+**Maven 集成实测要点（Error Prone 2.36.0 + NullAway 0.12.7 / JDK 21，已验证仓库的实测结论）：**
+
+- Error Prone 挂到 `maven-compiler-plugin` 的 `-Xplugin:ErrorProne`；需同时加 `-XDcompilePolicy=simple --should-stop=ifError=FLOW`，否则与 javac 默认编译策略冲突
+- JDK 16+ 强封装（JEP 396）：javac 内部包的 `--add-exports` 必须写在 `.mvn/jvm.config`（in-process 编译运行在 Maven JVM 上）；放 `compilerArgs` 会被 `--release` 模式拒绝，`--add-opens` 编译期无效且致构建失败
+- 一旦显式声明 `annotationProcessorPaths`，依赖自动发现失效——**lombok 必须一并列入**，否则 Lombok 静默不生成代码
+- test 源集豁免（测试注入 null/mock 是常态，扫描性价比低）：execution 级覆盖 `default-testCompile`，用 `compilerArgs combine.self="override"`——`testCompilerArgs` 不覆盖 `compilerArgs`，无效
+
+**代码形态约定（与 NullAway 的数据流推断对齐）：**
+
+- NullAway 识别 `if (x == null) return/throw` 与 `Objects.requireNonNull`，**不识别 Spring `Assert` 的 null 契约**——「校验后使用」场景用 `Objects.requireNonNull` 赋局部变量，让非空契约对静态分析显式
+- Jackson / `@ConfigurationProperties` 绑定类（框架反射填充字段，源码中无显式赋值路径）类级 `@SuppressWarnings("NullAway.Init")`
+- 其余 `@SuppressWarnings("NullAway")` 必须逐点注释原因（已知合理压制：NullAway 0.12.7 不读 jar 内 `T extends @Nullable Object` 的 TYPE_USE 上界注解，如 `RestClient.exchange`）
+- Lombok 协同：字段上的 `@Nullable` 经根目录 `lombok.config` 复制到生成构造器参数（§5.2）——启用该实践前先在根目录创建 `lombok.config` 并确认 `lombok.copyableAnnotations` 覆盖所用注解，避免丢失参数级空值契约
+
+> **与 Bean Validation 的分工：** 静态分析管代码内部契约（编译期），Bean Validation 管外部输入（运行期）——编译器看不见请求体/消息负载/配置文件。标准姿势是「入口校验一次、内部信任契约」，互补不替代。
 
 ### 4.3 不可变集合
 
@@ -489,7 +523,10 @@ List<String> collected = stream.collect(Collectors.toUnmodifiableList());
 | Base64 编码 | Commons-codec `Base64.encodeBase64String` | `java.util.Base64` (JDK 8+) |
 | 数值范围限制 | `Math.min(Math.max(val, min), max)` | `Math.clamp(val, min, max)` (JDK 21) |
 | 字符串默认值 | `str != null ? str : ""` 三元 | Spring `StringUtils.defaultString(str)` |
-| 对象默认值 | `obj != null ? obj : default` 三元 | Spring `ObjectUtils.defaultIfNull(obj, default)` |
+| 对象默认值 | `obj != null ? obj : default` 三元 | Spring `ObjectUtils.defaultIfNull(obj, default)` 或 JDK `Objects.requireNonNullElse(obj, default)`（惰性版 `requireNonNullElseGet`） |
+| Map 取值默认值 | 手动 `containsKey` 判断 | `map.getOrDefault(key, default)` |
+| 请求参数默认值 | `required = false` + 使用处判空 | `@RequestParam(defaultValue = "...")`（对空串参数同样生效） |
+| 配置属性默认值 | 使用处手工判空兜底 | setter 绑定用字段初始化；record/构造器绑定用 `@DefaultValue`（仅构造器参数，机制与边界见 `validation.md` §2.8；横切各层的默认值手段完整目录见 `null-check-governance.md` §10） |
 | 类型判断分支 | `if (obj instanceof X) { X x = (X) obj; ... }` | `if (obj instanceof X x) { ... }` (JDK 16+) |
 | 获取集合首/末元素 | 手动 `get(0)` / `get(size()-1)` | `sequencedCollection.getFirst()` / `getLast()` (JDK 21) |
 
@@ -521,7 +558,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | `@Data` | getter/setter/toString/equals/hashCode | **仅非 JPA 的 DTO/VO**。JPA Entity 用 `@Getter` + 手动 equals/hashCode |
 | `@Builder` | 建造者模式 | — |
 | `@Slf4j` | 自动创建 log 对象 | — |
-| `@RequiredArgsConstructor` | 构造器注入 | — |
+| `@RequiredArgsConstructor` | 构造器生成（Bean 注入及一切纯赋值构造器） | 见下方「构造器」小节 |
 | `@Value` | 不可变类 | 仅在需要继承或 `@Builder` 时使用（否则用 record） |
 | `@UtilityClass` | 工具类（全静态方法） | **所有工具类统一用此注解** |
 
@@ -529,6 +566,42 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 - JPA 实体避免 `@Data`（循环依赖风险）；用 `@EqualsAndHashCode(onlyExplicitlyIncluded = true)` + `@EqualsAndHashCode.Include` 指定业务主键
 - `@ToString.Exclude` 排除敏感字段（密码、密钥等）
+- Lombok 仅限 application 与 infrastructure 层，**domain 层零依赖**（`tech-stack.md`）
+
+#### 构造器（@RequiredArgsConstructor）
+
+**所有纯赋值构造器（无校验、无额外逻辑）必须使用 `@RequiredArgsConstructor` 替代手写，无论类是否 Spring Bean**——这是核心原则 §1.2「能用 1 行完成的代码绝不用 2 行」在构造器上的直接应用。
+
+**规则：**
+- 字段上的 `@Nullable` 等空值注解须经根目录 `lombok.config` 的 `lombok.copyableAnnotations` 复制到生成构造器的参数上——替换手写构造器前先创建 `lombok.config` 并确认该配置已覆盖所用注解，避免丢失参数级空值契约
+- Lombok 另提供 `lombok.addNullAnnotations = jspecify`（配置键自 lombok 1.18.12 存在，`jspecify` 内置值自 1.18.38 支持、为官方推荐值之一）：让生成代码（getter、构造器参数等）自动附加 JSpecify 空值标注。**收益与风险（行业核实）：** 收益真实——不启用时 `@Nullable` 字段的生成 getter 在 `@NullMarked` 包内被 NullAway 视为非空返回，静态分析漏报；风险同样真实——NullAway 官方对 Lombok 仅 best-effort 兼容（README：不特别推荐与 Lombok 搭配），已知坑有生成代码上 JSpecify 注解的 TYPE_USE 识别问题（NullAway #917）与 `@Builder` 支持有限（#321）。**选型：** Lombok ≥1.18.38 且生成代码确实向消费方暴露 `@Nullable` 契约 → 启用；Lombok 暴露面小 → 不启用是合理保守选择（典型如 Lombok 仅限 application/infrastructure 层 Bean 类的项目，`@NullMarked` 包内类型默认非空、可空契约已由 `copyableAnnotations` 复制路径覆盖）。启用与否变更须重新跑 NullAway 全量验证
+- Lombok 生成构造器**不受**其他手写构造器影响（与 `@Data` 隐含的构造器不同），手写与生成构造器只要签名不冲突即可共存——示例：带默认值的便利构造器（委托静态工厂计算默认依赖）手写成无参构造器，`@RequiredArgsConstructor` 同时生成全参构造器
+- 含实际逻辑的构造器（参数校验、防御性复制、默认值计算）仍需手写，不适用本条
+
+#### `@NonNull` 使用规则
+
+`@NonNull` 是编译期代码生成：在标注位置插入 null 检查，失败抛 `NullPointerException`（带参数名消息）。
+
+| 标注位置 | 生成行为 |
+|---------|---------|
+| 方法/构造器参数 | 方法体首行插入 null 检查 |
+| 字段 | 在 setter、`@RequiredArgsConstructor` 生成的构造器中插入检查 |
+| 方法返回值 | return 前插入检查，承诺不返回 null |
+
+**规则：**
+- **仅保留在构造器/必填依赖注入场景**——那里需要静态标注做不到的真实字节码检查；空值语义主表达用 JSpecify（§4.2），二者并存合法、存量无需返工
+- **不用于输入校验**——抛 NPE 进不了校验异常通道，Controller 入参校验走 Bean Validation（`validation.md` §2）
+- 检查只存在于 Lombok 生成的代码路径——手写 setter 会形成覆盖空洞
+- 构造器注入是无坑场景（检查路径与赋值路径完全重合）：
+
+```java
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+    @NonNull
+    private final OrderRepository orderRepository;   // 生成构造器首行 null 检查
+}
+```
 
 #### 工具类（@UtilityClass）
 
@@ -645,12 +718,12 @@ User created = restClient.post()
 ```java
 // GOOD: 传递 cause
 catch (IOException ex) {
-    throw new BusinessException(ErrorCode.INTERNAL_ERROR, ex);
+    throw new FileProcessingException(fileName, ex);
 }
 
 // BAD: 吞掉原因
 catch (IOException ex) {
-    throw new BusinessException(ErrorCode.INTERNAL_ERROR);  // 丢失 ex！
+    throw new FileProcessingException(fileName);  // 丢失 ex！
 }
 
 // BAD: 空 catch 块
@@ -776,6 +849,7 @@ public void processOrder(Long orderId) {
 - [ ] 不可变集合是否正确选择（`List.of` vs `unmodifiableList` vs `copyOf`）？（§4.3）
 - [ ] 工具选择是否遵循优先级（JDK/Spring → Lombok → Commons）？（§5.1）
 - [ ] Lombok `@Data` 是否避开 JPA Entity？（§5.2）
+- [ ] 纯赋值构造器是否一律用 `@RequiredArgsConstructor`（非 Spring Bean 同适用）？（§5.2）
 - [ ] 异常链是否保留 cause？空 catch 是否存在？（§6.1）
 - [ ] 敏感数据是否脱敏？SQL 是否参数化？（§6.3）
 - [ ] 日期是否用 `OffsetDateTime`？（§7）

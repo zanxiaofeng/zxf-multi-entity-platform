@@ -86,6 +86,10 @@ class AlphaOrderApiEndToEndTest {
                 .andExpect(jsonPath("$.price.currency").value("CNY"))
                 .andReturn();
 
+        // 金额序列化形态守护：write-bigdecimal-as-plain 回退时科学计数法（如 Beta 的 1.9E+2）
+        // 会进入对外 JSON——两侧 e2e 各自断言，配置漂移即时暴露
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("E+");
+
         String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
 
         String location = result.getResponse().getHeader("Location");
@@ -276,8 +280,11 @@ class AlphaOrderApiEndToEndTest {
 
     @Test
     void 查询不存在订单返回404() throws Exception {
+        // 领域异常（exception-handling §3.1）：OrderNotFoundException 映射 404，
+        // ProblemDetail 的 code 属性暴露稳定契约 CODE——e2e 钉住 CODE 不漂移
         mockMvc.perform(get("/api/v1/orders/999999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
 
     @Test
@@ -316,7 +323,7 @@ class AlphaOrderApiEndToEndTest {
     @Test
     void 超过实体配置金额上限返回400() throws Exception {
         // Schema 驱动校验（文档 5.8.3）：Alpha 上限 100000，113 * 1000 = 113000 越界——
-        // 管道在定价之后运行，IllegalArgumentException 经 RestExceptionHandler 映射 400
+        // 管道在定价之后运行，RuleViolationException 经 RestExceptionHandler 映射 400
         mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"item\":\"widget\",\"quantity\":1000}"))

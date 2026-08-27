@@ -3,20 +3,19 @@ package com.zxf.platform.core.interfaces.rest;
 import com.zxf.platform.core.application.OrderApplicationService;
 import com.zxf.platform.core.application.assembler.OrderResponse;
 import com.zxf.platform.core.application.command.CreateOrderCommand;
+import com.zxf.platform.core.domain.exception.OrderNotFoundException;
 import com.zxf.platform.core.domain.model.OrderId;
+import java.net.URI;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
-import java.net.URI;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 订单 REST 入口：两个实体部署共用同一契约（文档 6.2 API 契约治理）。
@@ -46,12 +45,13 @@ public class OrderController {
      * 按标识查询订单。
      *
      * @param id 订单标识（{@code @Positive} 拦截非正数 → 400，api-conventions）
-     * @return 订单响应；不存在时 404
+     * @return 订单响应；不存在时抛 {@link OrderNotFoundException}（handler 映射 404）
      */
     @GetMapping("/{id}")
     public OrderResponse get(@PathVariable @Positive long id) {
-        return service.findById(OrderId.of(id))
+        var orderId = OrderId.of(id);
+        return service.findById(orderId)
                 .map(OrderResponse::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "订单不存在: " + id));
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
     }
 }

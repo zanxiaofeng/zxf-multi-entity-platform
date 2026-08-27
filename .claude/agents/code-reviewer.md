@@ -104,7 +104,7 @@ grep -rn "public.*void\|public.*save\|public.*delete" --include="*Service.java" 
 - [ ] Service depends on Domain interfaces, not infrastructure implementations
 
 ### Testing
-- [ ] Test naming: `*ApiTests` for API tests, `*ContractTest` for contract tests
+- [ ] Test naming: `*FlowTest` for e2e, `*Test` for unit, `*ContractTest` for contract tests
 - [ ] Contract Test covers new endpoints
 - [ ] WireMock stubs present for downstream calls in integration tests
 - [ ] Test data via `@Sql` seed data, not runtime API calls
@@ -116,7 +116,7 @@ grep -rn "public.*void\|public.*save\|public.*delete" --include="*Service.java" 
 - [ ] `@Version` on all mutable entities
 
 ### Error Handling
-- [ ] Error handling uses `BusinessException` + `ErrorCode`
+- [ ] Error handling uses typed domain exceptions (`domain/exception/`) with stable `CODE` constants
 - [ ] No swallowed exceptions (empty catch blocks)
 - [ ] Error responses don't leak stack traces or system info
 

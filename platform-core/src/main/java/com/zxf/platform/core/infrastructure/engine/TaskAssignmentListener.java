@@ -1,7 +1,6 @@
 package com.zxf.platform.core.infrastructure.engine;
 
 import com.zxf.platform.core.domain.port.TaskAssignmentRule;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.common.engine.api.delegate.event.FlowableEngineEntityEvent;
@@ -23,6 +22,12 @@ import org.springframework.stereotype.Component;
  * {@code processEngine} 之前构造（注册到 {@code setEventListeners}），而 {@code taskServiceBean}
  * 又依赖 {@code processEngine}——直接构造注入形成循环。{@code ObjectProvider} 把解析推迟到
  * 第一次事件触发时（此时 {@code processEngine} 与 {@code taskServiceBean} 均已就绪）。
+ *
+ * <p>{@link TaskAssignmentRule} 同样经 {@link ObjectProvider} 解析（java-coding-standard §3.3：
+ * Optional 禁止用作字段/构造器参数——可选依赖的惯用表达统一为 ObjectProvider，与
+ * {@code taskServiceProvider} 同款）：当前装配实体未提供该扩展点实现时
+ * {@code getIfAvailable()} 返回 {@code null}，静默跳过分配（与 {@code isFailOnException=false}
+ * 的容错语义一致）。
  */
 @Slf4j
 @Component
@@ -30,14 +35,15 @@ import org.springframework.stereotype.Component;
 public class TaskAssignmentListener implements FlowableEventListener {
 
     private final ObjectProvider<TaskService> taskServiceProvider;
-    private final Optional<TaskAssignmentRule> assignmentRule;
+    private final ObjectProvider<TaskAssignmentRule> assignmentRule;
 
     @Override
     public void onEvent(FlowableEvent event) {
         if (event.getType() != FlowableEngineEventType.TASK_CREATED) {
             return;
         }
-        if (assignmentRule.isEmpty()) {
+        var rule = assignmentRule.getIfAvailable();
+        if (rule == null) {
             return;
         }
         if (!(event instanceof FlowableEngineEntityEvent entityEvent)) {
@@ -46,7 +52,7 @@ public class TaskAssignmentListener implements FlowableEventListener {
         if (!(entityEvent.getEntity() instanceof Task task)) {
             return;
         }
-        var candidates = assignmentRule.get().candidatesFor(task.getTaskDefinitionKey());
+        var candidates = rule.candidatesFor(task.getTaskDefinitionKey());
         if (candidates.isEmpty()) {
             return;
         }

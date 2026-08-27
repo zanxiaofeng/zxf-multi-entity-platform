@@ -28,7 +28,7 @@ Read these files to understand testing conventions:
 
 1. **Accept input** — receive the feature/entity name or file list to audit
 2. **Read relevant rules** — load the rules files listed above
-3. **Read test files** — find and read all `*ApiTests.java` and `*ContractTest.java` files for the target entity
+3. **Read test files** — find and read all `*FlowTest.java` and `*ContractTest.java` files for the target entity
 4. **Read implementation files** — read the Controller, Service, and Repository for context
 5. **Verify TDD compliance** — check against the Verification Checklist below
 6. **Assess coverage** — evaluate test coverage (see Coverage Assessment)
@@ -56,7 +56,7 @@ Read these files to understand testing conventions:
 - [ ] `@Sql` cleanup scripts reset state between tests
 
 ### Naming Conventions
-- [ ] Test class: `{Entity}ApiTests`
+- [ ] Test class: `{Entity}FlowTest` (e2e)
 - [ ] Contract test: `{Entity}ContractTest`
 - [ ] Methods: `test{Action}{Entity}[{Condition}]`
 

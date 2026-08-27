@@ -50,7 +50,7 @@ Read these files before attempting fixes to understand project conventions:
 | `cannot find symbol` | Add missing import, check class name spelling |
 | `incompatible types` | Fix type mismatch, check generic parameters |
 | `package javax.* does not exist` | Replace `javax.*` with `jakarta.*`（SB4 = Jakarta EE 11，`javax.*` 已完全移除） |
-| `no tests found` | Check test class naming: `*ApiTests`, `*Test`, `*ContractTest` |
+| `no tests found` | Check test class naming: `*FlowTest`, `*Test`, `*ContractTest` |
 | `@Sql file not found` | Verify file path under `src/test/resources/`, check classpath reference |
 | `Bean creation error` | Missing `@Component`/`@Service`/`@Configuration`, wrong profile, missing bean definition |
 | `Flyway validate failed` | Never modify existing migration — add new one |
@@ -58,7 +58,7 @@ Read these files before attempting fixes to understand project conventions:
 | `OptimisticLockingFailureException` | Version conflict — check `@Version` field, ensure entity was re-read before update |
 | `JsonMappingException` | Check record field names match JSON, add `@JsonProperty` if needed |
 | `HttpMediaTypeNotSupportedException` | Check `Content-Type` header in test, ensure `@RequestBody` is used |
-| `WebTestClient` timeout | Check WireMock is configured, verify `application-test.yml` has correct port |
+| E2E test timeout | Check WireMock is configured, verify `application-test.yml` has correct port |
 | `CircularDependencyException` | Break cycle with `@Lazy`, or restructure to eliminate circular reference |
 | `cannot find symbol @MockBean` | SB4 已移除 `@MockBean`/`@SpyBean`，改用 `@MockitoBean`/`@MockitoSpyBean` |
 | `cannot find symbol TestRestTemplate` | SB4 迁包至 `org.springframework.boot.resttestclient`，需依赖 `spring-boot-resttestclient` |
@@ -102,7 +102,7 @@ mvn test -Dsurefire.useFile=false 2>&1 | grep -A 5 "FAILED\|ERROR"
 mvn dependency:tree -Dverbose 2>&1 | grep "omitted for conflict"
 
 # Check specific test class
-mvn test -Dtest="{Entity}ApiTests#test{Action}{Entity}" 2>&1 | tail -30
+mvn test -Dtest="{Entity}FlowTest#test{Action}{Entity}" 2>&1 | tail -30
 
 # Flyway status
 mvn flyway:info 2>&1 | tail -20

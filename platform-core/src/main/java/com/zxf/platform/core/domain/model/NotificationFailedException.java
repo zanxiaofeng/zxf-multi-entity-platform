@@ -13,7 +13,7 @@ package com.zxf.platform.core.domain.model;
  * 放 adapter 层会破坏 onion 规则（adapter 间禁相互依赖），上提到 domain 让两端均能依赖。
  *
  * <p>作为 {@link RuntimeException} 子类与 Spring 事务回滚语义对齐；替代裸
- * {@code RuntimeException}（java-coding-standard §18 禁止裸 RuntimeException）。
+ * {@code RuntimeException}（exception-handling §4.2/§9 禁止裸 RuntimeException）。
  */
 public class NotificationFailedException extends RuntimeException {
 
@@ -21,7 +21,7 @@ public class NotificationFailedException extends RuntimeException {
         super(message);
     }
 
-    /** 包装下游异常时使用，保留 cause 满足异常链规范（java-coding-standard §11）。 */
+    /** 包装下游异常时使用，保留 cause 满足异常链规范（java-coding-standard §6.1）。 */
     public NotificationFailedException(String message, Throwable cause) {
         super(message, cause);
     }

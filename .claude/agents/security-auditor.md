@@ -148,7 +148,7 @@ grep -rn 'exception.getClass' --include="*.java" src/main/
 - [ ] CORS configuration reviewed and restricted to known origins
 - [ ] Sensitive fields (password, token, secret) excluded from `toString()` and API responses
 - [ ] `@Slf4j` logging does not include request bodies, passwords, or tokens
-- [ ] `BusinessException` error messages don't reveal internal state or stack details
+- [ ] Domain exception messages don't reveal internal state or stack details
 - [ ] `GlobalExceptionHandler` sanitizes `DataIntegrityViolationException` messages (no table/column names)
 - [ ] Dependencies scanned for known vulnerabilities (OWASP Dependency Check, Dependabot, or Snyk)
 - [ ] No outdated dependency versions with known CVEs

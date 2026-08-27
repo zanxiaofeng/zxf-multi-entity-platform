@@ -26,8 +26,10 @@ import org.springframework.web.client.ResourceAccessException;
  *       Resilience4j 重试耗尽后抛 {@code NotificationFailedException}，
  *       Flowable Job 按节点 {@code timeCycle} 再重试 3 次。</li>
  * </ul>
- * 总账 {@code 3 × 3 = 9} 次尝试上限——既给下游足够恢复窗口，
- * 又避免无限重试放大故障（文档 7.7.1 组件 4 重试纪律）。
+ * 总账上限 {@code 4 × 3 = 12} 次 HTTP 尝试——Flowable {@code R3} 语义为
+ * 首发 1 次 + 重试 3 次（共 4 次执行），每次执行内含 HTTP 层首调 + 2 次重试。
+ * 既给下游足够恢复窗口，又避免无限重试放大故障（文档 7.7.1 组件 4 重试纪律；
+ * 对下游的最大压力与故障窗口时长按 12 次口径评估）。
  */
 @Configuration
 public class ResilienceConfig {

@@ -4,7 +4,7 @@ paths:
 ---
 # Java 对象健身操（Object Calisthenics）
 
-**版本：** 1.0
+**版本：** 1.1
 **生效日期：** 2026-07-17
 **来源：** Jeff Bay 发表于《The ThoughtWorks Anthology》的 "Object Calisthenics" 练习（共 9 条规则）
 **适用范围：** 所有基于 Java 21+ 的后端项目（含 Spring Boot 4.0+）
@@ -122,7 +122,7 @@ public BigDecimal price(Order order) {
 | 简单字符串/数值、仅在单个 DTO 中使用 | 不强制 |
 | kata 练习中 | 全部包装（健身目标） |
 
-**Java 21 落地：** 非持久化 VO 首选 `record`（语言级不可变 + 模式匹配）；JPA 持久化 VO 用 `@Embeddable`（示例见 architecture.md §3.2 的 `Email`）。
+**Java 21 落地：** 领域 VO 一律纯 `record`（语言级不可变 + 模式匹配，如 `Email`，见 architecture.md §3.2）；持久化组合值如需 `@Embeddable`，落在 JpaEntity 侧（infrastructure 层，见 `db-conventions.md`），领域层不出现 JPA 注解。
 
 ```java
 // record 作轻量 VO：校验内聚在 compact constructor
@@ -174,7 +174,7 @@ public class OrderItems {
 
 ### 2.5 一行一个点（推荐）
 
-**原文意图：** `a.getB().getC().doSomething()` 意味着调用方深入了对象的内部结构（违反迪米特法则 / Law of Demeter），任何中间结构变化都会波及所有调用方。
+**原文意图：** `a.getB().getC().doSomething()` 意味着调用方深入了对象的内部结构（违反迪米特法则 / Law of Demeter），任何中间结构变化都会波及所有调用方。功能分配视角（Feature Envy、分层不穿透）见 `java-solid-lod.md` §2.6。
 
 **生产落地：** 禁止跨越领域对象的 getter 链；改为 Tell, Don't Ask —— 在对象上声明意图方法。
 
@@ -223,7 +223,7 @@ String city = order.shippingCity();
 
 **生产落地：** 不作硬性拦截，作为**设计信号**：
 
-- 行为类（Service、Domain Service、helper）依赖超过 ~5 个 → 审视是否多个职责挤在一个类里，按用例拆分或聚合协作者（把总是同时出现的几个依赖提炼为一个领域服务）
+- 行为类（Service、helper）依赖超过 ~5 个 → 审视是否多个职责挤在一个类里，按用例拆分或聚合协作者（把总是同时出现的几个依赖提炼为一个值对象、领域策略或应用层协作 Service——边界见 architecture.md §3.5）
 - 出现「字段分组」现象（一半方法只用一半字段）→ 按分组拆类
 
 **例外：** JPA Entity（字段即表列映射）、DTO/record（数据载体）、`@ConfigurationProperties`（配置绑定）天然多字段，不适用本规则。
@@ -290,3 +290,4 @@ public void recordLoginFailure() {
 | §2.4 集合一等公民 | architecture.md §3.1 聚合根通过领域方法操作关联 |
 | §2.6 不缩写 | java-coding-standard.md §2.1 命名规范 |
 | §2.1 一层缩进 / §2.2 不用 else | java-coding-standard.md §1.1 可读性第一原则 |
+| §2.5 一行一个点 / §2.9 Tell, Don't Ask | java-solid-lod.md §2.6 迪米特法则（功能分配视角） |
