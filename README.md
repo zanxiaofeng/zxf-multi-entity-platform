@@ -118,6 +118,14 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 - 流程定义变更走 expand-and-contract：删除/重命名节点前用公共 API（`runtimeService.createProcessInstanceQuery()`）核查在途实例；在途迁移用 `createProcessInstanceMigrationBuilder()`。
 - 告警：活跃流程实例数 + **deadletter job 数**（非零即人工介入），按 entity 维度分别配置。
 
+## Flowable 设计文档（docs/）
+
+| 文档 | 定位 |
+| --- | --- |
+| [BPMN 2.0 与 Flowable 8 完全指南](docs/BPMN与Flowable8完全指南.md) | 元素级手册：BPMN 事件/活动/网关详解 + Flowable 8 支持矩阵 + DMN 决策 |
+| [SpringBoot-Flowable 通用公共组件调研](docs/SpringBoot-Flowable通用公共组件调研.md) | 横切组件清单（全局监听器/死信运维/Outbox/容错…），platform-core 组件沉淀的依据 |
+| [基于 Flowable 与 BPMN 的 Case 系统：业务/设计/实现模式](docs/基于Flowable与BPMN的Case系统常用业务模式、设计模式与实现模式.md) | Case 管理类系统模式目录：CMMN vs BPMN 动态模式选型、业务模式 P1~P12、设计模式 D1~D8、实现模式 I1~I10 与反模式清单 |
+
 ## 演进方向（文档第九章）
 
 实体数增长到 >3 时，按文档路径平滑迁移：注册表键枚举 → `String`；SPI 收敛为独立
