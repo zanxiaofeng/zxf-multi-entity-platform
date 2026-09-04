@@ -1,4 +1,4 @@
-package com.zxf.platform.flowable.autoconfigure;
+package com.zxf.platform.flowable;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;

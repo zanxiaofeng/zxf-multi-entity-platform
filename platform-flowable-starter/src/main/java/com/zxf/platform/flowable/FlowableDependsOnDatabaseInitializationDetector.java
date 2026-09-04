@@ -1,4 +1,4 @@
-package com.zxf.platform.flowable.autoconfigure;
+package com.zxf.platform.flowable;
 
 import java.util.Set;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;

@@ -51,7 +51,14 @@ public record Money(BigDecimal amount, Currency currency) {
         return new Money(amount, CNY);
     }
 
-    /** 单价 × 数量 = 总价（行为放在值对象上，军规 9「Tell, Don't Ask」）。 */
+    /**
+     * 单价 × 数量 = 总价（行为放在值对象上，军规 9「Tell, Don't Ask」）。
+     *
+     * <p><b>当前主计价路径未调用（有意保留）</b>：两实体计价在 {@code PricingPolicy}
+     * 实现内完成（税率和折扣的中间计算用 {@code BigDecimal} 更直接），本方法作为
+     * 「金额行为内聚在值对象」的军规 9 示范与最小可用运算面保留——计价策略出现
+     * 「单价 × 数量」裸乘场景时应改用本方法（防调用方各自择策漂移）。
+     */
     public Money times(int multiplier) {
         Assert.isTrue(multiplier > 0, () -> "乘数必须为正数: " + multiplier);
         return new Money(amount.multiply(BigDecimal.valueOf(multiplier)), currency);

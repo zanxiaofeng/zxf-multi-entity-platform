@@ -9,6 +9,7 @@ target/
 .classpath
 .project
 .settings/
+*.factorypath
 .vscode/
 
 # 运行期

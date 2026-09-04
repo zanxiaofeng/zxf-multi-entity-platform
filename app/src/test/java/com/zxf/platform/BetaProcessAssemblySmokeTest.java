@@ -1,86 +1,27 @@
 package com.zxf.platform;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import com.zxf.platform.core.infrastructure.engine.OrderApprovalService;
-import java.util.ArrayList;
-import java.util.regex.Pattern;
-import org.flowable.bpmn.model.FlowElement;
-import org.flowable.bpmn.model.ServiceTask;
-import org.flowable.bpmn.model.UserTask;
-import org.flowable.engine.RepositoryService;
-import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.Test;
+import java.util.List;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 /**
- * Beta 流程装配冒烟（文档 7.4）：与 Alpha 对称——同 key 定义唯一、delegate 全装配、
- * Beta 拓扑为五级审批 + 专属审计留痕。
+ * Beta 流程装配冒烟（文档 7.4）：共享断言继承 {@link AbstractProcessAssemblySmokeTest}，
+ * 本类只声明 Beta 拓扑——五级审批 + 专属审计留痕 + 通知。
  */
-@SpringBootTest
 @ActiveProfiles("beta")
 @EnabledIfSystemProperty(named = "assembly.entity", matches = "beta")
 // 每测试类独立 H2 库：原因见 AlphaOrderApiEndToEndTest 同位置注释
 @TestPropertySource(properties = "spring.datasource.url=jdbc:h2:mem:beta-process-smoke-db;DB_CLOSE_DELAY=-1")
-class BetaProcessAssemblySmokeTest {
+class BetaProcessAssemblySmokeTest extends AbstractProcessAssemblySmokeTest {
 
-    /** 匹配 {@code ${beanName}} 形式的委托表达式（类级缓存，避免每次调用重新编译）。 */
-    private static final Pattern DELEGATE_EXPRESSION_PATTERN = Pattern.compile("^\\$\\{(.+)}$");
-
-    @Autowired
-    private RepositoryService repositoryService;
-
-    @Autowired
-    private ApplicationContext context;
-
-    @Test
-    void 同一流程key只有一份部署定义() {
-        assertThat(repositoryService.createProcessDefinitionQuery()
-                        .processDefinitionKey(OrderApprovalService.ORDER_APPROVAL_KEY).list())
-                .hasSize(1);
+    @Override
+    protected List<String> expectedUserTaskIds() {
+        return List.of("betaApproveL1", "betaApproveL2", "betaApproveL3", "betaApproveL4", "betaApproveL5");
     }
 
-    @Test
-    void 所有BPMN引用的delegate均已装配() {
-        var missing = new ArrayList<String>();
-        repositoryService.createProcessDefinitionQuery().list().forEach(definition -> {
-            var model = repositoryService.getBpmnModel(definition.getId());
-            model.getMainProcess().findFlowElementsOfType(ServiceTask.class).forEach(task -> {
-                String beanName = extractDelegateBeanName(task.getImplementation());
-                if (beanName != null && !context.containsBean(beanName)) {
-                    missing.add(definition.getKey() + ":" + task.getId() + " -> ${" + beanName + "}");
-                }
-            });
-        });
-        assertThat(missing).as("BPMN 引用了未装配的 delegate bean").isEmpty();
-    }
-
-    @Test
-    void Beta拓扑为五级审批加审计留痕() {
-        var definition = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionKey(OrderApprovalService.ORDER_APPROVAL_KEY).singleResult();
-        var model = repositoryService.getBpmnModel(definition.getId());
-
-        assertThat(model.getMainProcess().findFlowElementsOfType(UserTask.class))
-                .extracting(FlowElement::getId)
-                .containsExactlyInAnyOrder(
-                        "betaApproveL1", "betaApproveL2", "betaApproveL3", "betaApproveL4", "betaApproveL5");
-        assertThat(model.getMainProcess().findFlowElementsOfType(ServiceTask.class))
-                .extracting(FlowElement::getId)
-                .containsExactlyInAnyOrder("betaAuditRecord", "sendNotification");
-    }
-
-    /** 提取 {@code ${beanName}} 形式的委托表达式中的 bean 名；非委托表达式返回 null。 */
-    private static @Nullable String extractDelegateBeanName(@Nullable String implementation) {
-        if (implementation == null) {
-            return null;
-        }
-        var matcher = DELEGATE_EXPRESSION_PATTERN.matcher(implementation);
-        return matcher.matches() ? matcher.group(1) : null;
+    @Override
+    protected List<String> expectedServiceTaskIds() {
+        return List.of("betaAuditRecord", "sendNotification");
     }
 }

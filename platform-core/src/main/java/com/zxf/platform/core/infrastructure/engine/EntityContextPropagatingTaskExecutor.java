@@ -1,13 +1,10 @@
 package com.zxf.platform.core.infrastructure.engine;
 
-import com.zxf.platform.core.context.EntityContext;
-import com.zxf.platform.core.context.EntityType;
-import java.util.Map;
+import com.zxf.platform.core.context.ContextSnapshot;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.MDC;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskDecorator;
 
@@ -49,7 +46,8 @@ public class EntityContextPropagatingTaskExecutor implements AsyncTaskExecutor {
 
     @Override
     public <T> Future<T> submit(Callable<T> task) {
-        return delegate.submit(decorate(task));
+        // TaskDecorator 只覆盖 Runnable：Callable 走 ContextSnapshot 同款快照装饰
+        return delegate.submit(ContextSnapshot.capture().wrap(task));
     }
 
     @Override
@@ -59,40 +57,6 @@ public class EntityContextPropagatingTaskExecutor implements AsyncTaskExecutor {
 
     @Override
     public <T> CompletableFuture<T> submitCompletable(Callable<T> task) {
-        return delegate.submitCompletable(decorate(task));
-    }
-
-    /** {@link TaskDecorator} 只覆盖 Runnable：Callable 走同款"提交时捕获快照、执行时设置、finally 清理"。 */
-    private <T> Callable<T> decorate(Callable<T> task) {
-        EntityType entity = EntityContext.currentOrNull();
-        Map<String, String> mdcSnapshot = MDC.getCopyOfContextMap();
-        if (entity == null && mdcSnapshot == null) {
-            // 空快照仍包装清理（评审修复 M8）：池化工作线程可能残留上个任务/引擎自身的
-            // MDC 与上下文——不传播任何东西，但保证本任务结束后线程干净（与本类
-            // 防御性清理哲学一致，防残留带入下一个 Job 的观测与路由）
-            return () -> {
-                try {
-                    return task.call();
-                } finally {
-                    MDC.clear();
-                    EntityContext.clear();
-                }
-            };
-        }
-        return () -> {
-            if (mdcSnapshot != null) {
-                MDC.setContextMap(mdcSnapshot);
-            }
-            if (entity != null) {
-                EntityContext.set(entity);
-                MDC.put(EntityContext.MDC_KEY, entity.name());
-            }
-            try {
-                return task.call();
-            } finally {
-                MDC.clear();
-                EntityContext.clear();
-            }
-        };
+        return delegate.submitCompletable(ContextSnapshot.capture().wrap(task));
     }
 }

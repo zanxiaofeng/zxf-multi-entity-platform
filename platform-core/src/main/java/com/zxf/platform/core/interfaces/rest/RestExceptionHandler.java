@@ -9,7 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -41,12 +41,14 @@ public class RestExceptionHandler {
 
     /** Schema 驱动校验规则违反（文档 5.8.3）：客户端可修正的输入问题 → 400。
      *  <p>与 {@code IllegalArgumentException}（{@code Assert} 契约违反，属编程错误）区分：
-     *  后者无独立 handler，落兜底 {@link #handleUnexpected} → 500（exception-handling §2）。 */
+     *  后者无独立 handler，落兜底 {@link #handleUnexpected} → 500（exception-handling §2）。
+     *  <p>{@code code} 属性暴露稳定契约（与 {@code OrderNotFoundException#CODE} 同款风格）。 */
     @ExceptionHandler(RuleViolationException.class)
     public ProblemDetail handleRuleViolation(RuleViolationException ex) {
         log.warn("校验规则违反: {}", ex.getMessage());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("请求参数不合法");
+        problem.setProperty("code", RuleViolationException.CODE);
         return problem;
     }
 
@@ -56,19 +58,20 @@ public class RestExceptionHandler {
         log.warn("请求体校验失败: {}", ex.getMessage());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "请求体校验失败");
         problem.setTitle("请求参数不合法");
-        problem.setProperty("errors", fieldErrors(ex));
+        problem.setProperty("errors", fieldErrors(ex.getBindingResult()));
         return problem;
     }
 
     /**
      * 乐观锁并发冲突 → 409（exception-handling §6.2 矩阵：{@code OptimisticLockingFailureException}
-     * 映射 CONFLICT）。{@code Order} / {@code OutboxEvent} 均声明 {@code @Version}
-     * （db-conventions：并发更新丢失的代码级兜底），并发更新同一行时 Hibernate 抛本异常——
+     * 映射 CONFLICT）。声明<b>父类型</b>而非 ORM 子类 {@code ObjectOptimisticLockingFailureException}
+     * ——同时覆盖 ORM 与未来非 ORM 数据访问来源。{@code Order} / {@code OutboxEvent} 均声明
+     * {@code @Version}（db-conventions：并发更新丢失的代码级兜底），并发更新同一行时抛本异常族——
      * 缺此 handler 会落入兜底 {@link #handleUnexpected} 变 500 + ERROR 堆栈，<b>可重试的
      * 并发冲突被监控误报为系统故障</b>。客户端语义：重读数据后重试（4xx 记 WARN 不附堆栈）。
      */
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ProblemDetail handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ProblemDetail handleOptimisticLockingFailure(OptimisticLockingFailureException ex) {
         log.warn("乐观锁并发冲突: {}", ex.getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "数据已被并发修改，请刷新后重试");
     }
@@ -83,10 +86,7 @@ public class RestExceptionHandler {
         log.warn("参数绑定校验失败: {}", ex.getMessage());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "参数绑定校验失败");
         problem.setTitle("请求参数不合法");
-        problem.setProperty("errors", ex.getFieldErrors().stream()
-                .map(fe -> new FieldErrorDetail(fe.getField(), fe.getDefaultMessage(),
-                        maskRejectedValue(fe.getField(), fe.getRejectedValue())))
-                .toList());
+        problem.setProperty("errors", fieldErrors(ex.getBindingResult()));
         return problem;
     }
 
@@ -202,9 +202,10 @@ public class RestExceptionHandler {
         return rejectedValue;
     }
 
-    /** 字段级校验明细 → 结构化对象数组（api-conventions errors[] 形态：field / message / rejectedValue）。 */
-    private static List<FieldErrorDetail> fieldErrors(MethodArgumentNotValidException ex) {
-        return ex.getBindingResult().getFieldErrors().stream()
+    /** 字段级校验明细 → 结构化对象数组（api-conventions errors[] 形态：field / message / rejectedValue）。
+     *  收 {@link org.springframework.validation.BindingResult}——{@code @RequestBody} 与表单绑定两条路径复用。 */
+    private static List<FieldErrorDetail> fieldErrors(org.springframework.validation.BindingResult result) {
+        return result.getFieldErrors().stream()
                 .map(fe -> new FieldErrorDetail(fe.getField(), fe.getDefaultMessage(),
                         maskRejectedValue(fe.getField(), fe.getRejectedValue())))
                 .toList();

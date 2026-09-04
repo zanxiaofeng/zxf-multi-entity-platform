@@ -89,29 +89,29 @@ class SchemaDrivenValidatorTest {
     @Test
     void amount规则缺max在绑定期即失败() {
         // 评审修复 M5：配置缺陷提前到启动期 fail-fast（此前第一个请求到达才抛 Assert.state）
-        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+        var jakartaValidator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
         var properties = new PlatformValidationProperties(List.of(new Rule("amount", null, null)));
 
-        var violations = validator.validate(properties);
+        var violations = jakartaValidator.validate(properties);
         assertThat(violations).anyMatch(violation -> violation.getMessage().contains("max"));
     }
 
     @Test
     void currency规则缺in列表在绑定期即失败() {
-        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+        var jakartaValidator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
         var properties = new PlatformValidationProperties(List.of(new Rule("currency", null, List.of())));
 
-        var violations = validator.validate(properties);
+        var violations = jakartaValidator.validate(properties);
         assertThat(violations).anyMatch(violation -> violation.getMessage().contains("in"));
     }
 
     @Test
     void 完整规则通过绑定校验() {
-        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+        var jakartaValidator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
         var properties = new PlatformValidationProperties(List.of(
                 new Rule("amount", 100000L, null),
                 new Rule("currency", null, List.of("CNY"))));
 
-        assertThat(validator.validate(properties)).isEmpty();
+        assertThat(jakartaValidator.validate(properties)).isEmpty();
     }
 }

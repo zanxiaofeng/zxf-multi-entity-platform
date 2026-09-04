@@ -48,6 +48,12 @@ public abstract class EntityContextAwareDelegate implements JavaDelegate {
     /** 流程变量 key：启动实例时写入的实体标识（发起方与 delegate 之间的契约）。 */
     public static final String ENTITY_VARIABLE = "entity";
 
+    /**
+     * 流程变量 key：启动实例时写入的订单标识（发起方 {@code OrderApprovalService} 与
+     * delegate 之间的契约，字符串形态）——此前 "orderId" 字面量散落 5 处，收敛为常量。
+     */
+    public static final String ORDER_ID_VARIABLE = "orderId";
+
     /** Timer 指标名：所有 delegate 执行共用，按 tag 区分 delegate/entity/outcome。 */
     public static final String TIMER_NAME = "flowable.delegate.execution";
 
@@ -81,6 +87,17 @@ public abstract class EntityContextAwareDelegate implements JavaDelegate {
     protected abstract void doExecute(DelegateExecution execution);
 
     /**
+     * 读取字符串流程变量，缺失/空白显式失败（契约变量缺失属流程编排缺陷，当场报错
+     * 而非让 null 流入业务逻辑）——各 delegate 的变量加载段统一入口。
+     */
+    protected static String requireStringVariable(DelegateExecution execution, String name) {
+        if (execution.getVariable(name) instanceof String value && !value.isBlank()) {
+            return value;
+        }
+        throw new IllegalStateException("流程变量 " + name + " 缺失或为空白");
+    }
+
+    /**
      * 在 {@link #doExecute(DelegateExecution)} 外围统一施加横切观测能力（组件 3）：
      * 入口/出口日志、Timer 计时、异常分类（BpmnError→WARN / 其它→ERROR）后原样传播。
      *
@@ -94,7 +111,7 @@ public abstract class EntityContextAwareDelegate implements JavaDelegate {
      */
     private void executeWithObservation(DelegateExecution execution) {
         var delegateName = getClass().getSimpleName();
-        var orderId = execution.getVariable("orderId");
+        var orderId = execution.getVariable(ORDER_ID_VARIABLE);
         log.info("delegate 执行开始 name={} orderId={} processInstanceId={}",
                 delegateName, orderId, execution.getProcessInstanceId());
         var sample = Timer.start(meterRegistry);

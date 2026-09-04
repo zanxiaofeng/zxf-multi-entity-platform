@@ -30,6 +30,6 @@ public class OrderJpaAdapter implements OrderRepository {
     @Override
     public Optional<Order> findById(OrderId id) {
         Assert.notNull(id, "订单标识不能为 null");
-        return delegate.findById(Long.valueOf(id.value()));
+        return delegate.findById(id.asLong());
     }
 }

@@ -6,7 +6,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 
 /**
  * 通用任务：风控拒绝分支的订单状态落账（评审修复 M3 方案 b）。
@@ -37,8 +36,7 @@ public class OrderRiskRejectionDelegate extends EntityContextAwareDelegate {
 
     @Override
     protected void doExecute(DelegateExecution execution) {
-        var orderId = (String) execution.getVariable("orderId");
-        Assert.hasText(orderId, "流程变量 orderId 缺失");
+        var orderId = requireStringVariable(execution, ORDER_ID_VARIABLE);
         var order = orderRepository.findById(new OrderId(orderId))
                 .orElseThrow(() -> new IllegalStateException("订单不存在 orderId=" + orderId));
         order.markRiskRejected();

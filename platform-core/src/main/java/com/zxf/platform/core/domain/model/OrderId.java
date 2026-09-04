@@ -18,4 +18,9 @@ public record OrderId(String value) {
     public static OrderId of(long id) {
         return new OrderId(String.valueOf(id));
     }
+
+    /** 主键数值形态（IDENTITY 主键恒数字）。解析收敛在值对象，调用方不再各自 parse。 */
+    public long asLong() {
+        return Long.parseLong(value);
+    }
 }

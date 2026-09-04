@@ -1,7 +1,7 @@
 package com.zxf.platform.core.domain.exception;
 
 import com.zxf.platform.core.domain.model.OrderId;
-import org.springframework.util.Assert;
+import java.util.Objects;
 
 /**
  * 订单不存在（exception-handling §2/§3.1：资源不存在 → 类型化领域异常，映射 404）。
@@ -25,8 +25,9 @@ public class OrderNotFoundException extends RuntimeException {
     private final String orderId;
 
     public OrderNotFoundException(OrderId orderId) {
-        super("订单不存在: " + orderId.value());
-        Assert.notNull(orderId, "orderId 不能为空");
+        // super 的参数求值先于 super 调用——requireNonNull 在 value() 解引用前生效，
+        // 传 null 得到带契约消息的失败而非无指向性的 NPE
+        super("订单不存在: " + Objects.requireNonNull(orderId, "orderId 不能为空").value());
         this.orderId = orderId.value();
     }
 

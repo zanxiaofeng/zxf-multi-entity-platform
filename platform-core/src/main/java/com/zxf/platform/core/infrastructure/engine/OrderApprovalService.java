@@ -51,7 +51,7 @@ public class OrderApprovalService implements OrderApprovalPort {
         return runtimeService.startProcessInstanceByKey(
                         ORDER_APPROVAL_KEY,
                         orderId.value(),
-                        Map.of("orderId", orderId.value(),
+                        Map.of(EntityContextAwareDelegate.ORDER_ID_VARIABLE, orderId.value(),
                                 EntityContextAwareDelegate.ENTITY_VARIABLE, EntityContext.current().name()))
                 .getProcessInstanceId();
     }

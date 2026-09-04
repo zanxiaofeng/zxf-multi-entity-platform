@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.delegate.BpmnError;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 
 /**
  * Alpha 专属风控任务（文档 7.2 落地要点 3 + 7.7.1 组件 5 错误分类示范）：BPMN 中以
@@ -47,8 +46,7 @@ public class AlphaRiskCheckDelegate extends EntityContextAwareDelegate {
 
     @Override
     protected void doExecute(DelegateExecution execution) {
-        var orderId = (String) execution.getVariable("orderId");
-        Assert.hasText(orderId, "流程变量 orderId 缺失");
+        var orderId = requireStringVariable(execution, ORDER_ID_VARIABLE);
         log.info("Alpha 风控检查 orderId={}", orderId);
 
         // 示范 BpmnError 错误分类（文档 7.7.1 组件 5）：业务错误走 BPMN 分支，不触发 Job 重试。

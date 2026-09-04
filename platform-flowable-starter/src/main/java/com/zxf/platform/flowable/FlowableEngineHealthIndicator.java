@@ -1,4 +1,4 @@
-package com.zxf.platform.flowable.autoconfigure;
+package com.zxf.platform.flowable;
 
 import org.flowable.engine.RuntimeService;
 import org.springframework.boot.health.contributor.AbstractHealthIndicator;

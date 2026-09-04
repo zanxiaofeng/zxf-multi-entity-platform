@@ -36,33 +36,46 @@ public class AuditService implements AuditPort {
 
     private final List<AuditEntry> trail = new CopyOnWriteArrayList<>();
 
-    /** 订单创建审计：事务提交后才记录；{@code @Async} 路径上下文经 TaskDecorator 传播。status 区分风控拒绝终态（评审修复 M3）。 */
+    /**
+     * 订单创建审计：事务提交后才记录；status 区分风控拒绝终态（评审修复 M3）。
+     * 上下文来源见 {@link #recordWithDeploymentEntity}——监听器统一从部署级事实重建。
+     */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOrderCreated(OrderCreatedEvent event) {
-        record("ORDER_CREATED", "orderId=" + event.orderId().value() + " processInstanceId="
-                + event.processInstanceId() + " status=" + event.status());
+        recordWithDeploymentEntity("ORDER_CREATED",
+                "orderId=" + event.orderId().value() + " processInstanceId="
+                        + event.processInstanceId() + " status=" + event.status());
     }
 
     /**
      * 审批通知审计（评审修复 P3）：{@code SendNotificationDelegate} 在引擎 Job 事务内
      * 发布 {@link ApprovalNotifiedEvent}，本监听器事务提交后才记录——Job 事务回滚
      * 不留幻影审计条目（文档 8.1 规则 11；此前 delegate 在事务内同步调用 record）。
-     *
-     * <p>上下文重建：Job 线程的实体上下文生命周期止于 delegate 执行段（基类 finally
-     * 清理先于事务提交），AFTER_COMMIT 触发时已不在、{@code @Async} 快照捕获为空——
-     * 与 {@code OutboxRelay} 同构，从部署级事实（{@code platform.entity}）重建上下文
-     * 与 MDC，try/finally 保证线程复用时清理。
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onApprovalNotified(ApprovalNotifiedEvent event) {
+        recordWithDeploymentEntity("APPROVAL_NOTIFICATION",
+                "orderId=" + event.orderId().value() + " processInstanceId=" + event.processInstanceId());
+    }
+
+    /**
+     * 在部署级实体上下文中记录一条审计——两个监听器统一走本入口（消除此前
+     * 「请求线程经 @Async 快照传播」与「Job 线程手动重建」两条不对称路径）。
+     *
+     * <p><b>为什么从 {@code platform.entity} 重建而非依赖 {@code @Async} 快照</b>：
+     * 订单创建事件在请求线程提交（快照可用），通知事件在 Job 线程提交（delegate 基类
+     * 的 finally 清理先于事务提交，快照恒空）——部署级模型下 entity 是部署期常量
+     * （Filter 也是 set 同一值），统一从部署级事实重建让两条路径同一语义；
+     * 混部演进（从请求解析实体）后需改为事件携带实体。try/finally 保证线程复用时清理。
+     */
+    private void recordWithDeploymentEntity(String action, String detail) {
         var entity = properties.entity();
         EntityContext.set(entity);
         MDC.put(EntityContext.MDC_KEY, entity.name());
         try {
-            record("APPROVAL_NOTIFICATION",
-                    "orderId=" + event.orderId().value() + " processInstanceId=" + event.processInstanceId());
+            record(action, detail);
         } finally {
             MDC.remove(EntityContext.MDC_KEY);
             EntityContext.clear();

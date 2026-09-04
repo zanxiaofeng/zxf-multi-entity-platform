@@ -12,6 +12,10 @@ package com.zxf.platform.core.application;
  */
 public class RuleViolationException extends RuntimeException {
 
+    /** 稳定错误码：与领域异常的 {@code CODE} 常量同款风格（exception-handling §3.1），
+     *  经 {@code RestExceptionHandler} 以 ProblemDetail 的 {@code code} 属性暴露。 */
+    public static final String CODE = "RULE_VIOLATION";
+
     public RuleViolationException(String message) {
         super(message);
     }

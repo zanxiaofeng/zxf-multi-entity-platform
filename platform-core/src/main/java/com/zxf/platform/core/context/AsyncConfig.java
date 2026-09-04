@@ -1,8 +1,6 @@
 package com.zxf.platform.core.context;
 
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,42 +39,11 @@ public class AsyncConfig implements AsyncConfigurer {
     /**
      * {@code @Async} 传播装饰器：提交时捕获 {@link EntityContext} + <b>全量 MDC 快照</b>
      * （entity / traceId / 未来新增 key 一次覆盖），执行时设置、finally 彻底清理。
-     * 快照式传播比逐 key 复制更不易漏——新 MDC 维度（如 logging.md 的 traceId）自动随车。
+     * 快照语义（含 M8 空快照防御清理）收敛在 {@link ContextSnapshot} 单点维护。
      */
     @Bean
     public TaskDecorator entityContextPropagator() {
-        return runnable -> {
-            EntityType entity = EntityContext.currentOrNull();
-            Map<String, String> mdcSnapshot = MDC.getCopyOfContextMap();
-            if (entity == null && mdcSnapshot == null) {
-                // 空快照仍包装清理（评审修复 M8）：@Async 执行器若为池化线程，可能残留
-                // 上个任务的 MDC/上下文——不传播任何东西，但保证任务结束后线程干净
-                return () -> {
-                    try {
-                        runnable.run();
-                    } finally {
-                        MDC.clear();
-                        EntityContext.clear();
-                    }
-                };
-            }
-            return () -> {
-                if (mdcSnapshot != null) {
-                    MDC.setContextMap(mdcSnapshot);
-                }
-                if (entity != null) {
-                    EntityContext.set(entity);
-                    // 编程式 set（绕过 Filter）时快照可能缺 entity key，兜底补齐
-                    MDC.put(EntityContext.MDC_KEY, entity.name());
-                }
-                try {
-                    runnable.run();
-                } finally {
-                    MDC.clear();
-                    EntityContext.clear();
-                }
-            };
-        };
+        return runnable -> ContextSnapshot.capture().wrap(runnable);
     }
 
     /**
