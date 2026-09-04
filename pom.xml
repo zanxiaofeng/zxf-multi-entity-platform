@@ -22,7 +22,6 @@
         <module>platform-core</module>
         <module>entity-alpha</module>
         <module>entity-beta</module>
-        <module>platform-flowable-autoconfigure</module>
         <module>platform-flowable-starter</module>
         <module>app</module>
     </modules>
@@ -64,13 +63,8 @@
                 <artifactId>entity-beta</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!-- 文档 7.7.2 组件 14：platform-flowable starter 模块化（autoconfigure + 纯依赖聚合 starter）。
-                 版本由本 BOM 统一锚定，与 platform-core 同源。 -->
-            <dependency>
-                <groupId>com.zxf.platform</groupId>
-                <artifactId>platform-flowable-autoconfigure</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+            <!-- 文档 7.7.2 组件 14：Flowable 公共组件 starter 单模块收口（引擎依赖聚合 +
+                 自动配置一体）。版本由本 BOM 统一锚定，与 platform-core 同源。 -->
             <dependency>
                 <groupId>com.zxf.platform</groupId>
                 <artifactId>platform-flowable-starter</artifactId>
@@ -84,13 +78,6 @@
             <dependency>
                 <groupId>org.flowable</groupId>
                 <artifactId>flowable-spring-boot-starter-process</artifactId>
-                <version>${flowable.version}</version>
-            </dependency>
-            <!-- autoconfigure 模块以 provided 引入 flowable-engine（仅需 RuntimeService 类签名），
-                 与 starter 引入的 flowable-spring-boot-starter-process 同源，版本必须由 BOM 统一锚定 -->
-            <dependency>
-                <groupId>org.flowable</groupId>
-                <artifactId>flowable-engine</artifactId>
                 <version>${flowable.version}</version>
             </dependency>
         </dependencies>
@@ -126,8 +113,12 @@
                             <rules>
                                 <bannedDependencies>
                                     <excludes>
-                                        <!-- 版本硬性约束（文档 7.0）：SB4 下 Flowable 7.x 存在已知不兼容 -->
-                                        <exclude>org.flowable:*:*:[7.0.0,8.0.0)</exclude>
+                                        <!-- 版本硬性约束（文档 7.0）：SB4 下 Flowable 7.x 存在已知不兼容。
+                                             exclude 段序为 groupId[:artifactId][:version][:type][:scope][:classifier]——
+                                             必须写 3 段（版本区间落 version 段）；4 段写法会把区间错落进
+                                             type 段，无构件 type 等于该字符串，规则沦为永不触发的死规则。
+                                             自证 IT 见 app 模块 EnforcerRulesSelfTest（注入 7.x 即构建红） -->
+                                        <exclude>org.flowable:*:[7.0.0,8.0.0)</exclude>
                                     </excludes>
                                     <message>Spring Boot 4 必须使用 Flowable &gt;= 8.0（7.x 基于 Spring Framework 6 / Boot 3，与 SB4 不兼容）</message>
                                 </bannedDependencies>

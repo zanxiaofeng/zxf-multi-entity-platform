@@ -78,6 +78,37 @@ class NotificationClientTest {
         assertThat(thrown.getCause()).isNotNull();
     }
 
+    @Test
+    void 熔断打开期拒绝调用且异常可区分() {
+        // 评审修复 P3：CB OPEN 期 CallNotPermittedException 单独分流——消息前缀 CIRCUIT_OPEN，
+        // 死信告警据此区分"熔断期空耗"（未触达下游，恢复窗口后复活即可）与"真实下游故障"
+        var builder = RestClient.builder();
+        var server = MockRestServiceServer.bindTo(builder).build();
+        // 第一次 send：Retry 3 次全部 5xx（单调用窗口熔断配置下一次失败即 open）
+        server.expect(ExpectedCount.times(3), MockRestRequestMatchers.anything())
+                .andRespond(MockRestResponseCreators.withServerError());
+        var circuitBreaker = io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry.of(
+                io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.custom()
+                        .failureRateThreshold(50)
+                        .minimumNumberOfCalls(1)
+                        .slidingWindowSize(1)
+                        .waitDurationInOpenState(java.time.Duration.ofSeconds(30))
+                        .build()).circuitBreaker("notification-cb-open");
+        var client = new NotificationClient(builder.build(), circuitBreaker,
+                new ResilienceConfig().notificationRetry());
+
+        catchThrowable(() -> client.send("order-1", "pi-1")); // 3 次失败，窗口内失败率 100% → open
+
+        Throwable second = catchThrowable(() -> client.send("order-1", "pi-1"));
+
+        assertThat(second).isInstanceOf(NotificationFailedException.class)
+                .hasMessageContaining("CIRCUIT_OPEN");
+        assertThat(second.getCause())
+                .isInstanceOf(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class);
+        // OPEN 期未触达下游：请求总数停留在第一次的 3 次（第二次 0 次）
+        server.verify();
+    }
+
     /** 与生产配置同源（{@link ResilienceConfig}）：CB / Retry 参数改动后测试自动跟随。 */
     private NotificationClient newClient(RestClient restClient) {
         var resilience = new ResilienceConfig();

@@ -44,10 +44,12 @@
             <artifactId>spring-boot-micrometer-metrics</artifactId>
         </dependency>
         <!-- Flowable 引擎属共享内核（文档 7.1）：运行时、持久化、与 Spring 事务/数据源整合，不允许分叉；
-             流程拓扑（BPMN）在实体模块 -->
+             流程拓扑（BPMN）在实体模块。经 platform-flowable-starter 收口引入（文档 7.7.2 组件 14）：
+             引擎依赖与健康检查等自动配置一体，本依赖是全工程 Flowable 的唯一入口，实体模块与 app
+             均经此传递获得引擎类路径 -->
         <dependency>
-            <groupId>org.flowable</groupId>
-            <artifactId>flowable-spring-boot-starter-process</artifactId>
+            <groupId>com.zxf.platform</groupId>
+            <artifactId>platform-flowable-starter</artifactId>
         </dependency>
         <!-- JSpecify 空安全：Boot 4 框架 API 全面采用，本骨架可空返回值同样标注（见文档 5.0） -->
         <dependency>

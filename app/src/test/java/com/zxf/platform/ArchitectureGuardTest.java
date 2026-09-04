@@ -44,4 +44,23 @@ class ArchitectureGuardTest {
                 .as("当前装配实体 (%s) 的包必须被导入，否则实体级 ArchUnit 规则全空转", entity)
                 .anyMatch(c -> c.getPackageName().startsWith("com.zxf.platform." + entity));
     }
+
+    /**
+     * 裁剪负断言（评审修复）：对方实体的类不得出现在当前装配的 classpath。
+     *
+     * <p>此前只有正向断言（"当前实体包存在"）——裁剪失效（如双 profile 同开、依赖误引）
+     * 时靠机制推断对方类不在；本断言把"实体 B 的类不进 A 产物"变成<b>测试事实</b>。
+     * 双 profile 同开已在构建入口被 Enforcer（{@code forbid-dual-entity-profiles}）拒绝，
+     * 此处是 classpath 层的第二道防线（防依赖误引等旁路）。测试类路径由 Maven profile
+     * 决定的依赖面构成，与产物 jar 内容同源。
+     */
+    @ArchTest
+    static void 对方实体类不得出现在当前装配的classpath(JavaClasses classes) {
+        var entity = System.getProperty("assembly.entity");
+        var other = "alpha".equals(entity) ? "beta" : "alpha";
+        assertThat(classes)
+                .as("当前装配 %s，对方实体 (%s) 的类被导入——裁剪失效（双开/依赖误引），"
+                        + "BPMN 同 key 碰撞与策略双装配将随之发生", entity, other)
+                .noneMatch(c -> c.getPackageName().startsWith("com.zxf.platform." + other));
+    }
 }

@@ -75,7 +75,7 @@ class AlphaProcessAssemblySmokeTest {
                 .containsExactlyInAnyOrder("alphaApproveL1", "alphaApproveL2", "alphaApproveL3");
         assertThat(model.getMainProcess().findFlowElementsOfType(ServiceTask.class))
                 .extracting(FlowElement::getId)
-                .containsExactlyInAnyOrder("alphaRiskCheck", "sendNotification");
+                .containsExactlyInAnyOrder("alphaRiskCheck", "riskRejectTask", "sendNotification");
     }
 
     /** 提取 {@code ${beanName}} 形式的委托表达式中的 bean 名；非委托表达式返回 null。 */

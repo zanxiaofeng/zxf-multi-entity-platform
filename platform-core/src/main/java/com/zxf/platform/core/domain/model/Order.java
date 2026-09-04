@@ -2,6 +2,8 @@ package com.zxf.platform.core.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -41,6 +43,11 @@ public class Order {
     @Column(name = "price", length = 32, nullable = false)
     private Money price;
 
+    /** 生命周期状态（评审修复 M3）：风控拒绝与正常订单在库中可区分；存量行由 V11 的 DEFAULT 回填。 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    private OrderStatus status = OrderStatus.CREATED;
+
     /** 乐观锁（db-conventions：所有可变实体必须 @Version；列由 V10 迁移提供，persist 时 Hibernate 自动置 0）。 */
     @Version
     private Long version;
@@ -63,10 +70,22 @@ public class Order {
         return new Order(item, quantity);
     }
 
-    /** 差异：计价结果由扩展点算好后回填。 */
+    /** 差异：计价结果由扩展点算好后回填。单次不变量（评审修复 M6）：已计价订单重复计价属编排缺陷，防误调用静默改价。 */
     public void priceTo(Money price) {
         Assert.notNull(price, "计价结果不能为空");
+        Assert.state(this.price == null, () -> "订单已计价（%s），重复计价属编排缺陷".formatted(this.price));
         this.price = price;
+    }
+
+    /**
+     * 差异：风控拒绝的终态转移（评审修复 M3 方案 b）——由拒绝分支的
+     * {@code OrderRiskRejectionDelegate} 在与下单同一事务内调用。
+     * 单向转移：仅 CREATED 可拒绝，重复拒绝属流程编排缺陷。
+     */
+    public void markRiskRejected() {
+        Assert.state(status == OrderStatus.CREATED,
+                () -> "订单状态 %s 不允许风控拒绝（仅 CREATED 可转移）".formatted(status));
+        this.status = OrderStatus.RISK_REJECTED;
     }
 
     /** 订单标识（持久化后方存在）。 */
@@ -86,6 +105,11 @@ public class Order {
     /** 计价结果（未计价时为 {@code null}，由流程保证先计价后使用；列级 NOT NULL，见 V5 迁移）。 */
     public @Nullable Money price() {
         return price;
+    }
+
+    /** 生命周期状态（db-conventions：枚举 STRING 持久化）。 */
+    public OrderStatus status() {
+        return status;
     }
 
     /** 创建时间（UTC，落库前由 {@link #onCreate} 写入；持久化前为 {@code null}）。 */

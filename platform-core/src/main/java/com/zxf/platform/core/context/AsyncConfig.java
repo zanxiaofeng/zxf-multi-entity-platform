@@ -49,7 +49,16 @@ public class AsyncConfig implements AsyncConfigurer {
             EntityType entity = EntityContext.currentOrNull();
             Map<String, String> mdcSnapshot = MDC.getCopyOfContextMap();
             if (entity == null && mdcSnapshot == null) {
-                return runnable;
+                // 空快照仍包装清理（评审修复 M8）：@Async 执行器若为池化线程，可能残留
+                // 上个任务的 MDC/上下文——不传播任何东西，但保证任务结束后线程干净
+                return () -> {
+                    try {
+                        runnable.run();
+                    } finally {
+                        MDC.clear();
+                        EntityContext.clear();
+                    }
+                };
             }
             return () -> {
                 if (mdcSnapshot != null) {

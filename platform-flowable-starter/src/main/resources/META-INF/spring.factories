@@ -1,0 +1,4 @@
+# 数据库初始化顺序 SPI（Boot 4 该键仍走 spring.factories，未迁 AutoConfiguration.imports）：
+# 引擎 bean 必须排在 Flyway 迁移之后（flowable.database-schema-update=false，ACT_* 全靠 V3）
+org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitializationDetector=\
+com.zxf.platform.flowable.autoconfigure.FlowableDependsOnDatabaseInitializationDetector

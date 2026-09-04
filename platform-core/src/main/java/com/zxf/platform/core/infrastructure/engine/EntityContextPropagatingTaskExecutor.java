@@ -67,7 +67,17 @@ public class EntityContextPropagatingTaskExecutor implements AsyncTaskExecutor {
         EntityType entity = EntityContext.currentOrNull();
         Map<String, String> mdcSnapshot = MDC.getCopyOfContextMap();
         if (entity == null && mdcSnapshot == null) {
-            return task;
+            // 空快照仍包装清理（评审修复 M8）：池化工作线程可能残留上个任务/引擎自身的
+            // MDC 与上下文——不传播任何东西，但保证本任务结束后线程干净（与本类
+            // 防御性清理哲学一致，防残留带入下一个 Job 的观测与路由）
+            return () -> {
+                try {
+                    return task.call();
+                } finally {
+                    MDC.clear();
+                    EntityContext.clear();
+                }
+            };
         }
         return () -> {
             if (mdcSnapshot != null) {

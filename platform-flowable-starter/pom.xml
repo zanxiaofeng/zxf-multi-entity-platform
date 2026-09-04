@@ -12,19 +12,42 @@
 
     <artifactId>platform-flowable-starter</artifactId>
     <name>platform-flowable-starter</name>
-    <description>纯依赖聚合：引入即获得 Flowable 公共组件自动配置（文档 7.7.2 组件 14）</description>
+    <description>Flowable 公共组件 starter（文档 7.7.2 组件 14）：引擎依赖聚合 + 自动配置（健康检查、引擎/Flyway 启动顺序），Flowable 引入的统一收口</description>
 
     <dependencies>
-        <!-- 自动配置模块：@AutoConfiguration + 条件组合 + AutoConfiguration.imports 注册 -->
+        <!-- 自动配置逻辑：@AutoConfiguration + 条件组合 + AutoConfiguration.imports 注册 -->
         <dependency>
-            <groupId>com.zxf.platform</groupId>
-            <artifactId>platform-flowable-autoconfigure</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
-        <!-- Flowable 引擎：满足 autoconfigure 的 @ConditionalOnClass(RuntimeService)。
-             版本由根 pom dependencyManagement 锚定（8.0.0）。 -->
+        <!-- DependsOnDatabaseInitializationDetector SPI（评审修复 M1：引擎/迁移启动顺序）：
+             接口在 spring-boot-sql 模块；provided——运行期由数据源初始化链（spring-boot-jdbc /
+             spring-boot-flyway 传递）提供，缺失时本 SPI 无消费者也不报错 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-sql</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- HealthIndicator 类签名 provided：不强加 actuator 依赖，健康指标仅在引入方
+             自带 actuator 时随 @ConditionalOnClass(RuntimeService) 激活（flowable-engine
+             由下方 flowable 官方 starter compile 传递，无需重复 provided 声明） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Flowable 引擎：满足 @ConditionalOnClass(RuntimeService)，满足 Detector 覆盖的
+             processEngine / eventRegistryEngine 自动配置。版本由根 pom dependencyManagement
+             锚定（8.0.0，Enforcer 禁 7.x） -->
         <dependency>
             <groupId>org.flowable</groupId>
             <artifactId>flowable-spring-boot-starter-process</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

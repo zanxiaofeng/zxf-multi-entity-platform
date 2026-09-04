@@ -2,6 +2,7 @@ package com.zxf.platform.core.infrastructure.integration;
 
 import com.zxf.platform.core.domain.model.NotificationFailedException;
 import com.zxf.platform.core.domain.port.NotificationPort;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.retry.Retry;
 import java.util.Map;
@@ -45,6 +46,13 @@ public class NotificationClient implements NotificationPort {
         var fullyDecorated = CircuitBreaker.decorateRunnable(notificationCircuitBreaker, retryDecorated);
         try {
             fullyDecorated.run();
+        } catch (CallNotPermittedException e) {
+            // 熔断 OPEN 期拒绝（未真正触达下游）：WARN 明示 + 消息前缀 CIRCUIT_OPEN——
+            // 死信的 exceptionMessage 据此区分"熔断期空耗"与"真实下游故障"（评审建议：
+            // 熔断窗口内 Job 以 PT5S 节奏瞬时失败直至死信，告警需分流两类根因）
+            log.warn("通知熔断器 OPEN，调用被拒绝（未触达下游）orderId={}", orderId);
+            throw new NotificationFailedException(
+                    "CIRCUIT_OPEN：通知熔断器打开，未调用下游 orderId=" + orderId, e);
         } catch (Exception e) {
             throw new NotificationFailedException(
                     "通知下游失败 orderId=" + orderId + ": " + e.getMessage(), e);

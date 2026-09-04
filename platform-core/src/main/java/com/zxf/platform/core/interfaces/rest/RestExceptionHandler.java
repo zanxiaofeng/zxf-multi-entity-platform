@@ -9,6 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -57,6 +58,19 @@ public class RestExceptionHandler {
         problem.setTitle("请求参数不合法");
         problem.setProperty("errors", fieldErrors(ex));
         return problem;
+    }
+
+    /**
+     * 乐观锁并发冲突 → 409（exception-handling §6.2 矩阵：{@code OptimisticLockingFailureException}
+     * 映射 CONFLICT）。{@code Order} / {@code OutboxEvent} 均声明 {@code @Version}
+     * （db-conventions：并发更新丢失的代码级兜底），并发更新同一行时 Hibernate 抛本异常——
+     * 缺此 handler 会落入兜底 {@link #handleUnexpected} 变 500 + ERROR 堆栈，<b>可重试的
+     * 并发冲突被监控误报为系统故障</b>。客户端语义：重读数据后重试（4xx 记 WARN 不附堆栈）。
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ProblemDetail handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
+        log.warn("乐观锁并发冲突: {}", ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "数据已被并发修改，请刷新后重试");
     }
 
     /**

@@ -84,6 +84,7 @@ class AlphaOrderApiEndToEndTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.price.amount").value(226.00)) // 200 * 1.13，Alpha 专属
                 .andExpect(jsonPath("$.price.currency").value("CNY"))
+                .andExpect(jsonPath("$.status").value("CREATED")) // 正常路径初始态（M3 对照）
                 .andReturn();
 
         // 金额序列化形态守护：write-bigdecimal-as-plain 回退时科学计数法（如 Beta 的 1.9E+2）
@@ -159,6 +160,8 @@ class AlphaOrderApiEndToEndTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"item\":\"risk-widget\",\"quantity\":1}"))
                 .andExpect(status().isCreated())
+                // 评审修复 M3 方案 b：拒绝订单行保留（201 可查），但状态显式落账 RISK_REJECTED
+                .andExpect(jsonPath("$.status").value("RISK_REJECTED"))
                 .andReturn();
         String orderId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
 
@@ -170,6 +173,19 @@ class AlphaOrderApiEndToEndTest {
                 .processInstanceBusinessKey(orderId).singleResult();
         assertThat(historic).isNotNull();
         assertThat(historic.getEndTime()).isNotNull();
+
+        // 查询侧同样可见终态（status 列经 riskRejectTask delegate 落库）
+        mockMvc.perform(get("/api/v1/orders/" + orderId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RISK_REJECTED"));
+
+        // 审计携带终态：OrderCreatedEvent 的 status 组件（AFTER_COMMIT + @Async，与既有审计断言同模式）
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertThat(auditService.trail()).anySatisfy(entry -> {
+                    assertThat(entry.action()).isEqualTo("ORDER_CREATED");
+                    assertThat(entry.detail()).contains("orderId=" + orderId);
+                    assertThat(entry.detail()).contains("status=RISK_REJECTED");
+                }));
 
         // BpmnError 走分支不重试：本实例不产生死信 Job
         assertThat(deadLetterJobOperations.list())

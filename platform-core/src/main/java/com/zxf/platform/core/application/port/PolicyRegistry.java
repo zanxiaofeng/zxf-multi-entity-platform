@@ -17,8 +17,11 @@ import org.springframework.util.Assert;
  * 策略注册表：替代 if-else，启动期 fail-fast（文档 5.2.5）。
  *
  * <p>{@code List<PricingPolicy>} 由 Spring 注入容器中全部实现。若配置漂移
- * （{@code platform.entity=alpha} 但忘了激活 alpha profile），容器里实现缺失——
- * 构造器内的校验让应用在<b>启动期立即失败</b>，而不是运行期第一次计价时才炸。
+ * （{@code platform.entity=alpha} 但装配产物里没有 Alpha 实现——构建 profile 裁剪失效，
+ * 或实现漏标 {@code @ForEntity}），容器里实现缺失——
+ * 构造器内的校验让应用在<b>启动期立即失败</b>，而不是运行期第一次计价时才炸
+ * （{@code @ForEntity} 激活只读 {@code platform.entity}，与 {@code SPRING_PROFILES_ACTIVE}
+ * 无直接关系——后者仅经 {@code application-{entity}.yaml} 间接提供该属性）。
  *
  * <p>对外只暴露意图方法 {@link #priceFor(Order)}（Tell, Don't Ask）：调用方不再
  * 先取策略再调用，计价的两步协作封装在注册表内（文档 5.9 规则 4）。

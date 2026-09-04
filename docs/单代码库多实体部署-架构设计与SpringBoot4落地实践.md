@@ -1614,7 +1614,7 @@ lifecycle:
 
 #### 7.7.3 工程化：platform-flowable starter
 
-14. **企业内部 starter 骨架**（按 Spring 官方规范）：双模块 `xxx-spring-boot-autoconfigure`（逻辑）+ `xxx-spring-boot-starter`（纯依赖聚合）；注册文件 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（不再用 spring.factories）；条件组合 `@AutoConfiguration` + `@ConditionalOnClass` + `@ConditionalOnProperty(prefix="platform.flowable", name="enabled")` + `@ConditionalOnMissingBean`；配置属性独立命名空间 `@ConfigurationProperties` + `spring-boot-autoconfigure-processor` 生成 metadata，禁止占用 `spring.*` / `server.*`；测试用 `ApplicationContextRunner` + `FilteredClassLoader` 覆盖各条件分支。
+14. **企业内部 starter 骨架**：Spring 官方规范形态为双模块 `xxx-spring-boot-autoconfigure`（逻辑）+ `xxx-spring-boot-starter`（纯依赖聚合），面向对外发布（autoconfigure 与实现版本解耦、消费方可选引入）；本工程仓内消费、无独立引 autoconfigure 的场景，落地为**单模块 `platform-flowable-starter` 收口**（引擎依赖聚合 + 自动配置一体），由 platform-core 统一引入，实体模块与 app 经传递获得，是全工程 Flowable 依赖的唯一入口。规范要点不变：注册文件 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（不再用 spring.factories；`DependsOnDatabaseInitializationDetector` 等 Boot 4 未迁移的 SPI 仍走 spring.factories）；条件组合 `@AutoConfiguration` + `@ConditionalOnClass` + `@ConditionalOnProperty(prefix="platform.flowable", name="enabled")` + `@ConditionalOnMissingBean`；配置属性独立命名空间 `@ConfigurationProperties` + `spring-boot-autoconfigure-processor` 生成 metadata，禁止占用 `spring.*` / `server.*`；测试用 `ApplicationContextRunner` + `FilteredClassLoader` 覆盖各条件分支。
 
 上述组件在 platform-core 内的包结构建议：
 

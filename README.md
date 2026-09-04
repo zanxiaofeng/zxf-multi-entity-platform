@@ -66,14 +66,14 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 | 5.7 装配冒烟矩阵 | 实体模块轻量装配测试 + app `@SpringBootTest`（按 `assembly.entity` 门控）+ 漂移负例 + GitHub Actions 矩阵 |
 | 5.8.1 管道编排 | `OrderPipeline` + `OrderStep`（domain.port 纯契约）：core 公共首步 `SchemaValidationStep`，实体第二步 `RiskCheckStep`（alpha）/ `AuditExtraStep`（beta），`@Order` 排序、装配冒烟逐字比对步骤名 |
 | 5.8.2 模板方法 | `domain.service.AbstractDocumentGenerator`（骨架 `final`）+ Alpha/Beta 页眉页脚实现（差异点 ≤ 2 的适用边界见类 Javadoc） |
-| 5.8.3 Schema 驱动校验 | `PlatformValidationProperties`（规则在 `application-{entity}.yaml`）+ `SchemaDrivenValidator`，违反 → 400（`RestExceptionHandler`），未知规则字段 → 配置缺陷显式失败 |
+| 5.8.3 Schema 驱动校验 | `PlatformValidationProperties`（规则在 `application-{entity}.yaml`）+ `SchemaDrivenValidator`，违反 → 400（`RestExceptionHandler`）；规则缺 `max`/`in`、未知规则字段 → 配置缺陷，缺参形态在绑定期即启动失败 |
 | 5.9 对象健身操 | `OrderId`/`Money` 值对象（`MoneyConverter` autoApply 落 `price` 单列，V4 收敛 + V5 NOT NULL 补偿）；`policies.priceFor(order)` 单点调用；`PlatformProperties` record 构造器绑定 |
 | 6.1 Flyway 迁移 | `db/migration/common`（core）+ `db/migration/alpha\|beta`（实体模块），locations 按 `platform.entity` 组合 |
 | 6.3 配置一致性三防线 | 启动期 `PolicyRegistry` 校验 → CI 装配矩阵 → `/actuator/info` 实体巡检 |
-| 7.0 Flowable 版本硬性约束 | `flowable.version=8.0.0` + Enforcer 锚定 `org.flowable:*:*:[7.0.0,8.0.0)` 禁用 |
+| 7.0 Flowable 版本硬性约束 | `flowable.version=8.0.0` + Enforcer 锚定 `org.flowable:*:[7.0.0,8.0.0)`（3 段写法，版本区间落 version 段，禁 7.x；自证 IT：`EnforcerRulesSelfTest` 注入 7.x 即构建红） |
 | 7.1 流程拓扑差异外置 | `infrastructure.engine.OrderApprovalService`（实现 `domain.port.OrderApprovalPort`）：只按契约 key（`order-approval`）发起实例；变量只放轻量标识（`OrderId` 值对象） |
 | 7.2 部署级隔离 | BPMN 在实体模块 `processes/` 随 profile 裁剪：Alpha 风控+三级审批 / Beta 五级审批+审计留痕；专属 delegate `@ForEntity` 限定（5.10.1），通用 delegate 进 core |
-| 7.3② ACT_* 表治理 | `common/V3__flowable_engine_tables.sql`（提取自官方 jar 的 H2 DDL）+ `flowable.database-schema-update=false` |
+| 7.3② ACT_* 表治理 | `common/V3__flowable_engine_tables.sql`（提取自官方 jar 的 H2 DDL）+ `flowable.database-schema-update=false`；`FlowableDependsOnDatabaseInitializationDetector`（starter）保证引擎在 Flyway 迁移之后初始化（`EngineDependsOnFlywayAssemblyTest` 守护） |
 | 7.3③ 引擎线程可观测性 | `FlowableJobContextConfig`：`SpringAsyncExecutor` 挂 `EntityContextPropagatingTaskExecutor` 传播 MDC/entity；流程变量显式携带 `entity` 双保险——delegate 基类 `EntityContextAwareDelegate` 在 Job 线程从变量重建上下文（闭环，e2e 覆盖 async 通知任务） |
 | 7.4 流程装配冒烟 | `AlphaProcessAssemblySmokeTest` / `BetaProcessAssemblySmokeTest`：同 key 定义唯一、delegate 全装配、拓扑符合预期 |
 | 8.2 Maven Enforcer | core 禁依赖 `entity-*`；实体模块互禁依赖；app 强制要求 `assembly.entity`；Flowable 版本锚定 |
@@ -99,16 +99,18 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 
 > `@ForEntity`（5.10.1 已落地）直接读 `platform.entity` 决定激活；`SPRING_PROFILES_ACTIVE` 通过激活 `application-{entity}.yaml` 间接提供 `platform.entity`——三者仍成对，激活机制已统一为单一开关源（不再裸 `@Profile`）。
 
-## Review 硬性规则（文档 8.1，已由工具强制的部分）
+## Review 硬性规则（文档 8.1）
 
-1. `platform-core` 白名单外的包出现 `EntityType`/`EntityContext` 引用 → ArchUnit 测试红（白名单：`context`、`application.port`、`interfaces.filter`、`infrastructure.*`、`domain.port`——`supports()` 声明适配实体属端口契约）。
-2. 扩展点实现未加 `@ForEntity`（未被 `@Conditional` 元注解限定）→ ArchUnit 测试红。
-3. 实体模块相互依赖 / core 依赖实体模块 / Flowable 版本 < 8.0 → Enforcer 构建失败。
+前 6 条与第 9 条前半有工具强制（ArchUnit / Enforcer / 测试），其余为约定项——逐条标注实际强度：
+
+1. `platform-core` 白名单外的包出现 `EntityType`/`EntityContext` 引用 → ArchUnit 测试红（白名单：`context`、`application.port`、`interfaces.filter`、`domain.port`、`infrastructure` 下 `engine`/`integration`/`observation` 三个具体包——`supports()` 声明适配实体属端口契约）。
+2. 扩展点实现未加 `@ForEntity`（未被 `@Conditional` 元注解限定）→ ArchUnit 测试红（实体模块另守护：`@Bean` 工厂方法返回扩展点类型即红——绕过面堵死；`EntityCapability` 实现漏标即红）。
+3. 实体模块相互依赖 / core 依赖实体模块 / `-Palpha -Pbeta` 双开 / Flowable 7.x → Enforcer 构建失败（规则自证 IT：`EnforcerRulesSelfTest`）。
 4. 异步路径未传播上下文 → `EntityContextPropagatorTest` / `EntityContextPropagatingTaskExecutorTest` + 端到端审计断言守护。
 5. BPMN 引用未装配的 delegate、同 key 双定义 → 流程装配冒烟测试红（引擎不做启动期校验，必须自研）。
 6. delegate 实例字段非 final（存执行态风险）→ ArchUnit 测试红；delegate 未继承 `EntityContextAwareDelegate`（绕过 Job 线程上下文重建）→ ArchUnit 测试红。
-7. `EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 需架构评审。
-8. 事务内副作用（审计等）必须走领域事件 + `@TransactionalEventListener(AFTER_COMMIT)`（文档 8.1 规则 11）。
+7. （约定，无工具强制）`EntityContext` 仅限同步 Servlet 栈；引入 WebFlux 需架构评审。
+8. 事务内副作用（审计等）走领域事件 + `@TransactionalEventListener(AFTER_COMMIT)`（文档 8.1 规则 11）——现有双路径（订单创建 / 审批通知审计）已按此落地，新增副作用由 review 守护。
 9. 领域对象出现 setter → ArchUnit 测试红；应用层链式调用超两点、标识/金额未用值对象 → review 打回（文档 8.1 规则 12）。
 
 ## Flowable 运维纪律（文档 7.3 / 8.1.9，需团队知晓的持续成本）

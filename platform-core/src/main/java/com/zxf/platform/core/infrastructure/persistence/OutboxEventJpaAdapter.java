@@ -1,5 +1,6 @@
 package com.zxf.platform.core.infrastructure.persistence;
 
+import com.zxf.platform.core.domain.model.OutboxDeliveryStatus;
 import com.zxf.platform.core.domain.model.OutboxEvent;
 import com.zxf.platform.core.domain.port.OutboxRepository;
 import java.util.List;
@@ -33,6 +34,6 @@ public class OutboxEventJpaAdapter implements OutboxRepository {
     @Override
     public List<OutboxEvent> findUnpublished(int limit) {
         Assert.isTrue(limit > 0, () -> "limit 必须为正数，实际值: " + limit);
-        return delegate.findUnpublished(PageRequest.of(0, limit));
+        return delegate.findByStatusUnpublished(OutboxDeliveryStatus.PENDING, PageRequest.of(0, limit));
     }
 }

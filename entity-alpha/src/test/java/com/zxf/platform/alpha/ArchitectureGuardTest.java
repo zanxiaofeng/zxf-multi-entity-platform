@@ -2,18 +2,20 @@ package com.zxf.platform.alpha;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import com.zxf.platform.core.context.EntityCapability;
 import com.zxf.platform.core.context.ForEntity;
 import com.zxf.platform.core.domain.port.OrderStep;
 import com.zxf.platform.core.domain.port.PricingPolicy;
 import com.zxf.platform.core.domain.port.TaskAssignmentRule;
 import com.zxf.platform.core.infrastructure.engine.EntityContextAwareDelegate;
 import org.flowable.engine.delegate.JavaDelegate;
+import org.springframework.context.annotation.Bean;
 
 /**
  * 架构守护（文档 8.1.2 / 8.3 / 5.10.1）：扩展点接口的实现类必须声明 {@code supports()} 且被
@@ -45,6 +47,42 @@ class ArchitectureGuardTest {
     static final ArchRule 候选人策略实现必须限定ForEntity = classes()
             .that().implement(TaskAssignmentRule.class)
             .should().beAnnotatedWith(ForEntity.class);
+
+    /** 评审修复 M7-②：能力清单是 /actuator/info 第三道漂移防线——漏标 @ForEntity 则防线静默失能。 */
+    @ArchTest
+    static final ArchRule 能力清单实现必须限定ForEntity = classes()
+            .that().implement(EntityCapability.class)
+            .should().beAnnotatedWith(ForEntity.class);
+
+    /**
+     * 评审修复 M7-①：@Bean 工厂方法返回扩展点类型可绕过 @ForEntity 限定（@ForEntity 的
+     * @Target 仅 TYPE，方法上无法标注；未经条件装配的实例会被 PolicyRegistry 照常收集）。
+     * 堵死绕过面：扩展点实现一律 @Component + @ForEntity 声明。当前无实例故允许空转
+     * （allowEmptyShould——出现首个 @Bean 返回扩展点时规则先红，强制走声明式路径）。
+     */
+    @ArchTest
+    static final ArchRule Bean工厂方法禁止返回计价策略 = noMethods()
+            .that().areAnnotatedWith(Bean.class)
+            .should().haveRawReturnType(PricingPolicy.class)
+            .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule Bean工厂方法禁止返回管道步骤 = noMethods()
+            .that().areAnnotatedWith(Bean.class)
+            .should().haveRawReturnType(OrderStep.class)
+            .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule Bean工厂方法禁止返回候选人策略 = noMethods()
+            .that().areAnnotatedWith(Bean.class)
+            .should().haveRawReturnType(TaskAssignmentRule.class)
+            .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule Bean工厂方法禁止返回能力清单 = noMethods()
+            .that().areAnnotatedWith(Bean.class)
+            .should().haveRawReturnType(EntityCapability.class)
+            .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule delegate必须继承上下文重建基类 = classes()

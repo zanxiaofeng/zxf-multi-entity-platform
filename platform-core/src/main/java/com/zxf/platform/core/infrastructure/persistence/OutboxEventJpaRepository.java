@@ -1,5 +1,6 @@
 package com.zxf.platform.core.infrastructure.persistence;
 
+import com.zxf.platform.core.domain.model.OutboxDeliveryStatus;
 import com.zxf.platform.core.domain.model.OutboxEvent;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
@@ -7,13 +8,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 /**
- * Spring Data JPA 委托接口：技术选型细节，隔离在 {@link OutboxEventJpaAdapter} 内部（包私有）。
+ * Spring Data JPA 委托接口：技术选型细节，隔离在 {@code OutboxEventJpaAdapter} 内部（包私有）。
  *
  * <p>{@code findUnpublished} 用 {@code Pageable} 限制条数——JPQL 自带 {@code ORDER BY}，
  * 页大小即 {@code limit}；避免数据库方言差异（MySQL/H2 的 {@code LIMIT} 关键字行为不一致）。
+ * 排序补 {@code id} 决胜键、状态过滤 PENDING（评审修复 P3）：同毫秒批量写入时
+ * {@code createdAt} 无决胜序，轮询顺序不稳定；死信（DEAD）不再重投。
  */
 interface OutboxEventJpaRepository extends JpaRepository<OutboxEvent, Long> {
 
-    @Query("SELECT e FROM OutboxEvent e WHERE e.publishedAt IS NULL ORDER BY e.createdAt")
-    List<OutboxEvent> findUnpublished(Pageable pageable);
+    @Query("SELECT e FROM OutboxEvent e WHERE e.publishedAt IS NULL AND e.status = :status"
+            + " ORDER BY e.createdAt, e.id")
+    List<OutboxEvent> findByStatusUnpublished(OutboxDeliveryStatus status, Pageable pageable);
 }

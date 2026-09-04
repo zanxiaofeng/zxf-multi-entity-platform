@@ -78,6 +78,7 @@ class BetaOrderApiEndToEndTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.price.amount").value(190.00)) // 200 * 0.95，Beta 专属
                 .andExpect(jsonPath("$.price.currency").value("CNY"))
+                .andExpect(jsonPath("$.status").value("CREATED")) // Beta 无风控节点，恒初始态（M3 对照）
                 .andReturn();
 
         // 金额序列化形态守护：190.00 经 Money 归一化为 scale=-1（toString 是 1.9E+2），

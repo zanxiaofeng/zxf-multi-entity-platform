@@ -14,6 +14,12 @@ import org.springframework.stereotype.Component;
  * 注册后 BPMN 表达式可引用 {@code ${bpm:currentEntity()}}，返回当前实体名
  * （{@code ALPHA} / {@code BETA}），无上下文时返回 {@code "none"}。
  *
+ * <p><b>async 边界（评审修复 P3：明示陷阱）</b>：本函数读 ThreadLocal——表达式在引擎
+ * 命令线程上求值，async 网关/任务的条件表达式不经 delegate 重建窗口（
+ * {@code EntityContextAwareDelegate} 只覆盖 delegate 执行段），acquisition 提交的
+ * Job 内求值恒得 {@code "none"}。同步节点（请求线程）与 delegate 内的表达式可正常取值；
+ * 需要跨 async 判实体的分支应改读流程变量 {@code ${entity}}。
+ *
  * <p>JSON 流程变量（组件 8 另一半）：Flowable 8 默认已内置 {@code JsonType}
  * （基于 Jackson {@code JsonNode}，支持 trackObjects 变更追踪）——无需显式注册，
  * 引擎启动即可用。文档纪律"领域值对象不直接进流程变量"仍有效（当前工程把

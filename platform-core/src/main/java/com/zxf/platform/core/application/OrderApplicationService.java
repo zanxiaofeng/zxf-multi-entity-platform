@@ -7,6 +7,7 @@ import com.zxf.platform.core.domain.event.OrderCreatedEvent;
 import com.zxf.platform.core.domain.model.Order;
 import com.zxf.platform.core.domain.model.OrderContext;
 import com.zxf.platform.core.domain.model.OrderId;
+import com.zxf.platform.core.domain.model.OrderStatus;
 import com.zxf.platform.core.domain.model.OutboxEvent;
 import com.zxf.platform.core.domain.port.OrderApprovalPort;
 import com.zxf.platform.core.domain.port.OrderRepository;
@@ -35,6 +36,7 @@ public class OrderApplicationService {
     /** Outbox 聚合类型与事件类型常量（MQ 路由键，避免魔法字符串散落）。 */
     private static final String OUTBOX_AGGREGATE_ORDER = "ORDER";
     private static final String OUTBOX_EVENT_ORDER_CREATED = "ORDER_CREATED";
+    private static final String OUTBOX_EVENT_ORDER_REJECTED = "ORDER_REJECTED";
 
     private final OrderRepository repository;
     private final PolicyRegistry policies;
@@ -48,6 +50,10 @@ public class OrderApplicationService {
      * → 写 Outbox 事件（与业务表同事务，文档 7.7.2 组件 12）
      * → 发布领域事件（审计等副作用 AFTER_COMMIT 消费，文档 8.1 规则 11）。
      *
+     * <p>风控拒绝（评审修复 M3 方案 b）：Alpha 流程的拒绝分支与下单同事务同步执行——
+     * {@code startApproval} 返回时订单状态已落账 RISK_REJECTED；此时 Outbox 广播
+     * ORDER_REJECTED 而非 ORDER_CREATED（订单行保留供审计，下游不得当作有效订单）。
+     *
      * @param cmd 创建命令（不允许 {@code null}）
      * @return 已持久化订单（含标识与计价结果）
      */
@@ -59,9 +65,12 @@ public class OrderApplicationService {
         pipeline.run(new OrderContext(order));
         var saved = repository.save(order);
         var processInstanceId = approval.startApproval(saved);
-        outboxRepository.save(new OutboxEvent(OUTBOX_AGGREGATE_ORDER, saved.id().value(), OUTBOX_EVENT_ORDER_CREATED, null));
-        events.publishEvent(new OrderCreatedEvent(saved.id(), processInstanceId));
-        log.info("订单已创建 orderId={} processInstanceId={}", saved.id().value(), processInstanceId);
+        String eventType = saved.status() == OrderStatus.RISK_REJECTED
+                ? OUTBOX_EVENT_ORDER_REJECTED
+                : OUTBOX_EVENT_ORDER_CREATED;
+        outboxRepository.save(new OutboxEvent(OUTBOX_AGGREGATE_ORDER, saved.id().value(), eventType, null));
+        events.publishEvent(new OrderCreatedEvent(saved.id(), processInstanceId, saved.status()));
+        log.info("订单已创建 orderId={} processInstanceId={} status={}", saved.id().value(), processInstanceId, saved.status());
         return saved;
     }
 

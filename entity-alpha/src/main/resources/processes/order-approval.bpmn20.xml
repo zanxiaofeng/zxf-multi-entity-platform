@@ -30,7 +30,12 @@
         <boundaryEvent id="riskCheckErrorBoundary" attachedToRef="alphaRiskCheck">
             <errorEventDefinition errorRef="RISK_REJECTED"/>
         </boundaryEvent>
-        <sequenceFlow id="flow-error-reject" sourceRef="riskCheckErrorBoundary" targetRef="riskRejectedEnd"/>
+        <!-- 拒绝分支先落账再终止（评审修复 M3 方案 b）：同步节点把订单状态转移为
+             RISK_REJECTED（订单行保留供审计），下游 Outbox 事件分流为 ORDER_REJECTED -->
+        <sequenceFlow id="flow-error-reject" sourceRef="riskCheckErrorBoundary" targetRef="riskRejectTask"/>
+        <serviceTask id="riskRejectTask" name="风控拒绝落账"
+                     flowable:delegateExpression="${orderRiskRejectionDelegate}"/>
+        <sequenceFlow id="flow-reject-end" sourceRef="riskRejectTask" targetRef="riskRejectedEnd"/>
         <endEvent id="riskRejectedEnd" name="风控拒绝"/>
 
         <userTask id="alphaApproveL1" name="Alpha 一级审批"/>

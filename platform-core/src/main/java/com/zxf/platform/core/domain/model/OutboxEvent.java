@@ -2,6 +2,8 @@ package com.zxf.platform.core.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +28,9 @@ import org.springframework.util.Assert;
 @Table(name = "outbox_event")
 public class OutboxEvent {
 
+    /** 投递失败上限（评审修复 P3）：达到后转 {@link OutboxDeliveryStatus#DEAD}，relay 不再重投。 */
+    public static final int MAX_ATTEMPTS = 5;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,6 +52,15 @@ public class OutboxEvent {
 
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
+
+    /** 投递失败计数（评审修复 P3）：relay 投递失败递增，达 {@link #MAX_ATTEMPTS} 转死信。 */
+    @Column(name = "attempts", nullable = false)
+    private int attempts;
+
+    /** 投递状态（db-conventions：枚举 STRING 持久化；V12 迁移提供列，存量行 DEFAULT 回填 PENDING）。 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    private OutboxDeliveryStatus status = OutboxDeliveryStatus.PENDING;
 
     /** 乐观锁（db-conventions：所有可变实体必须 @Version；列由 V10 迁移提供）。ShedLock 已保证 relay 单实例执行，此处为并发更新丢失的代码级兜底。 */
     @Version
@@ -107,5 +121,27 @@ public class OutboxEvent {
     /** 标记已发布：relay 发送成功后调用（依赖 JPA 脏检查，relay 方法 {@code @Transactional}）。 */
     public void markPublished() {
         this.publishedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * 记录一次投递失败（评审修复 P3）：attempts 递增，达 {@link #MAX_ATTEMPTS} 上限转
+     * {@link OutboxDeliveryStatus#DEAD}（死信出口——relay 查询只扫 PENDING，死信经
+     * ERROR 告警人工介入）。调用方据 {@link #status()} 判断是否刚转死信并记对应级别日志。
+     */
+    public void recordAttempt() {
+        this.attempts++;
+        if (this.attempts >= MAX_ATTEMPTS) {
+            this.status = OutboxDeliveryStatus.DEAD;
+        }
+    }
+
+    /** 投递失败计数。 */
+    public int attempts() {
+        return attempts;
+    }
+
+    /** 投递状态（PENDING / DEAD）。 */
+    public OutboxDeliveryStatus status() {
+        return status;
     }
 }

@@ -19,14 +19,6 @@
             <groupId>com.zxf.platform</groupId>
             <artifactId>platform-core</artifactId>
         </dependency>
-        <!-- platform-flowable-starter（文档 7.7.2 组件 14）：聚合 platform-flowable-autoconfigure
-             + flowable-spring-boot-starter-process。autoconfigure 通过 AutoConfiguration.imports
-             被 Boot 装配，在 app classpath 上注册 FlowableEngineHealthIndicator 到 /actuator/health -->
-        <dependency>
-            <groupId>com.zxf.platform</groupId>
-            <artifactId>platform-flowable-starter</artifactId>
-        </dependency>
-
         <!-- Flyway：Boot 4 模块化拆包后需显式引入 spring-boot-flyway 自动配置模块（见文档 5.0） -->
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -64,6 +56,14 @@
             <artifactId>archunit-junit5</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Enforcer 规则自证 IT（评审修复）：子进程跑最小 pom 复现"注入 7.x / 双 profile"场景，
+             断言构建红——把"规则会拦"从口头承诺变成测试事实。BOM 不管理，显式声明版本 -->
+        <dependency>
+            <groupId>org.apache.maven.shared</groupId>
+            <artifactId>maven-invoker</artifactId>
+            <version>3.3.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <!-- Maven profile 控制打包内容：实体 B 的类不进入实体 A 的镜像（文档 5.4.1）。
@@ -73,6 +73,9 @@
             <id>alpha</id>
             <properties>
                 <assembly.entity>alpha</assembly.entity>
+                <!-- 双开自证 marker：与 beta 的 marker 一起供 forbid-dual-entity-profiles
+                     的 beanshell 规则检测"两实体 profile 同时激活"（单独存在无副作用） -->
+                <assembly.profile.alpha>true</assembly.profile.alpha>
             </properties>
             <dependencies>
                 <dependency>
@@ -85,6 +88,7 @@
             <id>beta</id>
             <properties>
                 <assembly.entity>beta</assembly.entity>
+                <assembly.profile.beta>true</assembly.profile.beta>
             </properties>
             <dependencies>
                 <dependency>
@@ -119,6 +123,25 @@
                                     <regex>alpha|beta</regex>
                                     <message>app 模块必须用 -Palpha 或 -Pbeta 构建：不打实体 profile 的产物是空壳，启动必然失败（文档 5.4）</message>
                                 </requireProperty>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>forbid-dual-entity-profiles</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- 双实体 profile 同开：两实体 jar 同进 classpath、BPMN 同 key 碰撞。
+                                     流程冒烟会在 verify 期兜红（同 key 双定义断言），但那是迟到且昂贵的
+                                     失败（已编译打包）；此处在构建入口直接拒绝。profile 未激活时属性
+                                     保持 ${...} 字面量（equals 为 false），不影响单开与无 profile 场景
+                                     （后者由 require-assembly-entity 拒绝）。自证 IT 见 EnforcerRulesSelfTest -->
+                                <evaluateBeanshell>
+                                    <condition>!("true".equals("${assembly.profile.alpha}") &amp;&amp; "true".equals("${assembly.profile.beta}"))</condition>
+                                    <message>禁止同时激活 -Palpha -Pbeta：两实体产物互斥，请分别构建（文档 5.4 装配矩阵）</message>
+                                </evaluateBeanshell>
                             </rules>
                         </configuration>
                     </execution>

@@ -57,4 +57,34 @@ class MoneyTest {
         assertThat(zero.amount().scale()).isNotNegative();
         assertThat(zero.amount().toString()).isEqualTo("0");
     }
+
+    @Test
+    void 整十金额归一化无负scale() {
+        // 190.00 的 unscaled 尾部零多于 scale：stripTrailingZeros 产生 1.9E+2（scale=-1）——
+        // BigDecimal.equals 对 scale 敏感，1.9E+2 与 190 不等（compareTo 却相等）。
+        // 真实触发路径：Beta 计价 200 × 0.95 = 190.00，落库 toPlainString 为 "190"，
+        // JPA 读回 scale=0——同一笔订单内存态与读回态 equals 不等，进 HashSet/HashMap 即重复
+        var money = Money.cny("190.00");
+        assertThat(money.amount().scale()).isNotNegative();
+        assertThat(money.amount().toString()).isEqualTo("190");
+    }
+
+    @Test
+    void 尾零跨数量级金额与等值简写相等() {
+        // 等价类：unscaled 尾部零多于 scale 的全部形态（190.00 / 1130.00 / 2200.0）
+        assertThat(Money.cny("190.00")).isEqualTo(Money.cny("190"));
+        assertThat(Money.cny("1130.00")).isEqualTo(Money.cny("1130"));
+        assertThat(Money.cny("2200.0")).isEqualTo(Money.cny("2200"));
+        // compareTo 与 equals 语义一致（构造期归一化的承诺，文档 5.9 军规 3）：
+        // equals 相等的两个 Money，其 amount 的 compareTo 也必为零
+        assertThat(Money.cny("190.00").amount().compareTo(Money.cny("190").amount())).isZero();
+    }
+
+    @Test
+    void 计价乘积的等值形态相等() {
+        // Beta 真实计价路径：113 × 1 = 113（scale 0）与 226.00 / 2 无关——
+        // 200 × 0.95 = 19.000... 乘积 strip 后应为 190（scale 0），与手写 190 相等
+        assertThat(Money.cny(new BigDecimal("200").multiply(new BigDecimal("0.95"))))
+                .isEqualTo(Money.cny("190"));
+    }
 }

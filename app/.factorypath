@@ -24,6 +24,7 @@
     <factorypathentry kind="VARJAR" id="M2_REPO/org/glassfish/jaxb/txw2/4.0.9/txw2-4.0.9.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/com/sun/istack/istack-commons-runtime/4.1.2/istack-commons-runtime-4.1.2.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/jakarta/inject/jakarta.inject-api/2.0.1/jakarta.inject-api-2.0.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-orm/7.0.8/spring-orm-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/data/spring-data-jpa/4.1.0/spring-data-jpa-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/antlr/antlr4-runtime/4.13.2/antlr4-runtime-4.13.2.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-aspects/7.0.8/spring-aspects-7.0.8.jar" enabled="true" runInBatchMode="false"/>
@@ -54,6 +55,7 @@
     <factorypathentry kind="VARJAR" id="M2_REPO/io/prometheus/prometheus-metrics-exposition-textformats/1.5.1/prometheus-metrics-exposition-textformats-1.5.1.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-micrometer-metrics/4.1.0/spring-boot-micrometer-metrics-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-micrometer-observation/4.1.0/spring-boot-micrometer-observation-4.1.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-autoconfigure/4.1.0/spring-boot-autoconfigure-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-spring-boot-starter-process/8.0.0/flowable-spring-boot-starter-process-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-spring-boot-autoconfigure/8.0.0/flowable-spring-boot-autoconfigure-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-spring-security/8.0.0/flowable-spring-security-8.0.0.jar" enabled="true" runInBatchMode="false"/>
@@ -75,7 +77,6 @@
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-event-registry-model/8.0.0/flowable-event-registry-model-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-event-registry-json-converter/8.0.0/flowable-event-registry-json-converter-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-eventsubscription-service-api/8.0.0/flowable-eventsubscription-service-api-8.0.0.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="VARJAR" id="M2_REPO/commons-io/commons-io/2.21.0/commons-io-2.21.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/com/fasterxml/uuid/java-uuid-generator/5.1.0/java-uuid-generator-5.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-event-registry-configurator/8.0.0/flowable-event-registry-configurator-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-eventsubscription-service/8.0.0/flowable-eventsubscription-service-8.0.0.jar" enabled="true" runInBatchMode="false"/>
@@ -103,7 +104,6 @@
     <factorypathentry kind="VARJAR" id="M2_REPO/org/eclipse/angus/angus-activation/2.0.3/angus-activation-2.0.3.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/mybatis/mybatis/3.5.19/mybatis-3.5.19.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-beans/7.0.8/spring-beans-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/joda-time/joda-time/2.14.0/joda-time-2.14.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/slf4j/jcl-over-slf4j/2.0.18/jcl-over-slf4j-2.0.18.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-spring/8.0.0/flowable-spring-8.0.0.jar" enabled="true" runInBatchMode="false"/>
@@ -111,25 +111,27 @@
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-job-spring-service/8.0.0/flowable-job-spring-service-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-event-registry-spring-configurator/8.0.0/flowable-event-registry-spring-configurator-8.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flowable/flowable-event-registry-spring/8.0.0/flowable-event-registry-spring-8.0.0.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-tx/7.0.8/spring-tx-7.0.8.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-orm/7.0.8/spring-orm-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/net/javacrumbs/shedlock/shedlock-spring/7.7.0/shedlock-spring-7.7.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/net/javacrumbs/shedlock/shedlock-core/7.7.0/shedlock-core-7.7.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-context/7.0.8/spring-context-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-aop/7.0.8/spring-aop-7.0.8.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-beans/7.0.8/spring-beans-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-expression/7.0.8/spring-expression-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/net/javacrumbs/shedlock/shedlock-provider-jdbc-template/7.7.0/shedlock-provider-jdbc-template-7.7.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-jdbc/7.0.8/spring-jdbc-7.0.8.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-tx/7.0.8/spring-tx-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/net/javacrumbs/shedlock/shedlock-sql-support/7.7.0/shedlock-sql-support-7.7.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-starter-restclient/4.1.0/spring-boot-starter-restclient-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-restclient/4.1.0/spring-boot-restclient-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-http-client/4.1.0/spring-boot-http-client-4.1.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/apache/httpcomponents/client5/httpclient5/5.6.1/httpclient5-5.6.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/apache/httpcomponents/core5/httpcore5/5.4.2/httpcore5-5.4.2.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/apache/httpcomponents/core5/httpcore5-h2/5.4.2/httpcore5-h2-5.4.2.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/io/github/resilience4j/resilience4j-circuitbreaker/2.4.0/resilience4j-circuitbreaker-2.4.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/io/github/resilience4j/resilience4j-core/2.4.0/resilience4j-core-2.4.0.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="VARJAR" id="M2_REPO/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/io/github/resilience4j/resilience4j-retry/2.4.0/resilience4j-retry-2.4.0.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-autoconfigure/4.1.0/spring-boot-autoconfigure-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/flywaydb/flyway-core/12.4.0/flyway-core-12.4.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/tools/jackson/core/jackson-databind/3.1.4/jackson-databind-3.1.4.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar" enabled="true" runInBatchMode="false"/>
@@ -161,5 +163,6 @@
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/spring-webmvc/7.0.8/spring-webmvc-7.0.8.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-http-converter/4.1.0/spring-boot-http-converter-4.1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/springframework/boot/spring-boot-web-server/4.1.0/spring-boot-web-server-4.1.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="VARJAR" id="M2_REPO/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" enabled="true" runInBatchMode="false"/>
 </factorypath>

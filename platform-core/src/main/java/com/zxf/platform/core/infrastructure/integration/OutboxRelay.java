@@ -2,6 +2,8 @@ package com.zxf.platform.core.infrastructure.integration;
 
 import com.zxf.platform.core.context.EntityContext;
 import com.zxf.platform.core.context.PlatformProperties;
+import com.zxf.platform.core.domain.model.OutboxDeliveryStatus;
+import com.zxf.platform.core.domain.model.OutboxEvent;
 import com.zxf.platform.core.domain.port.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,11 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>生产替换为真实 MQ Sender（如 Kafka / RocketMQ）；本 demo 用 {@code log.info} 模拟发送，
  * 发送成功后标记 {@code publishedAt}。relay 由 ShedLock 保护防多实例重复发送（文档 7.7.2 组件 13）。
  *
+ * <p><b>投递治理</b>（评审修复 P3：重投上限与死信出口）：逐条投递，失败
+ * {@link OutboxEvent#recordAttempt()} 计数，达 {@code MAX_ATTEMPTS} 转 DEAD（查询只扫
+ * PENDING，死信 ERROR 告警人工介入）——否则替换真实 MQ 后持续失败的事件将永远占据
+ * 每轮扫描（at-least-once 语义下消费端仍须幂等）。
+ *
  * <p>调度线程无请求上下文：手动从 {@link PlatformProperties#entity()} 重建 {@link EntityContext}
  * 与 MDC（与引擎 Job 线程的 delegate 基类同构，文档 7.3③）；try/finally 保证线程池复用时清理。
  *
  * <p>{@code @Transactional} 让脏检查生效——{@code findUnpublished} 加载的实体在同一事务内
- * 调用 {@code markPublished()}，由 Hibernate 在提交时 flush 写回 {@code published_at}。
+ * 调用 {@code markPublished()} / {@code recordAttempt()}，由 Hibernate 在提交时 flush 写回。
  */
 @Slf4j
 @Component
@@ -47,14 +54,7 @@ public class OutboxRelay {
         EntityContext.set(entity);
         MDC.put(EntityContext.MDC_KEY, entity.name());
         try {
-            var events = repository.findUnpublished(10);
-            if (events.isEmpty()) {
-                return;
-            }
-            events.forEach(event -> {
-                log.info("outbox 发布 eventType={} aggregateId={}", event.eventType(), event.aggregateId());
-                event.markPublished();
-            });
+            repository.findUnpublished(10).forEach(this::publish);
         } catch (DataAccessException ex) {
             // @Scheduled 异常不外抛（exception-handling §7.3）：外抛只打印到容器日志，无结构化上下文。
             // catch 在 finally 之前——此刻 MDC/entity 仍在，ERROR 日志带实体维度。
@@ -64,5 +64,33 @@ public class OutboxRelay {
             MDC.remove(EntityContext.MDC_KEY);
             EntityContext.clear();
         }
+    }
+
+    /**
+     * 投递单个事件：成功标记发布，失败计数（达上限转死信并 ERROR 告警）。
+     * 单条失败不中断本轮其余事件（一条毒消息不应阻塞整个 outbox）。
+     */
+    private void publish(OutboxEvent event) {
+        try {
+            deliver(event);
+            event.markPublished();
+        } catch (RuntimeException ex) {
+            event.recordAttempt();
+            if (event.status() == OutboxDeliveryStatus.DEAD) {
+                log.error("outbox 事件重投耗尽进死信 eventType={} aggregateId={} attempts={}，需人工介入",
+                        event.eventType(), event.aggregateId(), event.attempts(), ex);
+            } else {
+                log.warn("outbox 发布失败，下轮重试 eventType={} aggregateId={} attempts={}",
+                        event.eventType(), event.aggregateId(), event.attempts(), ex);
+            }
+        }
+    }
+
+    /**
+     * 实际投递动作（demo 用 {@code log.info} 模拟 MQ 发送；生产替换为 Sender 调用）。
+     * protected 供单测覆写注入失败（测试 seam，非生产扩展点）。
+     */
+    protected void deliver(OutboxEvent event) {
+        log.info("outbox 发布 eventType={} aggregateId={}", event.eventType(), event.aggregateId());
     }
 }

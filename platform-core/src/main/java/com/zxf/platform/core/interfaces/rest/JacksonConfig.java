@@ -8,11 +8,12 @@ import tools.jackson.core.StreamWriteFeature;
 /**
  * 对外 JSON 序列化契约（金额 plain 形态）。
  *
- * <p><b>为什么需要本类</b>：金额经 {@code Money} 构造期归一化（{@code stripTrailingZeros}）
- * 后 scale 可为负（如 {@code 190.00 → 1.9E+2}），Jackson 默认按 {@code toString} 序列化会把
- * <b>科学计数法写进对外 JSON</b>。开启 {@link StreamWriteFeature#WRITE_BIGDECIMAL_AS_PLAIN}
- * 后金额恒为可读十进制形态（{@code 190} / {@code 226}），与 README 契约示例一致
- * （两侧 e2e 下单用例的 {@code doesNotContain("E+")} 断言守护本配置不回退）。
+ * <p><b>为什么需要本类</b>：金额经 {@code Money} 构造期归一化（{@code stripTrailingZeros}
+ * + 负 scale 归零）后 scale 恒 ≥ 0，Jackson 序列化理论上不再出现科学计数法；本 feature
+ * 作为<b>纵深防御</b>保留——一旦归一化逻辑回退（如手滑移除 {@code setScale(0)} 兜底），
+ * {@code 190.00 → 1.9E+2} 会把科学计数法写进对外 JSON，此处保证恒为可读十进制形态
+ * （{@code 190} / {@code 226}），与 README 契约示例一致（两侧 e2e 下单用例的
+ * {@code doesNotContain("E+")} 断言守护本配置不回退）。
  *
  * <p><b>为什么不用 yaml 配置</b>：Boot 3 的 {@code spring.jackson.generator.*} 属性绑定
  * {@code JsonGenerator.Feature}，Jackson 3 将 stream feature 移至独立的
