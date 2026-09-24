@@ -104,7 +104,7 @@ Flowable 的功能清单长得令人安心：BPMN 2.0 全量执行语义、CMMN�
 
 ## 2. 设计模式：代码怎么组织
 
-第一章解决的是"引擎放在哪"的形态问题；形态定了，接下来是每个团队都绕不开的问题：业务代码以什么姿势触碰引擎。Flowable 的 API 自由度极高——七大服务、上百个方法直接摆在面前[^34^]，不加组织地调用，半年后引擎细节就会渗进每一个业务 Service。本章把五个经典 GoF 模式落到 Flowable 的具体机制上，回答代码该怎么分层、扩展点该开在哪。
+第一章解决的是"引擎放在哪"的形态问题；形态定了，接下来是每个团队都绕不开的问题：业务代码以什么姿势触碰引擎。Flowable 的 API 自由度极高——七大服务、上百个方法直接摆在面前[^34^][^97^]，不加组织地调用，半年后引擎细节就会渗进每一个业务 Service。本章把五个经典 GoF 模式落到 Flowable 的具体机制上，回答代码该怎么分层、扩展点该开在哪。
 
 ### 2.1 门面模式：业务零感知 Flowable
 
@@ -209,7 +209,7 @@ public class TodoListSyncListener extends AbstractFlowableEngineEventListener {
 | WCP2/3 | Parallel Split / Synchronization | 并行网关 fork/join，join 等待全部入口到达[^52^] | 直接 |
 | WCP10 | Arbitrary Cycles 任意循环 | 图结构天然支持多入口多出口循环，块结构语言（BPEL）无法表达[^53^] | 直接 |
 | WCP12–14 | 多实例（无同步/设计期已知基数/运行期已知基数） | `multiInstanceLoopCharacteristics`，相当于 for each[^37^] | 直接 |
-| WCP15 | 无运行时先验知识的多实例 | 实例数须在进入活动时确定，运行中追加须用加签 API 变通[^54^] [^55^] | 变通 |
+| WCP15 | 无运行时先验知识的多实例 | 实例数须在进入活动时确定，运行中追加须用加签 API 变通[^54^][^55^] | 变通 |
 | WCP16 | Deferred Choice 延迟选择 | 事件网关：每条出口创建事件订阅，先触发者胜出[^56^][^37^] | 直接 |
 | WCP25 | Cancel Region 取消区域 | 中断边界事件/事件子流程，局限是取消区域须为连通子图[^57^] | 部分 |
 
@@ -322,7 +322,7 @@ Flowable 的版本语义简单但常被误解：同 key 重复部署版本号递
 | 转办 | setAssignee | 不回流；与委派语义严格区分 [^74^] |
 | 委派 | delegateTask + resolveTask | PENDING→RESOLVED 回流 owner，办结≠完成 [^75^] |
 | 催办 | 非中断边界定时 + timeCycle | asyncExecutorActivate 默认 false 须显式开 [^46^] |
-| 超时升级 | 中断边界定时（cancelActivity=true） | 触发为 10 秒级精度，勿承诺秒级 SLA [^79^] |
+| 超时升级 | 中断边界定时（cancelActivity=true） | 触发为 10 秒级精度（实测为准），勿承诺秒级 SLA [^79^] |
 | 规则外置 | DMN 决策表 + DecisionTask | JUEL 非 FEEL；仅决策表，无 BKM [^84^][^85^] |
 | 服务调用可靠性 | async=true + failedJobRetryTimeCycle + 死信 | 死信须人工重放；下游须幂等 [^89^] |
 | 跨服务一致性 | Outbox + 幂等消费 + 补偿边界事件 | 补偿是业务操作须显式设计且幂等 [^20^][^21^] |
