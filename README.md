@@ -78,6 +78,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 | 7.4 流程装配冒烟 | `AlphaProcessAssemblySmokeTest` / `BetaProcessAssemblySmokeTest`：同 key 定义唯一、delegate 全装配、拓扑符合预期 |
 | 8.2 Maven Enforcer | core 禁依赖 `entity-*`；实体模块互禁依赖；app 强制要求 `assembly.entity`；Flowable 版本锚定 |
 | 8.3 ArchUnit | core 洋葱分层（`onionArchitecture`，适配器间互禁依赖）；白名单外不得感知 `EntityType`/静态上下文；领域核心（model/service/event）零实体感知；领域对象禁 setter；core 不做 BPMN 解析；扩展点/管道步骤实现必须 `@ForEntity` 元注解限定（`beMetaAnnotatedWith(Conditional.class)`，5.10.1）；实体互禁依赖；delegate 实例字段必须 final |
+| 架构选型定级 | [ADR-001](docs/adr/ADR-001-架构选型与包结构.md)：按选型指南定级为 E 模块化单体（按实体裁配）× C 组合（DDD 四层依赖倒置 + 六边形端口）+ Outbox 局部启用；登记三处有意偏差（`core.context` 扩展层 / 无 `port.in` / H2 测试例外）与 D1–D3 子决策（实体模块扁平 `adapter` 阈值、domain 维持按类型分包、查询侧演进触发条件） |
 
 ## Spring Boot 4 适配点（文档 5.0 的实际落地）
 
