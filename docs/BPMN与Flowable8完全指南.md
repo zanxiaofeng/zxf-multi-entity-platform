@@ -58,7 +58,7 @@ BPMN（Business Process Model and Notation）2.0 是工作流引擎（Flowable�
 - **None（空事件）**：无特定触发器，流程启动即触发。
 - **Message（消息，信封图标）**：通过消息（MQ 消息、API 调用）启动或推动流程，一对一定向投递，常用于跨流程、跨系统协作。
 - **Timer（定时器，时钟图标）**：按时间点（`2026-08-10T09:00`）、持续时间（`PT3D`）或周期（`R5/PT1H`，部分引擎支持 cron）触发。审批超时、定时补偿都依赖它。
-- **Signal（信号，三角图标）**：广播式触发——一个流程抛出，**所有订阅该信号的流程实例**都会收到，与消息的一对一投递形成对比。
+- **Signal（信号，三角图标）**：广播式触发——一个流程抛出，**所有当前活跃订阅该信号的流程实例**都会收到，与消息的一对一投递形成对比。三个坑：抛出是**同步事务内**执行（订阅者异常会连坐回滚，需异步可在 signalEventDefinition 上挂 `flowable:async="true"`）；只投给当下活跃的订阅（未启动 / 已结束的实例收不到）；**不跨集群节点广播**，多副本部署需自行分发或改用 Event Registry。
 - **Error（错误，闪电图标）**：仅用于结束事件、边界事件和事件子流程起始事件，表示业务错误（区别于技术异常），可被错误边界事件捕获。
 - **Escalation（升级，向上箭头）**：语义类似 Error，但不强制中断流程，常用于向上级上报。
 - **Conditional（条件，三条线图标）**：当表达式条件成立（如 `amount > 10000`）时触发，由引擎持续评估。
@@ -203,7 +203,7 @@ Flowable 宣称完整支持 BPMN 2.0 标准，实际执行语义是"**可执行�
 
 ### 7.2 中间事件与边界事件
 
-- **Catching**：Timer、Message、Signal、Conditional 支持。
+- **Catching**：Timer、Message、Signal、Conditional 支持；另有 Flowable 扩展 **VariableListener**（变量变化即触发，边界 / 中间捕获 / 事件子流程起始均支持）。
 - **Throwing**：None、Signal、Compensation、Escalation 支持；Message Throw 需借助 Service Task 委托代码或事件注册表（Event Registry）扩展实现。
 - **边界事件**：Timer、Error、Signal、Message、Compensation、Cancel（事务子流程）、Conditional、Escalation 均支持，中断型与非中断型皆可（非中断型用 `cancelActivity="false"`）。
 - **Link 中间事件**：❌ 无执行语义。
@@ -259,7 +259,7 @@ Flowable 宣称完整支持 BPMN 2.0 标准，实际执行语义是"**可执行�
 Flowable 超越标准 BPMN 的部分，专有属性通过 `flowable:` 命名空间注入，不影响 XML 在其他建模工具中的可读性：
 
 - **流程级**：`candidateStarterUsers/Groups`（发起权限）、event listeners。
-- **执行控制**：`async`（异步节点）、`exclusive`（排他作业）、`skipExpression`（动态跳过）、`failedJobRetryTimeCycle`（失败重试策略）。
+- **执行控制**：`async`（异步节点）、`exclusive`（排他作业）、`skipExpression`（动态跳过）、`failedJobRetryTimeCycle`（失败重试策略）、`terminateAll`（Terminate End Event 终止范围扩至整个实例，见 1.2）。
 - **监听器**：executionListener（start/end/take）、taskListener（create/assignment/complete/delete）。
 - **用户任务**：assignment 全套属性、表单（formKey / form properties）。
 - **事件注册表（Event Registry）**：Kafka/JMS 通道建模，弥补标准 BPMN 在消息中间件集成上的空白。
@@ -495,6 +495,17 @@ public class NotificationDelegate implements JavaDelegate {
 </userTask>
 ```
 
+多实例体内可直接引用引擎注入的内建变量：
+
+| 变量 | 含义 |
+|---|---|
+| `nrOfInstances` | 总实例数 |
+| `nrOfActiveInstances` | 未完成实例数 |
+| `nrOfCompletedInstances` | 已完成实例数 |
+| `loopCounter` | 顺序多实例的当前索引（并行多实例无意义） |
+
+completionCondition 用它们表达或签：`${nrOfCompletedInstances > nrOfInstances / 2}`（过半即过）；按票数裁决时需自维护计数变量（TaskListener 累加）——内建变量只统计"完成数"，不区分同意与否。
+
 ### 16.5 超时与补偿
 
 - 审批超时：User Task 挂**中断型定时边界事件** → 自动驳回/升级分支。
@@ -523,6 +534,12 @@ class LeaveProcessTest {
     }
 }
 ```
+
+### 16.7 流程定义版本化与实例迁移
+
+- 同 key 重新部署自动产生新版本（`ACT_RE_PROCDEF.VERSION_` 递增），**存量实例继续走其启动时的版本**，不会自动迁移——"部署了新流程，老单子还在走旧流程"是最常见的认知坑。
+- 存量实例需要走新流程时用迁移 API：`ProcessMigrationService.createProcessInstanceMigrationBuilder()` 构建，`migrate()` 前先 `validateMigration()` 预校验；拓扑有变化时用 `addActivityMigrationMapping()` 显式声明新旧活动映射。
+- 迁移失败多因新旧版本活动 id 对不上——设计期保持活动 id 稳定（只加不改不删），迁移成本可大幅降低。
 
 ## 17. 部署形态与生产落地清单
 
@@ -606,7 +623,7 @@ Flowable 完整支持 7 种标准命中策略，分单命中与多命中两类�
 
 ### 19.3 版本陷阱：COLLECT `#` 计数语义
 
-DMN 1.1 规范中 `#` 统计的是**去重后**的输出数；DMN 1.2 起改为统计**全部**输出数。Flowable 引擎默认采用 1.2 语义（不去重），如需旧行为可在 Flowable Modeler 保存决策表时勾选 **Force DMN 1.1**。此外 `#` 的返回类型为 Double（如 `2.0` 而非 `2`），类型敏感的下游代码需注意。
+DMN 1.1 规范中 `#` 统计的是**去重后**的输出数；DMN 1.2 起改为统计**全部**输出数。Flowable 引擎默认采用 1.2 语义（不去重），旧行为经 Decision 元素的 `forceDMN11` 标志开启（Flowable Modeler 保存决策表时勾选 **Force DMN 1.1** 即设置该标志）。此外聚合结果（SUM/MIN/MAX/COUNT）一律返回 Double（如 `2.0` 而非 `2`），类型敏感的下游代码需注意。
 
 ## 20. Flowable DMN 引擎架构与支持范围
 
@@ -647,6 +664,7 @@ BPMN 的 **Business Rule Task / Decision Task** 通过 `flowable:decisionTableRe
 - 流程变量自动作为决策表输入（变量名与输入列表达式一致）。
 - 单命中：输出按**输出列名**直接写回流程变量（如 `discountPerc`）。
 - 多命中（COLLECT / RULE ORDER 等）：结果构造成 JSON 数组（每个命中行一个对象，key 为输出列名），存入以**决策 key** 命名的变量——`flowable:resultVariableName` 仅 Drools 版 Business Rule Task 读取，DMN 路径忽略该属性，勿写。
+- 无命中兜底二选一：`-` 兜底规则（见第 22 章）之外，还可给任务配 field `decisionTaskThrowErrorOnNoHits`（`stringValue="true"` 或布尔表达式），决策表无命中时直接抛 `FlowableException`，把"表不完备"暴露为显式失败。
 - 决策表与流程分别部署、独立版本化——改规则不改流程，改流程不改规则。
 
 ## 21. Flowable 8 中使用 DMN
@@ -672,7 +690,7 @@ flowable:
   dmn:
     database-schema-update: true
     history-enabled: true        # 记录每次决策执行的输入输出，便于审计
-    strict-mode: true            # 严格校验命中策略违规；false 时宽容取最后有效规则
+    strict-mode: true            # 默认 true：UNIQUE/ANY/PRIORITY/OUTPUT ORDER 违规抛 FlowableException；false 宽容取最后一条有效规则
 ```
 
 ### 21.3 Java 调用（独立于流程）
@@ -710,7 +728,7 @@ public class PricingService {
 ### 21.4 REST 调用
 
 ```bash
-curl -u rest-admin:test http://localhost:8080/flowable-rest/dmn-rule/decision-execute \
+curl -u rest-admin:test http://localhost:8080/flowable-rest/dmn-rule/execute-decision \
   -H 'Content-Type: application/json' \
   -d '{
     "decisionKey": "DetermineDiscount",
@@ -781,7 +799,7 @@ curl -u rest-admin:test http://localhost:8080/flowable-rest/dmn-rule/decision-ex
 4. **兜底规则常备**：用 `-` 规则保证表完备（complete），避免空结果进入下游分支判断。
 5. **命中策略选择口诀**：互斥规则用 UNIQUE；特例+兜底用 FIRST；取最严重结果用 PRIORITY；累计型结果（总折扣、命中条数）用 COLLECT + 聚合符。
 6. **性能**：单张大表优于大量小表频繁调用；决策定义有缓存，同一定义的重复执行开销很低。
-7. **版本陷阱**：COLLECT `#` 计数默认 DMN 1.2 语义（不去重）且返回 Double；严格模式 `strict-mode` 下 ANY/PRIORITY 违规会标失败，测试时建议保持严格。
+7. **版本陷阱**：COLLECT `#` 计数默认 DMN 1.2 语义（不去重，去重需 Decision 元素的 `forceDMN11` 标志）且返回 Double；严格模式 `strict-mode`（默认开启）下 UNIQUE/ANY/PRIORITY/OUTPUT ORDER 违规抛 FlowableException，测试时建议保持严格。
 
 ---
 
