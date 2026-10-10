@@ -125,7 +125,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 
 | 文档 | 定位 |
 | --- | --- |
-| [BPMN 2.0 与 Flowable 8 完全指南](docs/BPMN与Flowable8完全指南.md) | 元素级手册：BPMN 事件/活动/网关详解 + Flowable 8 支持矩阵 + DMN 决策 |
+| [BPMN 2.0 / DMN 与 Flowable 8 完全指南](docs/BPMN-DMN与Flowable8完全指南.md) | 元素级手册：BPMN 事件/活动/网关详解 + Flowable 8 支持矩阵 + DMN 决策模型与引擎详解 |
 | [SpringBoot-Flowable 通用公共组件调研](docs/SpringBoot-Flowable通用公共组件调研.md) | 横切组件清单（全局监听器/死信运维/Outbox/容错…），platform-core 组件沉淀的依据 |
 | [基于 Flowable 与 BPMN 的 Case 系统和 Onboarding 系统：业务/设计/实现模式](docs/基于Flowable与BPMN的Case系统和Onboarding系统的常用业务模式、设计模式与实现模式.md) | Case（路径运行期展开）与 Onboarding（路径确定）两类系统的模式目录：三档技术路线（结构化 / BPMN 动态 / CMMN）、公共业务模式 P1~P10、Case 动态性 P11~P13、Onboarding 确定性编排 P14~P16、设计模式 D1~D8、实现模式 I1~I10 与反模式清单 |
 

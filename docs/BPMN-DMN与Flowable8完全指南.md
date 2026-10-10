@@ -1,4 +1,4 @@
-# BPMN 2.0 与 Flowable 8 完全指南
+# BPMN 2.0 / DMN 与 Flowable 8 完全指南
 
 > 适用版本：BPMN 2.0 标准 + Flowable 8.0.x
 > 基线要求：Java 17+、Spring Framework 7、Spring Boot 4
@@ -594,6 +594,8 @@ DMN（Decision Model and Notation）是 OMG 发布的决策建模标准，目标
 | **hit policy（命中策略）** | 表格左上角标记，决定多条规则同时命中时如何产出结果 |
 | **DRG / DRD** | 决策需求图：多个决策之间依赖关系的图形化表达。**Flowable 开源版不支持**，需用 BPMN 编排多个决策任务替代 |
 
+**Flowable 的 DMN 方言**：XML 序列化采用 DMN 1.1 命名空间（`http://www.omg.org/spec/DMN/20151101`，见第 22 章示例），表达式全部用 JUEL（非 FEEL，见 20.2），可执行的决策类型只有决策表与决策服务（见 20.4）两种——把它当作「DMN 1.1 子集 + Flowable 扩展」理解最准确。
+
 ### 18.2 决策表的求值逻辑
 
 1. 对每行规则：所有 input entry 与传入变量求布尔值，**全真则该行命中**。
@@ -667,6 +669,23 @@ BPMN 的 **Business Rule Task / Decision Task** 通过 `flowable:decisionTableRe
 - 无命中兜底二选一：`-` 兜底规则（见第 22 章）之外，还可给任务配 field `decisionTaskThrowErrorOnNoHits`（`stringValue="true"` 或布尔表达式），决策表无命中时直接抛 `FlowableException`，把"表不完备"暴露为显式失败。
 - 决策表与流程分别部署、独立版本化——改规则不改流程，改流程不改规则。
 
+### 20.4 决策服务
+
+DMN 1.2 的 decisionService（一组决策的封装：`outputDecisions` 暴露最终结果，`encapsulatedDecisions` 仅内部复用不外露）Flowable 已支持，Java 侧经 `ExecuteDecisionBuilder` 执行——`decisionKey` 指向决策服务 key：
+
+```java
+// 返回 Map<决策 key, List<Map<输出列, 值>>>，outputDecisions 的结果按 key 分组
+Map<String, List<Map<String, Object>>> grouped = decisions
+        .createExecuteDecisionBuilder()
+        .decisionKey("OrderPricingService")
+        .variables(vars)
+        .executeDecisionService();
+
+// 变体：executeDecisionServiceWithSingleResult()（每组取首行）、executeDecisionServiceWithAuditTrail()（带审计容器）
+```
+
+多决策编排仍以 BPMN 多个决策任务串联为主流（DRG 不支持，见 20.2）；决策服务适合「一次调用、齐取多张表」的场景。
+
 ## 21. Flowable 8 中使用 DMN
 
 ### 21.1 依赖与部署目录
@@ -739,6 +758,46 @@ curl -u rest-admin:test http://localhost:8080/flowable-rest/dmn-rule/execute-dec
 ```
 
 返回 `resultVariables` 数组；DMN REST 日期格式在 Flowable 8 中统一为 UTC 毫秒精度 ISO 8601。
+
+### 21.5 独立嵌入（无 Spring Boot）
+
+DMN 引擎可脱离 Spring Boot 独立运行，轻量嵌入纯 Java 服务做规则求值：
+
+```java
+// 内存库：测试 / 临时求值
+DmnEngine engine = DmnEngineConfiguration.createStandaloneInMemDmnEngineConfiguration()
+        .setDatabaseSchemaUpdate("true")
+        .buildDmnEngine();
+
+// 外部数据库：生产
+DmnEngine engine = DmnEngineConfiguration.createStandaloneDmnEngineConfiguration()
+        .setJdbcUrl("jdbc:mysql://localhost:3306/dmn")
+        .setJdbcUsername("dmn").setJdbcPassword("dmn")
+        .setDatabaseSchemaUpdate("true")   // 生产同 BPMN：false + 迁移脚本管理
+        .buildDmnEngine();
+
+DmnDecisionService decisions = engine.getDmnDecisionService();
+DmnRepositoryService repository = engine.getDmnRepositoryService();
+DmnHistoryService history = engine.getDmnHistoryService();
+```
+
+独立模式下没有 classpath 自动扫描，部署走 API：`repository.createDeployment().addClasspathResource("dmn/DetermineDiscount.dmn").deploy()`。
+
+### 21.6 历史与审计查询
+
+`flowable.dmn.history-enabled: true` 时每次执行的输入输出落 `ACT_DMN_HI_DECISION_EXECUTION`，经 `DmnHistoryService` 查询：
+
+```java
+List<DmnHistoricDecisionExecution> executions = history
+        .createHistoricDecisionExecutionQuery()
+        .decisionKey("DetermineDiscount")                  // 按决策表过滤
+        .processInstanceIdWithChildren(processInstanceId)   // 按流程实例关联（含子执行）
+        .orderByStartTime().desc()
+        .list();
+```
+
+- 查询维度覆盖 `decisionKey` / `decisionDefinitionId` / `deploymentId` / `instanceId` / `activityId` / `processInstanceIdWithChildren` / `caseInstanceIdWithChildren`；排序支持 `orderByStartTime` / `orderByEndTime` / `orderByTenantId`。
+- 该查询同时实现 `DeleteQuery`，支持按条件清理历史，配合定期归档使用（见 17.2 历史数据治理）。
 
 ## 22. 完整实战：折扣决策表
 

@@ -3,7 +3,7 @@
 > 定位：Case Management（案例/工单/理赔/信贷审批/投诉处置/案件办理类）与 Onboarding（新客户/员工/商户入驻引导类：KYC → 开户 → 签约 → 激活 → 首用引导）两类系统的**模式目录**——业务怎么建模、架构怎么分层、Flowable 8 + Spring Boot 4 上怎么落地。
 > 两类系统的分水岭只有一条：**业务路径是否预先确定**——Onboarding 的推进路径建模期完全确定，系统推着人/客户走；Case 的路径运行期逐步展开，知识工作者拉着系统走。本文以这条分水岭组织：**第二章**是两类系统共享的公共业务模式，**第三、四章**分别是 Case 的动态性模式与 Onboarding 的确定性编排模式，**第五、六章**的架构模式与引擎实现模式对两类系统统一收口。
 > 与既有文档的分工：
-> - 《[BPMN与Flowable8完全指南](BPMN与Flowable8完全指南.md)》——元素级手册（事件/活动/网关/DMN），本文引用不重复；
+> - 《[BPMN-DMN与Flowable8完全指南](BPMN-DMN与Flowable8完全指南.md)》——元素级手册（事件/活动/网关/DMN），本文引用不重复；
 > - 《[SpringBoot-Flowable通用公共组件调研](SpringBoot-Flowable通用公共组件调研.md)》——横切组件清单（监听器/死信/Outbox…），本文引用不重复；
 > - 本文补齐中间层：**两类系统的业务模式、架构设计模式、引擎实现模式**，并落到本仓库多实体骨架。
 > 基线：Flowable 8.0 · Spring Boot 4.1 · JDK 21 · 本仓库《单代码库多实体部署》文档（下称"主文档"）。
@@ -324,7 +324,7 @@ Map<String, Object> result = dmnDecisionService.createExecuteDecisionBuilder()
         .executeWithSingleResult();
 ```
 
-适用：命中策略类的结构化决策（分派到哪个组、是否自动结案、Onboarding 门禁放行判定 P14）用 DMN；涉及推理链条的判断留在领域服务。Flowable DMN 的支持边界见《BPMN与Flowable8完全指南》第四部分。
+适用：命中策略类的结构化决策（分派到哪个组、是否自动结案、Onboarding 门禁放行判定 P14）用 DMN；涉及推理链条的判断留在领域服务。Flowable DMN 的支持边界见《BPMN-DMN与Flowable8完全指南》第四部分。
 
 ### I6 事件子流程：动态插入与异常响应【通用，双用途】
 
@@ -498,4 +498,4 @@ processMigrationService.createProcessInstanceMigrationBuilder()
 - OMG：[CMMN 1.1 规范](https://www.omg.org/spec/CMMN/1.1/)
 - microservices.io：[Saga](https://microservices.io/patterns/data/saga.html)、[Process Manager](https://microservices.io/patterns/data/process-manager.html)
 - Camunda：[CMMN 1.1 参考（Camunda 7，已 EOL）](https://docs.camunda.org/manual/latest/reference/cmmn11/)——作为路线对照
-- 本仓库：主文档 7.1~7.4 / 8.1、《BPMN与Flowable8完全指南》、《SpringBoot-Flowable通用公共组件调研》
+- 本仓库：主文档 7.1~7.4 / 8.1、《BPMN-DMN与Flowable8完全指南》、《SpringBoot-Flowable通用公共组件调研》
