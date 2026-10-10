@@ -58,6 +58,7 @@
             <extensionElements>
                 <flowable:in source="applyNo"/>
                 <flowable:in source="initiator"/>
+                <flowable:out source="applyNo"/>
                 <flowable:out source="customerType"/>
                 <flowable:out source="businessType"/>
                 <flowable:out source="applyAmount"/>
@@ -320,9 +321,4 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
-
-
-
-
-
 </definitions>

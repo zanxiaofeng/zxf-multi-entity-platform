@@ -3,8 +3,9 @@
   S3a 筛查与风险评级（文档 2.3）。名单筛查必须记录名单版本号（审计证据——制裁名单
   一日数更、PEP 按月调整）。DMN 两张表 = 两个 Business Rule Task 串联
   （8.1 修订 #3：Flowable DMN 不支持 DRG/决策链，单节点只执行一张表）：
-    screening-disposition（FIRST + 兜底行）：输出 hitFlag（NONE/PEP/NEGATIVE/SANCTIONS/BLACKLIST，
-      名单口径对齐银反洗发〔2018〕19 号五类名单库）与 disposition（处置动作）；
+    screening-disposition（FIRST + 兜底行）：输出 hitFlag（NONE/PEP/NEGATIVE/SANCTIONS 外部四值，
+      名单口径对齐银反洗发〔2018〕19 号五类名单库；内部黑名单不在本域——走 S3b blacklist-check
+      → exception-trigger 闭环，8.4-B4）与 disposition（处置动作）；
       制裁命中 = 立即停止、限制转移、不通知客户，分流在主流程网关完成。
     risk-rating（FIRST，最严规则置顶 + 兜底行；不用 UNIQUE）：输入企业/UBO 风险分、
       行业/区域风险等级、业务品种、structureComplex；输出 riskLevel（LOW/MEDIUM/HIGH）。
@@ -161,9 +162,4 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
-
-
-
-
-
 </definitions>

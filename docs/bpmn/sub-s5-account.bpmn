@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  S5 签约、开户与归档（文档 2.6）。审批通过即通知客户（不等开户完成）；
+  S5 签约、开户与归档（文档 2.6）。审批通过即通知客户（S5 入口即发、不等签约与开户完成，8.4-B6）；
   开户指令幂等键 = 申请编号+账户类型，业务表唯一索引兜底（2.6）；
   回执等待用 Event-Based Gateway：开户回执（Message Catch，message name:
   account-open-result，messageEventReceived 按消息名+applyNo correlation 定位实例）
@@ -40,7 +40,7 @@
         <startEvent id="start"/>
         <userTask id="utContract" name="签约准备（合同/印鉴）"
                   flowable:candidateGroups="account-operations" flowable:formKey="contract-signing"/>
-        <sendTask id="sendNotifyCustomer" name="通知客户（审批通过即通知）"
+        <sendTask id="sendNotifyCustomer" name="通知客户（审批通过即通知，入口即发）"
                   flowable:delegateExpression="${customerNotifyDelegate}"/>
         <serviceTask id="svcOpenAccount" name="开户指令（核心系统，幂等键=申请编号+账户类型）"
                      flowable:async="true" flowable:delegateExpression="${accountOpenDelegate}">
@@ -67,9 +67,10 @@
         <endEvent id="end"/>
         <endEvent id="endTimeoutHandled"/>
 
-        <sequenceFlow id="flowStartContract" sourceRef="start" targetRef="utContract"/>
-        <sequenceFlow id="flowContractNotify" sourceRef="utContract" targetRef="sendNotifyCustomer"/>
-        <sequenceFlow id="flowNotifyOpen" sourceRef="sendNotifyCustomer" targetRef="svcOpenAccount"/>
+        <!-- 8.4-B6：审批通过即通知——S5 入口即发（异步动作秒级，不阻塞签约准备），不等签约与开户 -->
+        <sequenceFlow id="flowStartNotify" sourceRef="start" targetRef="sendNotifyCustomer"/>
+        <sequenceFlow id="flowNotifyContract" sourceRef="sendNotifyCustomer" targetRef="utContract"/>
+        <sequenceFlow id="flowContractOpen" sourceRef="utContract" targetRef="svcOpenAccount"/>
         <sequenceFlow id="flowOpenEbgw" sourceRef="svcOpenAccount" targetRef="ebgwReceipt"/>
         <sequenceFlow id="flowEbgwResult" sourceRef="ebgwReceipt" targetRef="iccAccountResult"/>
         <sequenceFlow id="flowEbgwTimeout" sourceRef="ebgwReceipt" targetRef="iccReceiptTimeout"/>
@@ -92,10 +93,10 @@
                 <omgdc:Bounds x="240" y="332" width="36" height="36"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_utContract" bpmnElement="utContract">
-                <omgdc:Bounds x="480" y="125" width="150" height="90"/>
+                <omgdc:Bounds x="720" y="125" width="150" height="90"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_sendNotifyCustomer" bpmnElement="sendNotifyCustomer">
-                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+                <omgdc:Bounds x="480" y="305" width="150" height="90"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_svcOpenAccount" bpmnElement="svcOpenAccount">
                 <omgdc:Bounds x="960" y="305" width="150" height="90"/>
@@ -121,20 +122,20 @@
             <bpmndi:BPMNShape id="BPMNShape_endTimeoutHandled" bpmnElement="endTimeoutHandled">
                 <omgdc:Bounds x="1920" y="452" width="36" height="36"/>
             </bpmndi:BPMNShape>
-            <bpmndi:BPMNEdge id="BPMNEdge_flowStartContract" bpmnElement="flowStartContract">
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartNotify" bpmnElement="flowStartNotify">
                 <omgdi:waypoint x="276" y="350"/>
-                <omgdi:waypoint x="378" y="350"/>
-                <omgdi:waypoint x="378" y="170"/>
-                <omgdi:waypoint x="480" y="170"/>
+                <omgdi:waypoint x="480" y="350"/>
             </bpmndi:BPMNEdge>
-            <bpmndi:BPMNEdge id="BPMNEdge_flowContractNotify" bpmnElement="flowContractNotify">
-                <omgdi:waypoint x="630" y="170"/>
-                <omgdi:waypoint x="675" y="170"/>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowNotifyContract" bpmnElement="flowNotifyContract">
+                <omgdi:waypoint x="630" y="350"/>
                 <omgdi:waypoint x="675" y="350"/>
-                <omgdi:waypoint x="720" y="350"/>
+                <omgdi:waypoint x="675" y="170"/>
+                <omgdi:waypoint x="720" y="170"/>
             </bpmndi:BPMNEdge>
-            <bpmndi:BPMNEdge id="BPMNEdge_flowNotifyOpen" bpmnElement="flowNotifyOpen">
-                <omgdi:waypoint x="870" y="350"/>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowContractOpen" bpmnElement="flowContractOpen">
+                <omgdi:waypoint x="870" y="170"/>
+                <omgdi:waypoint x="915" y="170"/>
+                <omgdi:waypoint x="915" y="350"/>
                 <omgdi:waypoint x="960" y="350"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowOpenEbgw" bpmnElement="flowOpenEbgw">
@@ -169,9 +170,4 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
-
-
-
-
-
 </definitions>

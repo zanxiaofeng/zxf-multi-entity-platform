@@ -12,7 +12,7 @@
 | `sub-s3a-screening.bpmn` | `sub-s3a-screening` | 2.3 | 筛查与风险评级（DMN `screening-disposition`/`risk-rating` 串联，高风险→sub-edd） |
 | `sub-s3b-eligibility.bpmn` | `sub-s3b-eligibility` | 2.4 | 准入规则校验（六张 DMN = 六个 Business Rule Task 串联——Flowable 无 DRG） |
 | `sub-s4-approval.bpmn` | `sub-s4-approval` | 2.5 | 审批决策（DMN 参数驱动会签 completionCondition + 超时升级） |
-| `sub-s5-account.bpmn` | `sub-s5-account` | 2.6 | 签约开户归档（Event-Based Gateway：回执/超时先到先走） |
+| `sub-s5-account.bpmn` | `sub-s5-account` | 2.6 | 通知客户（入口即发，8.4-B6）→签约→开户（Event-Based Gateway：回执/超时先到先走）→归档 |
 | `sub-edd.bpmn` | `sub-edd` | 2.3 | 强化尽调 + 高级管理层批准（多实例会签，一票否决） |
 | `sub-conditions-fulfillment.bpmn` | `sub-conditions-fulfillment` | 2.5 | 条件落实（有条件通过）：登记→落实+周期催办→复核→放行/回环/超期决断（宽限/撤销），`conditionsMet` 回传 S4 分流 |
 | `reject-appeal.bpmn` | `reject-appeal` | 3.1 | P1 拒绝与申诉（申诉窗口事件网关；成功发起新实例，8.3-A1） |
@@ -24,7 +24,7 @@
 | 文件 | decision id | hit policy | 输入变量来源 | 输出变量 |
 | --- | --- | --- | --- | --- |
 | `document-checklist.dmn` | `document-checklist` | **COLLECT**（清单型天然完备，无兜底行） | S1 发起表单（customerType/businessType） | `requiredDocument` 多命中数组（存入决策 key 命名变量） |
-| `screening-disposition.dmn` | `screening-disposition` | FIRST（最严置顶+兜底） | `svcScreening` 写入 `hitFlag` | `disposition`、`amlReportRequired` |
+| `screening-disposition.dmn` | `screening-disposition` | FIRST（最严置顶+兜底） | `svcScreening` 写入 `hitFlag`（外部名单四值 NONE/SANCTIONS/PEP/NEGATIVE；内部黑名单走 S3b 闭环，8.4-B4） | `disposition`、`amlReportRequired` |
 | `risk-rating.dmn` | `risk-rating` | FIRST（最严置顶+兜底） | `svcScreening` 写入评分；S2 传入 `structureComplex` | `riskLevel` |
 | `industry-policy.dmn` | `industry-policy` | FIRST+兜底 | `svcAssembleInput` 预置 `industryCode` | `industryPassed`、`industryNote` |
 | `region-policy.dmn` | `region-policy` | FIRST+兜底 | `svcAssembleInput` 预置 `regionCode`/`isCrossBorder` | `regionPassed`、`regionNote` |
@@ -50,11 +50,11 @@
 2. **DMN 部署目录陷阱**：10 张决策表已随批交付（`dmn/`），落地时放 `src/main/resources/dmn/`（**不是** `processes/`），后缀 `.dmn` 或 `.dmn.xml`——放错目录 Business Rule Task 执行时报 `No decision found for key: xxx`（完全指南 21.1）。DMN 独立部署、独立版本化：改规则不发流程（文档四-1）。生产配置 `flowable.dmn.history-enabled: true`（决策执行输入输出可追溯）。
 3. **引用的 delegate bean 未实现**（`docs/bpmn` 不进构建，无影响）：`identityVerificationDelegate`、`uboFilingCheckDelegate`、`sanctionScreeningDelegate`、`lifecycleScreeningDelegate`、`approvalParamDelegate`、`approvalResultListener`（taskListener）、`approvalService`/`eddApprovalService`（collection 表达式）、`customerNotifyDelegate`、`accountOpenDelegate`、`accountArchiveDelegate`、`accountReceiptTimeoutDelegate`、`appealRestartDelegate`、`reOnboardingDelegate`、`amlReportDelegate`、`amlResultRecordDelegate`、`documentsCheckDelegate`（S1 资料齐全比对）、`s3bInputAssemblyDelegate`（S3b 校验输入装配）、`approvalInputAssemblyDelegate`（S4 审批输入装配）、`conditionsRegistrationDelegate`/`conditionsUrgeDelegate`/`conditionsNotifyDelegate`/`conditionsExtendDelegate`/`conditionsRevokeDelegate`（条件落实子流程）。
 4. **`sub-conditions-fulfillment` 已补齐**（原登记 gap 已闭环）：S4 有条件通过分支经 `gwConditionsOutcome` 消费其 `conditionsMet` 输出——全部落实→通过，撤销批准→按拒绝处理；子流程内不留无限挂起路径（超期必经决断，与申诉上限同一完整性纪律）。
-5. **消息清单**（message name，投递方按名 + correlation 变量定位）：`onboarding-request`（主流程 Message Start）、`account-open-result`（S5 回执）、`customer-appeal`（P1）、`trade-monitoring-hit`、`customer-exit`（P2）。
+5. **消息清单**（message name，投递方按名 + correlation 变量定位）：`onboarding-request`（主流程 Message Start，**载荷必携 `applyNo`**、可携 `initiator`——双启动变量供给契约见方案 1.2/8.4-B1）、`account-open-result`（S5 回执）、`customer-appeal`（P1）、`trade-monitoring-hit`、`customer-exit`（P2）。
 
 ## 落地前置条件（进实体模块 `resources/processes/`）
 
 - delegate 实现须**继承 `EntityContextAwareDelegate`**（实体模块 ArchUnit 强制，Job 线程从流程变量重建上下文）、专属 delegate 以 `@ForEntity` 限定；
 - 通用 delegate（通知/归档类）进 platform-core，专属（名单筛查等）进实体模块；
-- ACT_* 表已由 `common/V3` Flyway 脚本治理，部署即用；**装配冒烟测试**须扩展断言：本批流程同 key 唯一、callActivity 引用的子流程 key 已部署、delegate 全装配（引擎不做启动期校验，README Review 硬性规则 5）；
+- ACT_* 表已由 `common/V3` Flyway 脚本治理，部署即用；**装配冒烟测试**须扩展断言：本批流程同 key 唯一、callActivity 引用的子流程 key 已部署、delegate 全装配（引擎不做启动期校验，README Review 硬性规则 5）、**每条 `flowable:in`/`out` 映射的源变量在两侧流程均有产生点**——Flowable 8 对缺失源变量静默跳过（`IOParameterUtil` 对 null 不写入，不抛错不留痕），断链无任何告警（8.4-B1：`callS1` out 已补 `applyNo` 回传、`utApply` 已补 RM 候选组兜底，冒烟须覆盖 None 与 Message 双启动路径）；
 - 两实体拓扑差异时按「同 key 不同拓扑」惯例拆至各自实体模块（文档第七章）。

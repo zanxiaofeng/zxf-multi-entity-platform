@@ -10,8 +10,10 @@
   不做命中/未命中二元判断。处置依据《反洗钱特别预防措施管理办法》（文号待核对，
   8.2-D4）与银反洗发〔2018〕19 号第 49/50 条：制裁命中 = 立即停止、限制转移、
   当日上报、不得通知客户——与 PEP（加强尽调、高管批准）本质不同，不可统一处理。
-  输入 hitFlag 由 svcScreening（名单筛查 delegate）写入；五类名单库口径对齐 19 号文
-  第 48 条（恐怖活动组织及人员名单按制裁口径并入 SANCTIONS）。
+  输入 hitFlag 由 svcScreening（名单筛查 delegate）写入，仅承载 S3a 外部名单筛查命中
+  （NONE/SANCTIONS/PEP/NEGATIVE 四值，恐怖活动组织及人员名单按制裁口径并入 SANCTIONS，
+  19 号文第 48 条）；内部黑名单不在本域——本行维护名单库经 S3b blacklist-check →
+  exception-trigger 以 eligibilityPassed 闭环处置（8.4-B4，两域不混枚举）。
   输出 disposition 供业务库/审计记录细分动作；主流程网关分流用 hitFlag（阈值不写在网关上）。
 -->
 
@@ -22,12 +24,12 @@
           <text>hitFlag</text>
         </inputExpression>
         <inputValues>
-          <text>"NONE","PEP","NEGATIVE","SANCTIONS","BLACKLIST"</text>
+          <text>"NONE","PEP","NEGATIVE","SANCTIONS"</text>
         </inputValues>
       </input>
       <output id="output_disposition" label="处置动作" name="disposition" typeRef="string">
         <outputValues>
-          <text>"BLOCK_SERVICE","EDD_REQUIRED","MANUAL_REVIEW","INTERNAL_POLICY","PROCEED"</text>
+          <text>"BLOCK_SERVICE","EDD_REQUIRED","MANUAL_REVIEW","PROCEED"</text>
         </outputValues>
       </output>
       <output id="output_aml_required" label="是否触发AML上报" name="amlReportRequired" typeRef="boolean"/>
@@ -36,11 +38,6 @@
         <inputEntry id="ie_sd_1"><text><![CDATA[== "SANCTIONS"]]></text></inputEntry>
         <outputEntry id="oe_sd_1"><text><![CDATA["BLOCK_SERVICE"]]></text></outputEntry>
         <outputEntry id="oe_sd_2"><text><![CDATA[true]]></text></outputEntry>
-      </rule>
-      <rule>
-        <inputEntry id="ie_sd_2"><text><![CDATA[== "BLACKLIST"]]></text></inputEntry>
-        <outputEntry id="oe_sd_3"><text><![CDATA["INTERNAL_POLICY"]]></text></outputEntry>
-        <outputEntry id="oe_sd_4"><text><![CDATA[false]]></text></outputEntry>
       </rule>
       <rule>
         <inputEntry id="ie_sd_3"><text><![CDATA[== "PEP"]]></text></inputEntry>

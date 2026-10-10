@@ -34,9 +34,13 @@
         </laneSet>
 
         <startEvent id="start"/>
-        <!-- 发起表单：flowable:formKey 指向自建表单中心（Flowable 8 无 Form 引擎，8.1 修订 #2） -->
+        <!-- 发起表单：flowable:formKey 指向自建表单中心（Flowable 8 无 Form 引擎，8.1 修订 #2）。
+             双启动（方案 1.2 载荷契约 / 8.4-B1）：None 路径 assignee=initiator（引擎注入）；
+             Message 路径 initiator 缺失时 assignee 表达式为空——candidateGroups 兜底进 RM 组待办，
+             语义为「确认与补录推送申请」。表单提交生成 applyNo，经主流程 callS1 out 回传。 -->
         <userTask id="utApply" name="发起准入申请"
-                  flowable:assignee="${initiator}" flowable:formKey="onboarding-application"/>
+                  flowable:assignee="${initiator}" flowable:candidateGroups="relationship-managers"
+                  flowable:formKey="onboarding-application"/>
         <userTask id="utCollect" name="资料收集与预检（上传证照与授权文件）"
                   flowable:candidateGroups="relationship-managers" flowable:formKey="onboarding-documents"/>
         <businessRuleTask id="brtChecklist" name="资料清单匹配（DMN）"
@@ -138,9 +142,4 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
-
-
-
-
-
 </definitions>
