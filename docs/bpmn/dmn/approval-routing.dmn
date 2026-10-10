@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  审批路由（文档 2.5）。hitPolicy = FIRST：最严层级置顶 + 兜底行（低风险小额走一级）。
+  输入 applyAmount/riskLevel/businessType 由流程变量传入（callS4 in 链），
+  isGroupCustomer/isCrossBorder 由 svcAssembleApprovalInput 预置。
+  输出三列：approvalLevel（LEVEL_1/LEVEL_2/COMMITTEE=贷审会）、approverGroup
+  （审批组标识，approvalService.resolveApprovers 据此解析人员集合）、signRule
+  （会签规则：UNANIMOUS=全部通过+一票否决 / MAJORITY=多数通过）——
+  approvalParamDelegate 按规则与人数换算 passThresholdCount/vetoEnabled，
+  completionCondition 只消费换算后的变量（文档 2.5 修订，规则计算不进表达式）。
+  层级/金额阈值为示意骨架，由授权管理制度条线维护。
+-->
+<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+             id="definitions_approval_routing" name="审批路由"
+             namespace="http://zxf.com/platform/onboarding/dmn">
+  <decision id="approval-routing" name="审批路由">
+    <decisionTable id="approvalRoutingTable" hitPolicy="FIRST">
+      <input label="申请额度(元)">
+        <inputExpression id="inputExpression_amt" typeRef="number">
+          <text>applyAmount</text>
+        </inputExpression>
+      </input>
+      <input label="风险等级">
+        <inputExpression id="inputExpression_rl" typeRef="string">
+          <text>riskLevel</text>
+        </inputExpression>
+        <inputValues>
+          <text>"LOW","MEDIUM","HIGH"</text>
+        </inputValues>
+      </input>
+      <input label="业务品种">
+        <inputExpression id="inputExpression_bt" typeRef="string">
+          <text>businessType</text>
+        </inputExpression>
+      </input>
+      <input label="是否集团客户">
+        <inputExpression id="inputExpression_gc" typeRef="boolean">
+          <text>isGroupCustomer</text>
+        </inputExpression>
+      </input>
+      <input label="是否跨境">
+        <inputExpression id="inputExpression_xb" typeRef="boolean">
+          <text>isCrossBorder</text>
+        </inputExpression>
+      </input>
+      <output id="output_approval_level" label="审批层级" name="approvalLevel" typeRef="string">
+        <outputValues>
+          <text>"LEVEL_1","LEVEL_2","COMMITTEE"</text>
+        </outputValues>
+      </output>
+      <output id="output_approver_group" label="审批组" name="approverGroup" typeRef="string"/>
+      <output id="output_sign_rule" label="会签规则" name="signRule" typeRef="string">
+        <outputValues>
+          <text>"UNANIMOUS","MAJORITY"</text>
+        </outputValues>
+      </output>
+      <!-- 最严置顶：大额或跨境 → 贷审会，全体通过 + 一票否决 -->
+      <rule>
+        <inputEntry id="ie_ar_1"><text><![CDATA[> 50000000]]></text></inputEntry>
+        <inputEntry id="ie_ar_2"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_3"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_4"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_5"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_ar_1"><text><![CDATA["COMMITTEE"]]></text></outputEntry>
+        <outputEntry id="oe_ar_2"><text><![CDATA["credit-committee"]]></text></outputEntry>
+        <outputEntry id="oe_ar_3"><text><![CDATA["UNANIMOUS"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_ar_6"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_7"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_8"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_9"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_10"><text><![CDATA[== true]]></text></inputEntry>
+        <outputEntry id="oe_ar_4"><text><![CDATA["COMMITTEE"]]></text></outputEntry>
+        <outputEntry id="oe_ar_5"><text><![CDATA["credit-committee"]]></text></outputEntry>
+        <outputEntry id="oe_ar_6"><text><![CDATA["UNANIMOUS"]]></text></outputEntry>
+      </rule>
+      <!-- 高风险：总行风险条线二级审批，全体通过 -->
+      <rule>
+        <inputEntry id="ie_ar_11"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_12"><text><![CDATA[== "HIGH"]]></text></inputEntry>
+        <inputEntry id="ie_ar_13"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_14"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_15"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_ar_7"><text><![CDATA["LEVEL_2"]]></text></outputEntry>
+        <outputEntry id="oe_ar_8"><text><![CDATA["head-office-risk"]]></text></outputEntry>
+        <outputEntry id="oe_ar_9"><text><![CDATA["UNANIMOUS"]]></text></outputEntry>
+      </rule>
+      <!-- 中额或集团客户：分行二级审批，多数通过 -->
+      <rule>
+        <inputEntry id="ie_ar_16"><text><![CDATA[> 10000000]]></text></inputEntry>
+        <inputEntry id="ie_ar_17"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_18"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_19"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_20"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_ar_10"><text><![CDATA["LEVEL_2"]]></text></outputEntry>
+        <outputEntry id="oe_ar_11"><text><![CDATA["branch-risk"]]></text></outputEntry>
+        <outputEntry id="oe_ar_12"><text><![CDATA["MAJORITY"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_ar_21"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_22"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_23"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_24"><text><![CDATA[== true]]></text></inputEntry>
+        <inputEntry id="ie_ar_25"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_ar_13"><text><![CDATA["LEVEL_2"]]></text></outputEntry>
+        <outputEntry id="oe_ar_14"><text><![CDATA["branch-risk"]]></text></outputEntry>
+        <outputEntry id="oe_ar_15"><text><![CDATA["MAJORITY"]]></text></outputEntry>
+      </rule>
+      <!-- 兜底：一级审批，多数通过 -->
+      <rule>
+        <inputEntry id="ie_ar_26"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_27"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_28"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_29"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_ar_30"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_ar_16"><text><![CDATA["LEVEL_1"]]></text></outputEntry>
+        <outputEntry id="oe_ar_17"><text><![CDATA["branch"]]></text></outputEntry>
+        <outputEntry id="oe_ar_18"><text><![CDATA["MAJORITY"]]></text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

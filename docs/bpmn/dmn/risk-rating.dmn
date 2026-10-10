@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  风险评级（文档 2.3）。hitPolicy = FIRST：最严规则置顶 + 兜底行置底（"就高不就低"）；
+  不用 UNIQUE——评级维度天然重叠，UNIQUE 要求规则完全不相交，细则微调易漏行
+  （系统设计文档 4.3.1 同款论证）。表达式语言为 JUEL（Flowable DMN 不支持 FEEL），
+  阈值数值为示意骨架，由反洗钱条线按行内评分模型维护。
+  输入：corpRiskScore/uboRiskScore/industryRisk/regionRisk 由 svcScreening 写入；
+  structureComplex 为 S2 尽调「结构复杂」标记（独立风险因子：境外持股无法核实/
+  循环嵌套交叉持股/协议代持/异常变化——文档 2.2）。
+  输出 riskLevel 写回流程变量（驱动 S3a 高风险分流、S4 审批路由）。
+-->
+<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+             id="definitions_risk_rating" name="洗钱风险评级"
+             namespace="http://zxf.com/platform/onboarding/dmn">
+  <decision id="risk-rating" name="洗钱风险评级">
+    <decisionTable id="riskRatingTable" hitPolicy="FIRST">
+      <input label="所有权结构复杂标记">
+        <inputExpression id="inputExpression_sc" typeRef="boolean">
+          <text>structureComplex</text>
+        </inputExpression>
+      </input>
+      <input label="企业风险分(0-100)">
+        <inputExpression id="inputExpression_crs" typeRef="number">
+          <text>corpRiskScore</text>
+        </inputExpression>
+      </input>
+      <input label="UBO风险分(0-100)">
+        <inputExpression id="inputExpression_urs" typeRef="number">
+          <text>uboRiskScore</text>
+        </inputExpression>
+      </input>
+      <input label="行业风险等级">
+        <inputExpression id="inputExpression_ir" typeRef="string">
+          <text>industryRisk</text>
+        </inputExpression>
+        <inputValues>
+          <text>"LOW","MEDIUM","HIGH"</text>
+        </inputValues>
+      </input>
+      <input label="区域风险等级">
+        <inputExpression id="inputExpression_rr" typeRef="string">
+          <text>regionRisk</text>
+        </inputExpression>
+        <inputValues>
+          <text>"LOW","MEDIUM","HIGH"</text>
+        </inputValues>
+      </input>
+      <input label="业务品种">
+        <inputExpression id="inputExpression_bt" typeRef="string">
+          <text>businessType</text>
+        </inputExpression>
+      </input>
+      <output id="output_risk_level" label="洗钱风险等级" name="riskLevel" typeRef="string">
+        <outputValues>
+          <text>"LOW","MEDIUM","HIGH"</text>
+        </outputValues>
+      </output>
+      <!-- 最严置顶：结构复杂 / 高分 / 高行业 / 高区域 任一即 HIGH -->
+      <rule>
+        <inputEntry id="ie_rr_1"><text><![CDATA[== true]]></text></inputEntry>
+        <inputEntry id="ie_rr_2"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_3"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_4"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_5"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_6"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_1"><text><![CDATA["HIGH"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_rr_7"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_8"><text><![CDATA[>= 70]]></text></inputEntry>
+        <inputEntry id="ie_rr_9"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_10"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_11"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_12"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_2"><text><![CDATA["HIGH"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_rr_13"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_14"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_15"><text><![CDATA[>= 70]]></text></inputEntry>
+        <inputEntry id="ie_rr_16"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_17"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_18"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_3"><text><![CDATA["HIGH"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_rr_19"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_20"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_21"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_22"><text><![CDATA[== "HIGH"]]></text></inputEntry>
+        <inputEntry id="ie_rr_23"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_24"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_4"><text><![CDATA["HIGH"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_rr_25"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_26"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_27"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_28"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_29"><text><![CDATA[== "HIGH"]]></text></inputEntry>
+        <inputEntry id="ie_rr_30"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_5"><text><![CDATA["HIGH"]]></text></outputEntry>
+      </rule>
+      <!-- 中风险：任一分处于中段（阈值示意） -->
+      <rule>
+        <inputEntry id="ie_rr_31"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_32"><text><![CDATA[>= 40]]></text></inputEntry>
+        <inputEntry id="ie_rr_33"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_34"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_35"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_36"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_6"><text><![CDATA["MEDIUM"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_rr_37"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_38"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_39"><text><![CDATA[>= 40]]></text></inputEntry>
+        <inputEntry id="ie_rr_40"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_41"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_42"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_7"><text><![CDATA["MEDIUM"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_rr_43"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_44"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_45"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_46"><text><![CDATA[== "MEDIUM"]]></text></inputEntry>
+        <inputEntry id="ie_rr_47"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_48"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_8"><text><![CDATA["MEDIUM"]]></text></outputEntry>
+      </rule>
+      <!-- 兜底：低风险 -->
+      <rule>
+        <inputEntry id="ie_rr_49"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_50"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_51"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_52"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_53"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_rr_54"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_rr_9"><text><![CDATA["LOW"]]></text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  资料清单匹配（文档 2.1）。hitPolicy = COLLECT：多命中每行输出一项资料，
+  结果以 JSON 数组存入以决策 key 命名的变量 document-checklist（多命中写回规则见
+  完全指南 20.3）——清单型决策天然完备，不设兜底行（无命中 = 无附加资料要求）。
+  输入 customerType/businessType 在 S1 发起表单一次采集；枚举映射：
+  customerType: CORP=对公 / GROUP=集团（同业独立流程，8.2-D5）
+  businessType: ACCOUNT_OPEN=开户 / CREDIT=授信 / LOAN=贷款 / WEALTH=理财 /
+                TRUST=托管 / INTERNATIONAL=国际业务
+  规则行为示意骨架，资料清单由业务条线按监管要求（11 号令第 49 条要素清单、
+  银发〔2019〕41 号三类开户资料）补全维护。documentsComplete 的判定不在本表
+  （集合比对归 documentsCheckDelegate，见 sub-s1）。
+-->
+<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+             id="definitions_document_checklist" name="资料清单匹配"
+             namespace="http://zxf.com/platform/onboarding/dmn">
+  <decision id="document-checklist" name="资料清单匹配">
+    <decisionTable id="documentChecklistTable" hitPolicy="COLLECT">
+      <input label="客户类型">
+        <inputExpression id="inputExpression_ct" typeRef="string">
+          <text>customerType</text>
+        </inputExpression>
+        <inputValues>
+          <text>"CORP","GROUP"</text>
+        </inputValues>
+      </input>
+      <input label="业务品种">
+        <inputExpression id="inputExpression_bt" typeRef="string">
+          <text>businessType</text>
+        </inputExpression>
+        <inputValues>
+          <text>"ACCOUNT_OPEN","CREDIT","LOAN","WEALTH","TRUST","INTERNATIONAL"</text>
+        </inputValues>
+      </input>
+      <output id="output_required_document" label="所需资料" name="requiredDocument" typeRef="string">
+        <outputValues>
+          <text>"DOC_BUSINESS_LICENSE","DOC_ARTICLES","DOC_LEGAL_ID","DOC_GROUP_STATEMENT","DOC_GROUP_FINANCIALS","DOC_CROSSBORDER_LICENSE"</text>
+        </outputValues>
+      </output>
+      <!-- 示意骨架：41 号办法三类开户资料 + 集团授信/跨境附加项，条线补全 -->
+      <rule>
+        <inputEntry id="ie_dc_1"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_dc_2"><text><![CDATA[== "ACCOUNT_OPEN"]]></text></inputEntry>
+        <outputEntry id="oe_dc_1"><text><![CDATA["DOC_BUSINESS_LICENSE"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_dc_3"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_dc_4"><text><![CDATA[== "ACCOUNT_OPEN"]]></text></inputEntry>
+        <outputEntry id="oe_dc_2"><text><![CDATA["DOC_ARTICLES"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_dc_5"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_dc_6"><text><![CDATA[== "ACCOUNT_OPEN"]]></text></inputEntry>
+        <outputEntry id="oe_dc_3"><text><![CDATA["DOC_LEGAL_ID"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_dc_7"><text><![CDATA[== "GROUP"]]></text></inputEntry>
+        <inputEntry id="ie_dc_8"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <outputEntry id="oe_dc_4"><text><![CDATA["DOC_GROUP_STATEMENT"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_dc_9"><text><![CDATA[== "GROUP"]]></text></inputEntry>
+        <inputEntry id="ie_dc_10"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <outputEntry id="oe_dc_5"><text><![CDATA["DOC_GROUP_FINANCIALS"]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_dc_11"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_dc_12"><text><![CDATA[== "INTERNATIONAL"]]></text></inputEntry>
+        <outputEntry id="oe_dc_6"><text><![CDATA["DOC_CROSSBORDER_LICENSE"]]></text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

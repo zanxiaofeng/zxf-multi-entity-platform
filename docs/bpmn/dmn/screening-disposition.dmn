@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  名单命中分级处置（文档 2.3）。hitPolicy = FIRST + 兜底行置底：名单类型分流处置，
+  不做命中/未命中二元判断。处置依据《反洗钱特别预防措施管理办法》（文号待核对，
+  8.2-D4）与银反洗发〔2018〕19 号第 49/50 条：制裁命中 = 立即停止、限制转移、
+  当日上报、不得通知客户——与 PEP（加强尽调、高管批准）本质不同，不可统一处理。
+  输入 hitFlag 由 svcScreening（名单筛查 delegate）写入；五类名单库口径对齐 19 号文
+  第 48 条（恐怖活动组织及人员名单按制裁口径并入 SANCTIONS）。
+  输出 disposition 供业务库/审计记录细分动作；主流程网关分流用 hitFlag（阈值不写在网关上）。
+-->
+<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+             id="definitions_screening_disposition" name="名单命中分级处置"
+             namespace="http://zxf.com/platform/onboarding/dmn">
+  <decision id="screening-disposition" name="名单命中分级处置">
+    <decisionTable id="screeningDispositionTable" hitPolicy="FIRST">
+      <input label="名单命中类型">
+        <inputExpression id="inputExpression_hitFlag" typeRef="string">
+          <text>hitFlag</text>
+        </inputExpression>
+        <inputValues>
+          <text>"NONE","PEP","NEGATIVE","SANCTIONS","BLACKLIST"</text>
+        </inputValues>
+      </input>
+      <output id="output_disposition" label="处置动作" name="disposition" typeRef="string">
+        <outputValues>
+          <text>"BLOCK_SERVICE","EDD_REQUIRED","MANUAL_REVIEW","INTERNAL_POLICY","PROCEED"</text>
+        </outputValues>
+      </output>
+      <output id="output_aml_required" label="是否触发AML上报" name="amlReportRequired" typeRef="boolean"/>
+      <!-- 最严处置置顶（FIRST 语义） -->
+      <rule>
+        <inputEntry id="ie_sd_1"><text><![CDATA[== "SANCTIONS"]]></text></inputEntry>
+        <outputEntry id="oe_sd_1"><text><![CDATA["BLOCK_SERVICE"]]></text></outputEntry>
+        <outputEntry id="oe_sd_2"><text><![CDATA[true]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_sd_2"><text><![CDATA[== "BLACKLIST"]]></text></inputEntry>
+        <outputEntry id="oe_sd_3"><text><![CDATA["INTERNAL_POLICY"]]></text></outputEntry>
+        <outputEntry id="oe_sd_4"><text><![CDATA[false]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_sd_3"><text><![CDATA[== "PEP"]]></text></inputEntry>
+        <outputEntry id="oe_sd_5"><text><![CDATA["EDD_REQUIRED"]]></text></outputEntry>
+        <outputEntry id="oe_sd_6"><text><![CDATA[false]]></text></outputEntry>
+      </rule>
+      <rule>
+        <inputEntry id="ie_sd_4"><text><![CDATA[== "NEGATIVE"]]></text></inputEntry>
+        <outputEntry id="oe_sd_7"><text><![CDATA["MANUAL_REVIEW"]]></text></outputEntry>
+        <outputEntry id="oe_sd_8"><text><![CDATA[false]]></text></outputEntry>
+      </rule>
+      <!-- 兜底：未命中 -->
+      <rule>
+        <inputEntry id="ie_sd_5"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_sd_9"><text><![CDATA["PROCEED"]]></text></outputEntry>
+        <outputEntry id="oe_sd_10"><text><![CDATA[false]]></text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

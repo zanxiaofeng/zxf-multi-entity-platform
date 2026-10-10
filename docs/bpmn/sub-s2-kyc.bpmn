@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  S2 尽调与 KYC（文档 2.2）。外部调用统一异步 ServiceTask（8.2-D3）：
+  技术异常经 failedJobRetryTimeCycle 退避重试、耗尽入死信（四-2）；业务拒绝应建模
+  Error 边界事件走分支、不重试（本阶段未定义业务拒绝分支，接入时按 6.3 补）。
+
+  UBO 识别（12 号令〔2025〕第 12 号，2026-01-20 施行）：三类 25% 标准穿透；
+  客户经理判断 + 合规岗复核双人留痕（8.2-D6）；表单强制识别路径与推理过程、
+  佐证材料——禁止仅依赖系统查询（12 号令第 4 条）。
+  备案核对对接人民银行受益所有人信息查询管理系统（第 23 条），重大差异触发
+  差异报告分支（第 27 条，30 个工作日）——差异处置由 delegate 内部事件外发承接。
+  「结构复杂」自动标记（境外持股无法核实/循环嵌套交叉持股/协议代持/异常变化）
+  作为 S3a 风险评级独立因子。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/onboarding">
+
+    <process id="sub-s2-kyc" name="S2 尽调与 KYC">
+
+        <startEvent id="start"/>
+        <!-- 幂等键：申请编号+查询类型+日期（四-2） -->
+        <serviceTask id="svcIdentity" name="身份与唯一性核验（工商/公安/客户主数据，防重复建档）"
+                     flowable:async="true" flowable:delegateExpression="${identityVerificationDelegate}">
+            <extensionElements>
+                <flowable:failedJobRetryTimeCycle>R3/PT10M</flowable:failedJobRetryTimeCycle>
+            </extensionElements>
+        </serviceTask>
+        <!-- UBO 穿透识别、实控人、关联方、集团识别：同一 User Task 子表单/多层级录入（2.2） -->
+        <userTask id="utUboDiligence" name="对公结构尽调（UBO/实控人/关联方）"
+                  flowable:candidateGroups="relationship-managers" flowable:formKey="kyc-ubo-diligence"/>
+        <userTask id="utUboReview" name="UBO 识别合规复核"
+                  flowable:candidateGroups="aml-compliance" flowable:formKey="kyc-ubo-review"/>
+        <serviceTask id="svcUboFiling" name="UBO 备案核对（人民银行受益所有人信息系统）"
+                     flowable:async="true" flowable:delegateExpression="${uboFilingCheckDelegate}">
+            <extensionElements>
+                <flowable:failedJobRetryTimeCycle>R3/PT10M</flowable:failedJobRetryTimeCycle>
+            </extensionElements>
+        </serviceTask>
+        <userTask id="utOnsiteVerify" name="经营真实性与开户意愿核实（面签/双录）"
+                  flowable:candidateGroups="relationship-managers" flowable:formKey="kyc-verification"/>
+        <endEvent id="end"/>
+
+        <sequenceFlow id="flowStartIdentity" sourceRef="start" targetRef="svcIdentity"/>
+        <sequenceFlow id="flowIdentityDd" sourceRef="svcIdentity" targetRef="utUboDiligence"/>
+        <sequenceFlow id="flowDdReview" sourceRef="utUboDiligence" targetRef="utUboReview"/>
+        <sequenceFlow id="flowReviewFiling" sourceRef="utUboReview" targetRef="svcUboFiling"/>
+        <sequenceFlow id="flowFilingOnsite" sourceRef="svcUboFiling" targetRef="utOnsiteVerify"/>
+        <sequenceFlow id="flowOnsiteEnd" sourceRef="utOnsiteVerify" targetRef="end"/>
+
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>utUboDiligence</flowNodeRef>
+                <flowNodeRef>utOnsiteVerify</flowNodeRef>
+            </lane>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utUboReview</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcIdentity</flowNodeRef>
+                <flowNodeRef>svcUboFiling</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
+    </process>
+</definitions>

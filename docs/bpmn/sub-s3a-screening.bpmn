@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  S3a 筛查与风险评级（文档 2.3）。名单筛查必须记录名单版本号（审计证据——制裁名单
+  一日数更、PEP 按月调整）。DMN 两张表 = 两个 Business Rule Task 串联
+  （8.1 修订 #3：Flowable DMN 不支持 DRG/决策链，单节点只执行一张表）：
+    screening-disposition（FIRST + 兜底行）：输出 hitFlag（NONE/PEP/NEGATIVE/SANCTIONS/BLACKLIST，
+      名单口径对齐银反洗发〔2018〕19 号五类名单库）与 disposition（处置动作）；
+      制裁命中 = 立即停止、限制转移、不通知客户，分流在主流程网关完成。
+    risk-rating（FIRST，最严规则置顶 + 兜底行；不用 UNIQUE）：输入企业/UBO 风险分、
+      行业/区域风险等级、业务品种、structureComplex；输出 riskLevel（LOW/MEDIUM/HIGH）。
+  高风险（或「结构复杂」触发）→ sub-edd 强化尽调 + 高管批准（8.2-D6，11 号令第 28 条
+  第五项硬义务）；合规复核仅名单命中或高风险触发（UBO 复核已在 S2 落实，职责不重叠）。
+  输入输出经 callActivity 显式映射，不在本子流程重复采集。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/onboarding">
+
+    <process id="sub-s3a-screening" name="S3a 筛查与风险评级">
+
+        <startEvent id="start"/>
+        <serviceTask id="svcScreening" name="名单与舆情筛查（企业/UBO/股东/董监高/经办人/担保人，记录名单版本号）"
+                     flowable:async="true" flowable:delegateExpression="${sanctionScreeningDelegate}">
+            <extensionElements>
+                <flowable:failedJobRetryTimeCycle>R3/PT10M</flowable:failedJobRetryTimeCycle>
+            </extensionElements>
+        </serviceTask>
+        <businessRuleTask id="brtDisposition" name="名单命中分级处置（DMN）"
+                          flowable:decisionTableReferenceKey="screening-disposition"/>
+        <businessRuleTask id="brtRating" name="风险评级（DMN）"
+                          flowable:decisionTableReferenceKey="risk-rating"/>
+        <exclusiveGateway id="gwHighRisk" name="高风险分流" default="flowToReviewNeed"/>
+        <callActivity id="callEdd" name="强化尽调（EDD + 高管批准）" calledElement="sub-edd">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="structureComplex"/>
+                <flowable:out source="eddApproved"/>
+            </extensionElements>
+        </callActivity>
+        <exclusiveGateway id="gwReviewNeed" name="是否需合规复核" default="flowDirectEnd"/>
+        <userTask id="utComplianceReview" name="合规复核（高风险双人复核）"
+                  flowable:candidateGroups="aml-compliance" flowable:formKey="screening-review"/>
+        <endEvent id="end"/>
+
+        <sequenceFlow id="flowStartScreening" sourceRef="start" targetRef="svcScreening"/>
+        <sequenceFlow id="flowScreeningDisposition" sourceRef="svcScreening" targetRef="brtDisposition"/>
+        <sequenceFlow id="flowDispositionRating" sourceRef="brtDisposition" targetRef="brtRating"/>
+        <sequenceFlow id="flowRatingGw" sourceRef="brtRating" targetRef="gwHighRisk"/>
+        <sequenceFlow id="flowHighEdd" sourceRef="gwHighRisk" targetRef="callEdd">
+            <conditionExpression xsi:type="tFormalExpression">${riskLevel == 'HIGH'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flowEddReviewNeed" sourceRef="callEdd" targetRef="gwReviewNeed"/>
+        <sequenceFlow id="flowToReviewNeed" sourceRef="gwHighRisk" targetRef="gwReviewNeed"/>
+        <sequenceFlow id="flowNeedReview" sourceRef="gwReviewNeed" targetRef="utComplianceReview">
+            <conditionExpression xsi:type="tFormalExpression">${hitFlag != 'NONE' || riskLevel == 'HIGH'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flowReviewEnd" sourceRef="utComplianceReview" targetRef="end"/>
+        <sequenceFlow id="flowDirectEnd" sourceRef="gwReviewNeed" targetRef="end"/>
+
+        <laneSet>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utComplianceReview</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcScreening</flowNodeRef>
+                <flowNodeRef>brtDisposition</flowNodeRef>
+                <flowNodeRef>brtRating</flowNodeRef>
+                <flowNodeRef>gwHighRisk</flowNodeRef>
+                <flowNodeRef>callEdd</flowNodeRef>
+                <flowNodeRef>gwReviewNeed</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
+    </process>
+</definitions>

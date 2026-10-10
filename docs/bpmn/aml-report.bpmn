@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  P3 AML 合规上报（文档 3.3）。由主流程制裁命中分支调用（Call Activity，in: applyNo/hitFlag）。
+  全程保密：不通知客户；人工审核、冻结/处置为合规岗 User Task 留痕。
+  上报结果回写（8.3-A2）：记录上报结果状态（受理/退回/补正），监管反馈触发后续处置。
+  正常结束用 None End Event（四-8）。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/onboarding">
+
+    <process id="aml-report" name="P3 AML 合规上报">
+
+        <startEvent id="start"/>
+        <userTask id="utAmlReview" name="合规人工审核（可疑线索）"
+                  flowable:candidateGroups="aml-compliance" flowable:formKey="aml-review"/>
+        <serviceTask id="svcAmlReport" name="AML 系统上报（保密处理）"
+                     flowable:async="true" flowable:delegateExpression="${amlReportDelegate}">
+            <extensionElements>
+                <flowable:failedJobRetryTimeCycle>R3/PT10M</flowable:failedJobRetryTimeCycle>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="svcAmlResult" name="上报结果回写（受理/退回/补正，监管反馈触发处置）"
+                     flowable:delegateExpression="${amlResultRecordDelegate}"/>
+        <userTask id="utFreeze" name="冻结/处置（合规岗执行冻结指令）"
+                  flowable:candidateGroups="aml-compliance" flowable:formKey="aml-freeze"/>
+        <endEvent id="end"/>
+
+        <sequenceFlow id="flowStartReview" sourceRef="start" targetRef="utAmlReview"/>
+        <sequenceFlow id="flowReviewReport" sourceRef="utAmlReview" targetRef="svcAmlReport"/>
+        <sequenceFlow id="flowReportResult" sourceRef="svcAmlReport" targetRef="svcAmlResult"/>
+        <sequenceFlow id="flowResultFreeze" sourceRef="svcAmlResult" targetRef="utFreeze"/>
+        <sequenceFlow id="flowFreezeEnd" sourceRef="utFreeze" targetRef="end"/>
+
+        <laneSet>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utAmlReview</flowNodeRef>
+                <flowNodeRef>utFreeze</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcAmlReport</flowNodeRef>
+                <flowNodeRef>svcAmlResult</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
+    </process>
+</definitions>

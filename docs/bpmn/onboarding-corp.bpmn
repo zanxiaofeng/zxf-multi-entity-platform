@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  对公客户准入主流程（《商业银行对公客户准入流程-BPMN建模与Flowable实现方案.md》第一、二章）。
+  编排 S1→S2→(S3a∥S3b)→S4→S5：阶段拆分为 Call Activity（8.2-D2——独立版本化、变更隔离、
+  拒绝巨型单定义）；变量经 flowable:in/out 显式映射（映射面即接口契约，第五章轻量白名单）。
+
+  双启动（1.2 节）：员工经系统发起 = None Start（flowable:initiator 让引擎把认证用户
+  写入 initiator 变量，S1 首任务 assignee 复用）；信贷/核心推送 = Message Start
+  （message name: onboarding-request）。两启动事件并存合法，BPMN 要求所有启动事件均有定义。
+
+  S4 出口分流：通过→S5；拒绝→P1（普通拒绝不通知制裁/PEP，通知逻辑在 P1 内）。
+  S3 join 后先判定制裁命中（→P3）与 EDD 否决（→P1）——P3 触发集中于主流程（3.3 节）。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/onboarding">
+
+    <message id="msgOnboardingRequest" name="onboarding-request"/>
+
+    <process id="onboarding-corp" name="对公客户准入主流程">
+
+        <!-- 1.2 双启动：两条入边隐式汇入 S1 -->
+        <startEvent id="startByRm" name="客户经理发起" flowable:initiator="initiator"/>
+        <startEvent id="startFromCore" name="信贷/核心推送">
+            <messageEventDefinition messageRef="msgOnboardingRequest"/>
+        </startEvent>
+
+        <!-- S1（2.1）：发起表单采集 customerType/businessType/applyAmount（对公/集团，
+             同业独立流程——8.2-D5）；补件回退在子流程内部，不污染主图 -->
+        <callActivity id="callS1" name="S1 受理与资料预检" calledElement="sub-s1-precheck">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="initiator"/>
+                <flowable:out source="customerType"/>
+                <flowable:out source="businessType"/>
+                <flowable:out source="applyAmount"/>
+                <flowable:out source="documentsComplete"/>
+            </extensionElements>
+        </callActivity>
+
+        <!-- S2（2.2）：UBO 三类标准识别 + 合规复核双人留痕（8.2-D6）、备案核对（12 号令 23/27 条） -->
+        <callActivity id="callS2" name="S2 尽调与 KYC" calledElement="sub-s2-kyc">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="customerType"/>
+                <flowable:in source="businessType"/>
+                <flowable:out source="uboConfirmed"/>
+                <flowable:out source="structureComplex"/>
+            </extensionElements>
+        </callActivity>
+
+        <!-- S3a ∥ S3b（2.4）：并行网关 fork/join，S4 前汇聚——S4 路由同时依赖
+             S3a 风险等级与 S3b 校验结论；S3b 与 S3a 并行，故不依赖 riskLevel -->
+        <parallelGateway id="s3Fork" name="S3 并行分叉"/>
+
+        <callActivity id="callS3a" name="S3a 筛查与风险评级" calledElement="sub-s3a-screening">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="structureComplex"/>
+                <flowable:out source="hitFlag"/>
+                <flowable:out source="riskLevel"/>
+                <flowable:out source="eddApproved"/>
+            </extensionElements>
+        </callActivity>
+
+        <callActivity id="callS3b" name="S3b 准入规则校验" calledElement="sub-s3b-eligibility">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="customerType"/>
+                <flowable:in source="businessType"/>
+                <flowable:in source="applyAmount"/>
+                <flowable:out source="eligibilityPassed"/>
+            </extensionElements>
+        </callActivity>
+
+        <parallelGateway id="s3Join" name="S3 并行汇聚"/>
+
+        <!-- 制裁命中（P3 保密处置）优先于一切后续；EDD 高管否决按拒绝走 P1。
+             default 流到 S4，阈值不写在网关上（系统设计文档 4.2.3 同款纪律） -->
+        <exclusiveGateway id="gwScreeningOutcome" name="筛查与EDD结果分流" default="flowToS4"/>
+        <sequenceFlow id="flowSanctionsHit" sourceRef="gwScreeningOutcome" targetRef="callP3">
+            <conditionExpression xsi:type="tFormalExpression">${hitFlag == 'SANCTIONS'}</conditionExpression>
+        </sequenceFlow>
+        <callActivity id="callP3" name="P3 AML 合规上报" calledElement="aml-report">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="hitFlag"/>
+            </extensionElements>
+        </callActivity>
+        <sequenceFlow id="flowEddReject" sourceRef="gwScreeningOutcome" targetRef="callP1">
+            <conditionExpression xsi:type="tFormalExpression">${eddApproved != null &amp;&amp; !eddApproved}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- S4（2.5）：会签规则由 DMN 输出参数驱动（passThreshold/vetoEnabled），不在网关硬编码 -->
+        <callActivity id="callS4" name="S4 审批决策" calledElement="sub-s4-approval">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="applyAmount"/>
+                <flowable:in source="businessType"/>
+                <flowable:in source="riskLevel"/>
+                <flowable:in source="eligibilityPassed"/>
+                <flowable:out source="approved"/>
+            </extensionElements>
+        </callActivity>
+
+        <exclusiveGateway id="gwApprovalResult" name="审批结果" default="flowToP1"/>
+        <sequenceFlow id="flowApproved" sourceRef="gwApprovalResult" targetRef="callS5">
+            <conditionExpression xsi:type="tFormalExpression">${approved == true}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- S5（2.6）：签约→开户指令→回执（Message Catch + 超时）→归档 -->
+        <callActivity id="callS5" name="S5 签约、开户与归档" calledElement="sub-s5-account">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="customerType"/>
+                <flowable:in source="businessType"/>
+            </extensionElements>
+        </callActivity>
+
+        <!-- P1（3.1）：拒绝登记与申诉闭环（8.3-A1）在独立流程内 -->
+        <callActivity id="callP1" name="P1 拒绝与申诉" calledElement="reject-appeal">
+            <extensionElements>
+                <flowable:in source="applyNo"/>
+                <flowable:in source="hitFlag"/>
+            </extensionElements>
+        </callActivity>
+
+        <endEvent id="endOnboarded" name="准入完成"/>
+        <endEvent id="endTerminated" name="制裁命中终止（不通知客户）"/>
+        <endEvent id="endRejected" name="拒绝"/>
+
+        <sequenceFlow id="flowRmS1" sourceRef="startByRm" targetRef="callS1"/>
+        <sequenceFlow id="flowCoreS1" sourceRef="startFromCore" targetRef="callS1"/>
+        <sequenceFlow id="flowS1S2" sourceRef="callS1" targetRef="callS2"/>
+        <sequenceFlow id="flowS2Fork" sourceRef="callS2" targetRef="s3Fork"/>
+        <sequenceFlow id="flowForkS3a" sourceRef="s3Fork" targetRef="callS3a"/>
+        <sequenceFlow id="flowForkS3b" sourceRef="s3Fork" targetRef="callS3b"/>
+        <sequenceFlow id="flowS3aJoin" sourceRef="callS3a" targetRef="s3Join"/>
+        <sequenceFlow id="flowS3bJoin" sourceRef="callS3b" targetRef="s3Join"/>
+        <sequenceFlow id="flowJoinGw" sourceRef="s3Join" targetRef="gwScreeningOutcome"/>
+        <sequenceFlow id="flowP3End" sourceRef="callP3" targetRef="endTerminated"/>
+        <sequenceFlow id="flowToS4" sourceRef="gwScreeningOutcome" targetRef="callS4"/>
+        <sequenceFlow id="flowS4Gw" sourceRef="callS4" targetRef="gwApprovalResult"/>
+        <sequenceFlow id="flowS5End" sourceRef="callS5" targetRef="endOnboarded"/>
+        <sequenceFlow id="flowToP1" sourceRef="gwApprovalResult" targetRef="callP1"/>
+        <sequenceFlow id="flowP1End" sourceRef="callP1" targetRef="endRejected"/>
+
+        <!-- 泳道（1.3）：Lane 仅图形信息、无执行语义；系统泳道承载编排节点与网关 -->
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>startByRm</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>startFromCore</flowNodeRef>
+                <flowNodeRef>callS1</flowNodeRef>
+                <flowNodeRef>callS2</flowNodeRef>
+                <flowNodeRef>s3Fork</flowNodeRef>
+                <flowNodeRef>callS3a</flowNodeRef>
+                <flowNodeRef>callS3b</flowNodeRef>
+                <flowNodeRef>s3Join</flowNodeRef>
+                <flowNodeRef>gwScreeningOutcome</flowNodeRef>
+                <flowNodeRef>callP3</flowNodeRef>
+                <flowNodeRef>callS4</flowNodeRef>
+                <flowNodeRef>gwApprovalResult</flowNodeRef>
+                <flowNodeRef>callS5</flowNodeRef>
+                <flowNodeRef>callP1</flowNodeRef>
+                <flowNodeRef>endOnboarded</flowNodeRef>
+                <flowNodeRef>endTerminated</flowNodeRef>
+                <flowNodeRef>endRejected</flowNodeRef>
+            </lane>
+        </laneSet>
+    </process>
+</definitions>

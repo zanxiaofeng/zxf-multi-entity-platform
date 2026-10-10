@@ -299,17 +299,18 @@ AML 上报为独立合规流程，由 S3a 或 S4 触发（名单命中当日上�
 ```
 部署单元（按引擎资源类型分目录，独立版本化）
 ├── bpmn/                                  # 流程定义（本仓库：实体模块 resources/processes/）
-│   ├── onboarding-corp.bpmn20.xml         # 主准入流程（编排 S1-S5 Call Activity 与并行网关）
-│   ├── sub-s1-precheck.bpmn20.xml         # S1 受理与资料预检
-│   ├── sub-s2-kyc.bpmn20.xml              # S2 尽调与 KYC
-│   ├── sub-s3a-screening.bpmn20.xml       # S3a 筛查与风险评级（含 sub-edd 调用）
-│   ├── sub-s3b-eligibility.bpmn20.xml     # S3b 准入规则校验
-│   ├── sub-s4-approval.bpmn20.xml         # S4 审批决策
-│   ├── sub-s5-account.bpmn20.xml          # S5 签约、开户与归档
-│   ├── sub-edd.bpmn20.xml                 # EDD 强化尽调（高风险触发，高管会签）
-│   ├── reject-appeal.bpmn20.xml           # P1 拒绝与申诉
-│   ├── lifecycle.bpmn20.xml               # P2 存续期管理
-│   └── aml-report.bpmn20.xml              # P3 AML 上报
+│   ├── onboarding-corp.bpmn               # 主准入流程（编排 S1-S5 Call Activity 与并行网关）
+│   ├── sub-s1-precheck.bpmn               # S1 受理与资料预检
+│   ├── sub-s2-kyc.bpmn                    # S2 尽调与 KYC
+│   ├── sub-s3a-screening.bpmn             # S3a 筛查与风险评级（含 sub-edd 调用）
+│   ├── sub-s3b-eligibility.bpmn           # S3b 准入规则校验
+│   ├── sub-s4-approval.bpmn               # S4 审批决策
+│   ├── sub-s5-account.bpmn                # S5 签约、开户与归档
+│   ├── sub-edd.bpmn                       # EDD 强化尽调（高风险触发，高管会签）
+│   ├── sub-conditions-fulfillment.bpmn # 条件落实（有条件通过：登记/催办/复核/超期决断）
+│   ├── reject-appeal.bpmn                 # P1 拒绝与申诉
+│   ├── lifecycle.bpmn                     # P2 存续期管理
+│   └── aml-report.bpmn                    # P3 AML 上报
 ├── dmn/                                   # 决策表（独立部署、独立版本化，改规则不发流程）
 │   ├── document-checklist.dmn             # 资料清单匹配（COLLECT）
 │   ├── screening-disposition.dmn          # 名单命中分级处置（FIRST+兜底）
@@ -323,6 +324,8 @@ AML 上报为独立合规流程，由 S3a 或 S4 触发（名单命中当日上�
 │   └── approval-routing.dmn               # 审批路由（FIRST+兜底，输出 passThreshold/vetoEnabled）
 └── （表单定义不在部署单元内，见下）
 ```
+
+> **交付件**：本部署结构对应的 12 个流程定义 XML 与 10 张 DMN 决策表已生成于 [`docs/bpmn/`](bpmn/)（含 README：文件清单、hit policy 与输入变量来源映射、delegate 待补项与落地实体模块的前置条件）；良构性与引用一致性已校验，callActivity 引用全部闭合（`sub-conditions-fulfillment` 已补齐，S4 经 `gwConditionsOutcome` 消费其 `conditionsMet` 输出：全部落实→通过、撤销批准→按拒绝处理）。DMN 独立部署（`resources/dmn/` 目录，非 `processes/`——放错目录 BRT 执行时报 `No decision found for key`）。
 
 > **修订（原文错误）**：原文 BAR 内含 `forms/*.form`（Flowable Form Engine 格式）。**Flowable 7.0 起已移除 Form 引擎与全部 UI 应用**（系统设计文档 1.3.2），Flowable 8 无引擎侧表单渲染——`.form` 文件没有消费方。表单自建：User Task 以 `flowable:formKey` 指向自建表单中心/前端表单标识，表单元数据与权限在业务侧维护；本仓库落地时表单定义随实体模块配置，不放引擎部署。
 

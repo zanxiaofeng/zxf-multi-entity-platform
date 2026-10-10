@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  额度适配校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
+  由授信/额度条线独立维护。输入 applyAmount 在 S1 发起表单采集（文档 2.1：
+  申请额度作为 S3b 输入）。阈值数值为示意骨架（注意 COLLECT `#` 等聚合结果
+  返回 Double 的版本陷阱不适用本表——FIRST 单值输出，完全指南 19.3）。
+-->
+<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+             id="definitions_limit_eligibility" name="额度适配校验"
+             namespace="http://zxf.com/platform/onboarding/dmn">
+  <decision id="limit-eligibility" name="额度适配校验">
+    <decisionTable id="limitEligibilityTable" hitPolicy="FIRST">
+      <input label="申请额度(元)">
+        <inputExpression id="inputExpression_amt" typeRef="number">
+          <text>applyAmount</text>
+        </inputExpression>
+      </input>
+      <input label="客户类型">
+        <inputExpression id="inputExpression_ct" typeRef="string">
+          <text>customerType</text>
+        </inputExpression>
+      </input>
+      <input label="业务品种">
+        <inputExpression id="inputExpression_bt" typeRef="string">
+          <text>businessType</text>
+        </inputExpression>
+      </input>
+      <output id="output_limit_passed" label="额度校验结论" name="limitPassed" typeRef="boolean"/>
+      <output id="output_suggested_limit" label="建议上限(元)" name="suggestedLimit" typeRef="number"/>
+      <!-- 示意：超集团客户单户上限 -->
+      <rule>
+        <inputEntry id="ie_le_1"><text><![CDATA[> 100000000]]></text></inputEntry>
+        <inputEntry id="ie_le_2"><text><![CDATA[== "GROUP"]]></text></inputEntry>
+        <inputEntry id="ie_le_3"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <outputEntry id="oe_le_1"><text><![CDATA[false]]></text></outputEntry>
+        <outputEntry id="oe_le_2"><text><![CDATA[100000000]]></text></outputEntry>
+      </rule>
+      <!-- 示意：新对公客户首笔授信上限 -->
+      <rule>
+        <inputEntry id="ie_le_4"><text><![CDATA[> 50000000]]></text></inputEntry>
+        <inputEntry id="ie_le_5"><text><![CDATA[== "CORP"]]></text></inputEntry>
+        <inputEntry id="ie_le_6"><text><![CDATA[== "CREDIT"]]></text></inputEntry>
+        <outputEntry id="oe_le_3"><text><![CDATA[false]]></text></outputEntry>
+        <outputEntry id="oe_le_4"><text><![CDATA[50000000]]></text></outputEntry>
+      </rule>
+      <!-- 兜底：通过，不设额外上限（0 = 无附加限制） -->
+      <rule>
+        <inputEntry id="ie_le_7"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_le_8"><text><![CDATA[-]]></text></inputEntry>
+        <inputEntry id="ie_le_9"><text><![CDATA[-]]></text></inputEntry>
+        <outputEntry id="oe_le_5"><text><![CDATA[true]]></text></outputEntry>
+        <outputEntry id="oe_le_6"><text><![CDATA[0]]></text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

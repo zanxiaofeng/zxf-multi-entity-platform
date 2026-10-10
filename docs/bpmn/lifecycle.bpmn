@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  P2 存续期管理（文档 3.2）。实例粒度：每客户一个常驻实例，businessKey=客户/申请编号。
+  等待用 Event-Based Gateway 三出口，先到先走：
+    周期重检 Timer（${recheckInterval} 配置化——重检周期回边重新等待，等价周期循环）；
+    交易监控命中 Message（8.3-A4：周期 timer 之外的事件触发源，即时插队重检）；
+    客户退出 Message（业务关系结束 → 流程终点）。
+  重新准入由 delegate 启动**新准入流程实例**（文档 3.2：不用 Link Event——
+  Flowable 中无执行语义）。名单持续监控记录名单版本号（审计证据）。
+  存量批量重检（11 号令第 51 条：半年内较高风险以上、2 年内全部）由本流程
+  批量发实例承接（文档 3.2 末段）。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://zxf.com/platform/onboarding">
+
+    <message id="msgTradeMonitoringHit" name="trade-monitoring-hit"/>
+    <message id="msgCustomerExit" name="customer-exit"/>
+
+    <process id="lifecycle" name="P2 存续期管理">
+
+        <startEvent id="start"/>
+        <eventBasedGateway id="ebgwWait" name="等待重检/命中/退出"/>
+        <intermediateCatchEvent id="iccRecheckTimer" name="定期重检提醒">
+            <timerEventDefinition>
+                <timeDuration>${recheckInterval}</timeDuration>
+            </timerEventDefinition>
+        </intermediateCatchEvent>
+        <intermediateCatchEvent id="iccTradeMonitoring" name="交易监控命中（即时重检）">
+            <messageEventDefinition messageRef="msgTradeMonitoringHit"/>
+        </intermediateCatchEvent>
+        <intermediateCatchEvent id="iccCustomerExit" name="客户退出（业务关系结束）">
+            <messageEventDefinition messageRef="msgCustomerExit"/>
+        </intermediateCatchEvent>
+
+        <serviceTask id="svcLifecycleScreening" name="名单持续监控（批处理筛查，记录名单版本号）"
+                     flowable:async="true" flowable:delegateExpression="${lifecycleScreeningDelegate}">
+            <extensionElements>
+                <flowable:failedJobRetryTimeCycle>R3/PT10M</flowable:failedJobRetryTimeCycle>
+            </extensionElements>
+        </serviceTask>
+        <userTask id="utRiskReview" name="风险等级动态调整（人工审定）"
+                  flowable:candidateGroups="aml-compliance" flowable:formKey="lifecycle-risk-review"/>
+        <exclusiveGateway id="gwReOnboard" name="是否触发重新准入" default="flowBackWait"/>
+        <serviceTask id="svcReOnboard" name="触发重新准入（启动新准入实例）"
+                     flowable:delegateExpression="${reOnboardingDelegate}"/>
+        <endEvent id="endExit" name="存续期结束"/>
+
+        <sequenceFlow id="flowStartEbgw" sourceRef="start" targetRef="ebgwWait"/>
+        <sequenceFlow id="flowEbgwTimer" sourceRef="ebgwWait" targetRef="iccRecheckTimer"/>
+        <sequenceFlow id="flowEbgwTrade" sourceRef="ebgwWait" targetRef="iccTradeMonitoring"/>
+        <sequenceFlow id="flowEbgwExit" sourceRef="ebgwWait" targetRef="iccCustomerExit"/>
+        <sequenceFlow id="flowExitEnd" sourceRef="iccCustomerExit" targetRef="endExit"/>
+        <sequenceFlow id="flowTimerScreening" sourceRef="iccRecheckTimer" targetRef="svcLifecycleScreening"/>
+        <sequenceFlow id="flowTradeScreening" sourceRef="iccTradeMonitoring" targetRef="svcLifecycleScreening"/>
+        <sequenceFlow id="flowScreeningReview" sourceRef="svcLifecycleScreening" targetRef="utRiskReview"/>
+        <sequenceFlow id="flowReviewGw" sourceRef="utRiskReview" targetRef="gwReOnboard"/>
+        <sequenceFlow id="flowReOnboard" sourceRef="gwReOnboard" targetRef="svcReOnboard">
+            <conditionExpression xsi:type="tFormalExpression">${reOnboardingRequired == true}</conditionExpression>
+        </sequenceFlow>
+        <!-- 重检循环回边：重新进入等待（Timer 重新计时） -->
+        <sequenceFlow id="flowReOnboardBack" sourceRef="svcReOnboard" targetRef="ebgwWait"/>
+        <sequenceFlow id="flowBackWait" sourceRef="gwReOnboard" targetRef="ebgwWait"/>
+
+        <laneSet>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utRiskReview</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>ebgwWait</flowNodeRef>
+                <flowNodeRef>iccRecheckTimer</flowNodeRef>
+                <flowNodeRef>iccTradeMonitoring</flowNodeRef>
+                <flowNodeRef>iccCustomerExit</flowNodeRef>
+                <flowNodeRef>svcLifecycleScreening</flowNodeRef>
+                <flowNodeRef>gwReOnboard</flowNodeRef>
+                <flowNodeRef>svcReOnboard</flowNodeRef>
+                <flowNodeRef>endExit</flowNodeRef>
+            </lane>
+        </laneSet>
+    </process>
+</definitions>
