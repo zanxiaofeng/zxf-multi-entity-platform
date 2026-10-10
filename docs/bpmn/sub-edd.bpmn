@@ -10,7 +10,10 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-edd" name="强化尽调（EDD）与高级管理层批准">
 
@@ -56,4 +59,65 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-edd">
+            <bpmndi:BPMNShape id="BPMNShape_laneRm" bpmnElement="laneRm" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="1126" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSeniorMgmt" bpmnElement="laneSeniorMgmt" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="1126" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="440" width="1126" height="300"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="512" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utEddMeasures" bpmnElement="utEddMeasures">
+                <omgdc:Bounds x="480" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utSeniorSignoff" bpmnElement="utSeniorSignoff">
+                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwEddResult" bpmnElement="gwEddResult">
+                <omgdc:Bounds x="960" y="505" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endApproved" bpmnElement="endApproved">
+                <omgdc:Bounds x="1200" y="512" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endRejected" bpmnElement="endRejected">
+                <omgdc:Bounds x="1200" y="632" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartMeasures" bpmnElement="flowStartMeasures">
+                <omgdi:waypoint x="276" y="530"/>
+                <omgdi:waypoint x="378" y="530"/>
+                <omgdi:waypoint x="378" y="170"/>
+                <omgdi:waypoint x="480" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowMeasuresSignoff" bpmnElement="flowMeasuresSignoff">
+                <omgdi:waypoint x="630" y="170"/>
+                <omgdi:waypoint x="675" y="170"/>
+                <omgdi:waypoint x="675" y="350"/>
+                <omgdi:waypoint x="720" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowSignoffGw" bpmnElement="flowSignoffGw">
+                <omgdi:waypoint x="870" y="350"/>
+                <omgdi:waypoint x="915" y="350"/>
+                <omgdi:waypoint x="915" y="530"/>
+                <omgdi:waypoint x="960" y="530"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEddApproved" bpmnElement="flowEddApproved">
+                <omgdi:waypoint x="1010" y="530"/>
+                <omgdi:waypoint x="1200" y="530"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEddRejected" bpmnElement="flowEddRejected">
+                <omgdi:waypoint x="1010" y="530"/>
+                <omgdi:waypoint x="1105" y="530"/>
+                <omgdi:waypoint x="1105" y="650"/>
+                <omgdi:waypoint x="1200" y="650"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

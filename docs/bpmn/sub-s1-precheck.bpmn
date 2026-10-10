@@ -12,7 +12,10 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s1-precheck" name="S1 受理与资料预检">
 
@@ -60,4 +63,78 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-s1-precheck">
+            <bpmndi:BPMNShape id="BPMNShape_laneRm" bpmnElement="laneRm" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="1606" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="1606" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utApply" bpmnElement="utApply">
+                <omgdc:Bounds x="480" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utCollect" bpmnElement="utCollect">
+                <omgdc:Bounds x="720" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtChecklist" bpmnElement="brtChecklist">
+                <omgdc:Bounds x="960" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcCheckDocuments" bpmnElement="svcCheckDocuments">
+                <omgdc:Bounds x="1200" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwDocsComplete" bpmnElement="gwDocsComplete">
+                <omgdc:Bounds x="1440" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utSupplement" bpmnElement="utSupplement">
+                <omgdc:Bounds x="240" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <omgdc:Bounds x="1680" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartApply" bpmnElement="flowStartApply">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="378" y="350"/>
+                <omgdi:waypoint x="378" y="170"/>
+                <omgdi:waypoint x="480" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowApplyCollect" bpmnElement="flowApplyCollect">
+                <omgdi:waypoint x="630" y="170"/>
+                <omgdi:waypoint x="720" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowCollectCheck" bpmnElement="flowCollectCheck">
+                <omgdi:waypoint x="870" y="170"/>
+                <omgdi:waypoint x="915" y="170"/>
+                <omgdi:waypoint x="915" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowCheckSvc" bpmnElement="flowCheckSvc">
+                <omgdi:waypoint x="1110" y="350"/>
+                <omgdi:waypoint x="1200" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowCheckGw" bpmnElement="flowCheckGw">
+                <omgdi:waypoint x="1350" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowGwEnd" bpmnElement="flowGwEnd">
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowToSupplement" bpmnElement="flowToSupplement">
+                <omgdi:waypoint x="1465" y="375"/>
+                <omgdi:waypoint x="1465" y="415"/>
+                <omgdi:waypoint x="315" y="415"/>
+                <omgdi:waypoint x="315" y="215"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowSupplementBack" bpmnElement="flowSupplementBack">
+                <omgdi:waypoint x="390" y="170"/>
+                <omgdi:waypoint x="720" y="170"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

@@ -15,7 +15,10 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s3a-screening" name="S3a 筛查与风险评级">
 
@@ -74,4 +77,87 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-s3a-screening">
+            <bpmndi:BPMNShape id="BPMNShape_laneCompliance" bpmnElement="laneCompliance" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="2086" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="2086" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcScreening" bpmnElement="svcScreening">
+                <omgdc:Bounds x="480" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtDisposition" bpmnElement="brtDisposition">
+                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtRating" bpmnElement="brtRating">
+                <omgdc:Bounds x="960" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwHighRisk" bpmnElement="gwHighRisk">
+                <omgdc:Bounds x="1200" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callEdd" bpmnElement="callEdd">
+                <omgdc:Bounds x="1440" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwReviewNeed" bpmnElement="gwReviewNeed">
+                <omgdc:Bounds x="1680" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utComplianceReview" bpmnElement="utComplianceReview">
+                <omgdc:Bounds x="1920" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <omgdc:Bounds x="2160" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartScreening" bpmnElement="flowStartScreening">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="480" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowScreeningDisposition" bpmnElement="flowScreeningDisposition">
+                <omgdi:waypoint x="630" y="350"/>
+                <omgdi:waypoint x="720" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowDispositionRating" bpmnElement="flowDispositionRating">
+                <omgdi:waypoint x="870" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowRatingGw" bpmnElement="flowRatingGw">
+                <omgdi:waypoint x="1110" y="350"/>
+                <omgdi:waypoint x="1200" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowHighEdd" bpmnElement="flowHighEdd">
+                <omgdi:waypoint x="1250" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEddReviewNeed" bpmnElement="flowEddReviewNeed">
+                <omgdi:waypoint x="1590" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowToReviewNeed" bpmnElement="flowToReviewNeed">
+                <omgdi:waypoint x="1250" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowNeedReview" bpmnElement="flowNeedReview">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="1825" y="350"/>
+                <omgdi:waypoint x="1825" y="170"/>
+                <omgdi:waypoint x="1920" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowReviewEnd" bpmnElement="flowReviewEnd">
+                <omgdi:waypoint x="2070" y="170"/>
+                <omgdi:waypoint x="2115" y="170"/>
+                <omgdi:waypoint x="2115" y="350"/>
+                <omgdi:waypoint x="2160" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowDirectEnd" bpmnElement="flowDirectEnd">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="2160" y="350"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

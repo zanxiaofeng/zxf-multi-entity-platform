@@ -6,12 +6,15 @@
   命中类型的处置分流——DMN 是"条件→结论"映射，不做数据查询（系统设计文档 4.3）。
   输出 blacklistPassed 供 exception-trigger 汇聚。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_blacklist_check" name="内部黑名单比对"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="blacklist-check" name="内部黑名单比对">
     <decisionTable id="blacklistCheckTable" hitPolicy="FIRST">
-      <input label="内部黑名单命中类型">
+      <input id="input_1" label="内部黑名单命中类型">
         <inputExpression id="inputExpression_bl" typeRef="string">
           <text>blacklistHit</text>
         </inputExpression>
@@ -45,4 +48,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_blacklist-check" dmnElementRef="blacklist-check">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

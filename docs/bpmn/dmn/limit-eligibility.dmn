@@ -5,22 +5,25 @@
   申请额度作为 S3b 输入）。阈值数值为示意骨架（注意 COLLECT `#` 等聚合结果
   返回 Double 的版本陷阱不适用本表——FIRST 单值输出，完全指南 19.3）。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_limit_eligibility" name="额度适配校验"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="limit-eligibility" name="额度适配校验">
     <decisionTable id="limitEligibilityTable" hitPolicy="FIRST">
-      <input label="申请额度(元)">
+      <input id="input_1" label="申请额度(元)">
         <inputExpression id="inputExpression_amt" typeRef="number">
           <text>applyAmount</text>
         </inputExpression>
       </input>
-      <input label="客户类型">
+      <input id="input_2" label="客户类型">
         <inputExpression id="inputExpression_ct" typeRef="string">
           <text>customerType</text>
         </inputExpression>
       </input>
-      <input label="业务品种">
+      <input id="input_3" label="业务品种">
         <inputExpression id="inputExpression_bt" typeRef="string">
           <text>businessType</text>
         </inputExpression>
@@ -53,4 +56,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_limit-eligibility" dmnElementRef="limit-eligibility">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

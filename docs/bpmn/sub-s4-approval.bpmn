@@ -16,7 +16,10 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s4-approval" name="S4 审批决策">
 
@@ -113,4 +116,140 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-s4-approval">
+            <bpmndi:BPMNShape id="BPMNShape_laneApprover" bpmnElement="laneApprover" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="2326" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="2326" height="300"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcAssembleApprovalInput" bpmnElement="svcAssembleApprovalInput">
+                <omgdc:Bounds x="480" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtRouting" bpmnElement="brtRouting">
+                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcAssembleParams" bpmnElement="svcAssembleParams">
+                <omgdc:Bounds x="960" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utApprove" bpmnElement="utApprove">
+                <omgdc:Bounds x="1200" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_approveTimeout" bpmnElement="approveTimeout">
+                <omgdc:Bounds x="1362" y="207" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utEscalate" bpmnElement="utEscalate">
+                <omgdc:Bounds x="1680" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwEscalated" bpmnElement="gwEscalated">
+                <omgdc:Bounds x="1920" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwResult" bpmnElement="gwResult">
+                <omgdc:Bounds x="1440" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwConditional" bpmnElement="gwConditional">
+                <omgdc:Bounds x="1680" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callConditions" bpmnElement="callConditions">
+                <omgdc:Bounds x="1920" y="425" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwConditionsOutcome" bpmnElement="gwConditionsOutcome">
+                <omgdc:Bounds x="2160" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endApproved" bpmnElement="endApproved">
+                <omgdc:Bounds x="2400" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endRejected" bpmnElement="endRejected">
+                <omgdc:Bounds x="2400" y="452" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartAssemble" bpmnElement="flowStartAssemble">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="480" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowAssembleRouting" bpmnElement="flowAssembleRouting">
+                <omgdi:waypoint x="630" y="350"/>
+                <omgdi:waypoint x="720" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowRoutingParams" bpmnElement="flowRoutingParams">
+                <omgdi:waypoint x="870" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowParamsApprove" bpmnElement="flowParamsApprove">
+                <omgdi:waypoint x="1110" y="350"/>
+                <omgdi:waypoint x="1155" y="350"/>
+                <omgdi:waypoint x="1155" y="170"/>
+                <omgdi:waypoint x="1200" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowTimeoutEscalate" bpmnElement="flowTimeoutEscalate">
+                <omgdi:waypoint x="1392" y="222"/>
+                <omgdi:waypoint x="1536" y="222"/>
+                <omgdi:waypoint x="1536" y="170"/>
+                <omgdi:waypoint x="1680" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEscalateGw" bpmnElement="flowEscalateGw">
+                <omgdi:waypoint x="1830" y="170"/>
+                <omgdi:waypoint x="1875" y="170"/>
+                <omgdi:waypoint x="1875" y="350"/>
+                <omgdi:waypoint x="1920" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEscApproved" bpmnElement="flowEscApproved">
+                <omgdi:waypoint x="1970" y="350"/>
+                <omgdi:waypoint x="2400" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEscRejected" bpmnElement="flowEscRejected">
+                <omgdi:waypoint x="1970" y="350"/>
+                <omgdi:waypoint x="2185" y="350"/>
+                <omgdi:waypoint x="2185" y="470"/>
+                <omgdi:waypoint x="2400" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowApproveGw" bpmnElement="flowApproveGw">
+                <omgdi:waypoint x="1350" y="170"/>
+                <omgdi:waypoint x="1395" y="170"/>
+                <omgdi:waypoint x="1395" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowApproved" bpmnElement="flowApproved">
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowRejected" bpmnElement="flowRejected">
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1945" y="350"/>
+                <omgdi:waypoint x="1945" y="470"/>
+                <omgdi:waypoint x="2400" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowConditional" bpmnElement="flowConditional">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="1825" y="350"/>
+                <omgdi:waypoint x="1825" y="470"/>
+                <omgdi:waypoint x="1920" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowConditionsGw" bpmnElement="flowConditionsGw">
+                <omgdi:waypoint x="2070" y="470"/>
+                <omgdi:waypoint x="2115" y="470"/>
+                <omgdi:waypoint x="2115" y="350"/>
+                <omgdi:waypoint x="2160" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowConditionsApproved" bpmnElement="flowConditionsApproved">
+                <omgdi:waypoint x="2210" y="350"/>
+                <omgdi:waypoint x="2400" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowConditionsRejected" bpmnElement="flowConditionsRejected">
+                <omgdi:waypoint x="2210" y="350"/>
+                <omgdi:waypoint x="2305" y="350"/>
+                <omgdi:waypoint x="2305" y="470"/>
+                <omgdi:waypoint x="2400" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowUnconditionalEnd" bpmnElement="flowUnconditionalEnd">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="2400" y="350"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

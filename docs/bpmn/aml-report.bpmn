@@ -7,7 +7,10 @@
 -->
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="aml-report" name="P3 AML 合规上报">
 
@@ -45,4 +48,62 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="aml-report">
+            <bpmndi:BPMNShape id="BPMNShape_laneCompliance" bpmnElement="laneCompliance" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="1366" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="1366" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utAmlReview" bpmnElement="utAmlReview">
+                <omgdc:Bounds x="480" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcAmlReport" bpmnElement="svcAmlReport">
+                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcAmlResult" bpmnElement="svcAmlResult">
+                <omgdc:Bounds x="960" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utFreeze" bpmnElement="utFreeze">
+                <omgdc:Bounds x="1200" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <omgdc:Bounds x="1440" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartReview" bpmnElement="flowStartReview">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="378" y="350"/>
+                <omgdi:waypoint x="378" y="170"/>
+                <omgdi:waypoint x="480" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowReviewReport" bpmnElement="flowReviewReport">
+                <omgdi:waypoint x="630" y="170"/>
+                <omgdi:waypoint x="675" y="170"/>
+                <omgdi:waypoint x="675" y="350"/>
+                <omgdi:waypoint x="720" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowReportResult" bpmnElement="flowReportResult">
+                <omgdi:waypoint x="870" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowResultFreeze" bpmnElement="flowResultFreeze">
+                <omgdi:waypoint x="1110" y="350"/>
+                <omgdi:waypoint x="1155" y="350"/>
+                <omgdi:waypoint x="1155" y="170"/>
+                <omgdi:waypoint x="1200" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowFreezeEnd" bpmnElement="flowFreezeEnd">
+                <omgdi:waypoint x="1350" y="170"/>
+                <omgdi:waypoint x="1395" y="170"/>
+                <omgdi:waypoint x="1395" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

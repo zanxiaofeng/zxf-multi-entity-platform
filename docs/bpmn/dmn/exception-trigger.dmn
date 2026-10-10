@@ -6,32 +6,35 @@
   由 S4 审批路由按例外标记上收审批层级。
   输出 eligibilityPassed 为主流程 callS3b 的 out 变量（网关/审批输入）。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_exception_trigger" name="例外审批触发"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="exception-trigger" name="例外审批触发">
     <decisionTable id="exceptionTriggerTable" hitPolicy="FIRST">
-      <input label="行业校验结论">
+      <input id="input_1" label="行业校验结论">
         <inputExpression id="inputExpression_ip" typeRef="boolean">
           <text>industryPassed</text>
         </inputExpression>
       </input>
-      <input label="区域校验结论">
+      <input id="input_2" label="区域校验结论">
         <inputExpression id="inputExpression_rp" typeRef="boolean">
           <text>regionPassed</text>
         </inputExpression>
       </input>
-      <input label="额度校验结论">
+      <input id="input_3" label="额度校验结论">
         <inputExpression id="inputExpression_lp" typeRef="boolean">
           <text>limitPassed</text>
         </inputExpression>
       </input>
-      <input label="产品适配结论">
+      <input id="input_4" label="产品适配结论">
         <inputExpression id="inputExpression_pf" typeRef="boolean">
           <text>productFit</text>
         </inputExpression>
       </input>
-      <input label="黑名单校验结论">
+      <input id="input_5" label="黑名单校验结论">
         <inputExpression id="inputExpression_bp" typeRef="boolean">
           <text>blacklistPassed</text>
         </inputExpression>
@@ -102,4 +105,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_exception-trigger" dmnElementRef="exception-trigger">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

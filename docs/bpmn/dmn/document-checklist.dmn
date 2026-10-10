@@ -11,12 +11,15 @@
   银发〔2019〕41 号三类开户资料）补全维护。documentsComplete 的判定不在本表
   （集合比对归 documentsCheckDelegate，见 sub-s1）。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_document_checklist" name="资料清单匹配"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="document-checklist" name="资料清单匹配">
     <decisionTable id="documentChecklistTable" hitPolicy="COLLECT">
-      <input label="客户类型">
+      <input id="input_1" label="客户类型">
         <inputExpression id="inputExpression_ct" typeRef="string">
           <text>customerType</text>
         </inputExpression>
@@ -24,7 +27,7 @@
           <text>"CORP","GROUP"</text>
         </inputValues>
       </input>
-      <input label="业务品种">
+      <input id="input_2" label="业务品种">
         <inputExpression id="inputExpression_bt" typeRef="string">
           <text>businessType</text>
         </inputExpression>
@@ -70,4 +73,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_document-checklist" dmnElementRef="document-checklist">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

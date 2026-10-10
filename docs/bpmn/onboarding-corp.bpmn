@@ -14,7 +14,10 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <message id="msgOnboardingRequest" name="onboarding-request"/>
 
@@ -171,4 +174,149 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="onboarding-corp">
+            <bpmndi:BPMNShape id="BPMNShape_laneRm" bpmnElement="laneRm" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="2566" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="2566" height="300"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_startByRm" bpmnElement="startByRm">
+                <omgdc:Bounds x="240" y="152" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_startFromCore" bpmnElement="startFromCore">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callS1" bpmnElement="callS1">
+                <omgdc:Bounds x="480" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callS2" bpmnElement="callS2">
+                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_s3Fork" bpmnElement="s3Fork">
+                <omgdc:Bounds x="960" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callS3a" bpmnElement="callS3a">
+                <omgdc:Bounds x="1200" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callS3b" bpmnElement="callS3b">
+                <omgdc:Bounds x="1200" y="425" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_s3Join" bpmnElement="s3Join">
+                <omgdc:Bounds x="1440" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwScreeningOutcome" bpmnElement="gwScreeningOutcome">
+                <omgdc:Bounds x="1680" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callP3" bpmnElement="callP3">
+                <omgdc:Bounds x="1920" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callS4" bpmnElement="callS4">
+                <omgdc:Bounds x="1920" y="425" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwApprovalResult" bpmnElement="gwApprovalResult">
+                <omgdc:Bounds x="2160" y="445" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callS5" bpmnElement="callS5">
+                <omgdc:Bounds x="2400" y="425" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_callP1" bpmnElement="callP1">
+                <omgdc:Bounds x="2400" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endOnboarded" bpmnElement="endOnboarded">
+                <omgdc:Bounds x="2640" y="452" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endTerminated" bpmnElement="endTerminated">
+                <omgdc:Bounds x="2160" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endRejected" bpmnElement="endRejected">
+                <omgdc:Bounds x="2640" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowSanctionsHit" bpmnElement="flowSanctionsHit">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="1920" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEddReject" bpmnElement="flowEddReject">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="2400" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowApproved" bpmnElement="flowApproved">
+                <omgdi:waypoint x="2210" y="470"/>
+                <omgdi:waypoint x="2400" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowRmS1" bpmnElement="flowRmS1">
+                <omgdi:waypoint x="276" y="170"/>
+                <omgdi:waypoint x="378" y="170"/>
+                <omgdi:waypoint x="378" y="350"/>
+                <omgdi:waypoint x="480" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowCoreS1" bpmnElement="flowCoreS1">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="480" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowS1S2" bpmnElement="flowS1S2">
+                <omgdi:waypoint x="630" y="350"/>
+                <omgdi:waypoint x="720" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowS2Fork" bpmnElement="flowS2Fork">
+                <omgdi:waypoint x="870" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowForkS3a" bpmnElement="flowForkS3a">
+                <omgdi:waypoint x="1010" y="350"/>
+                <omgdi:waypoint x="1200" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowForkS3b" bpmnElement="flowForkS3b">
+                <omgdi:waypoint x="1010" y="350"/>
+                <omgdi:waypoint x="1105" y="350"/>
+                <omgdi:waypoint x="1105" y="470"/>
+                <omgdi:waypoint x="1200" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowS3aJoin" bpmnElement="flowS3aJoin">
+                <omgdi:waypoint x="1350" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowS3bJoin" bpmnElement="flowS3bJoin">
+                <omgdi:waypoint x="1350" y="470"/>
+                <omgdi:waypoint x="1395" y="470"/>
+                <omgdi:waypoint x="1395" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowJoinGw" bpmnElement="flowJoinGw">
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowP3End" bpmnElement="flowP3End">
+                <omgdi:waypoint x="2070" y="350"/>
+                <omgdi:waypoint x="2160" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowToS4" bpmnElement="flowToS4">
+                <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="1825" y="350"/>
+                <omgdi:waypoint x="1825" y="470"/>
+                <omgdi:waypoint x="1920" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowS4Gw" bpmnElement="flowS4Gw">
+                <omgdi:waypoint x="2070" y="470"/>
+                <omgdi:waypoint x="2160" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowS5End" bpmnElement="flowS5End">
+                <omgdi:waypoint x="2550" y="470"/>
+                <omgdi:waypoint x="2640" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowToP1" bpmnElement="flowToP1">
+                <omgdi:waypoint x="2210" y="470"/>
+                <omgdi:waypoint x="2305" y="470"/>
+                <omgdi:waypoint x="2305" y="350"/>
+                <omgdi:waypoint x="2400" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowP1End" bpmnElement="flowP1End">
+                <omgdi:waypoint x="2550" y="350"/>
+                <omgdi:waypoint x="2640" y="350"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

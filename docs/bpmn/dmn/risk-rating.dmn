@@ -9,27 +9,30 @@
   循环嵌套交叉持股/协议代持/异常变化——文档 2.2）。
   输出 riskLevel 写回流程变量（驱动 S3a 高风险分流、S4 审批路由）。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_risk_rating" name="洗钱风险评级"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="risk-rating" name="洗钱风险评级">
     <decisionTable id="riskRatingTable" hitPolicy="FIRST">
-      <input label="所有权结构复杂标记">
+      <input id="input_1" label="所有权结构复杂标记">
         <inputExpression id="inputExpression_sc" typeRef="boolean">
           <text>structureComplex</text>
         </inputExpression>
       </input>
-      <input label="企业风险分(0-100)">
+      <input id="input_2" label="企业风险分(0-100)">
         <inputExpression id="inputExpression_crs" typeRef="number">
           <text>corpRiskScore</text>
         </inputExpression>
       </input>
-      <input label="UBO风险分(0-100)">
+      <input id="input_3" label="UBO风险分(0-100)">
         <inputExpression id="inputExpression_urs" typeRef="number">
           <text>uboRiskScore</text>
         </inputExpression>
       </input>
-      <input label="行业风险等级">
+      <input id="input_4" label="行业风险等级">
         <inputExpression id="inputExpression_ir" typeRef="string">
           <text>industryRisk</text>
         </inputExpression>
@@ -37,7 +40,7 @@
           <text>"LOW","MEDIUM","HIGH"</text>
         </inputValues>
       </input>
-      <input label="区域风险等级">
+      <input id="input_5" label="区域风险等级">
         <inputExpression id="inputExpression_rr" typeRef="string">
           <text>regionRisk</text>
         </inputExpression>
@@ -45,7 +48,7 @@
           <text>"LOW","MEDIUM","HIGH"</text>
         </inputValues>
       </input>
-      <input label="业务品种">
+      <input id="input_6" label="业务品种">
         <inputExpression id="inputExpression_bt" typeRef="string">
           <text>businessType</text>
         </inputExpression>
@@ -141,4 +144,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_risk-rating" dmnElementRef="risk-rating">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

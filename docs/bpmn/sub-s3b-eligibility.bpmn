@@ -11,7 +11,10 @@
 -->
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s3b-eligibility" name="S3b 准入规则校验">
 
@@ -58,4 +61,72 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-s3b-eligibility">
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="2086" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="152" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcAssembleInput" bpmnElement="svcAssembleInput">
+                <omgdc:Bounds x="480" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtIndustry" bpmnElement="brtIndustry">
+                <omgdc:Bounds x="720" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtRegion" bpmnElement="brtRegion">
+                <omgdc:Bounds x="960" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtLimit" bpmnElement="brtLimit">
+                <omgdc:Bounds x="1200" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtProduct" bpmnElement="brtProduct">
+                <omgdc:Bounds x="1440" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtBlacklist" bpmnElement="brtBlacklist">
+                <omgdc:Bounds x="1680" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_brtException" bpmnElement="brtException">
+                <omgdc:Bounds x="1920" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <omgdc:Bounds x="2160" y="152" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartAssemble" bpmnElement="flowStartAssemble">
+                <omgdi:waypoint x="276" y="170"/>
+                <omgdi:waypoint x="480" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowAssembleIndustry" bpmnElement="flowAssembleIndustry">
+                <omgdi:waypoint x="630" y="170"/>
+                <omgdi:waypoint x="720" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowIndustryRegion" bpmnElement="flowIndustryRegion">
+                <omgdi:waypoint x="870" y="170"/>
+                <omgdi:waypoint x="960" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowRegionLimit" bpmnElement="flowRegionLimit">
+                <omgdi:waypoint x="1110" y="170"/>
+                <omgdi:waypoint x="1200" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowLimitProduct" bpmnElement="flowLimitProduct">
+                <omgdi:waypoint x="1350" y="170"/>
+                <omgdi:waypoint x="1440" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowProductBlacklist" bpmnElement="flowProductBlacklist">
+                <omgdi:waypoint x="1590" y="170"/>
+                <omgdi:waypoint x="1680" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowBlacklistException" bpmnElement="flowBlacklistException">
+                <omgdi:waypoint x="1830" y="170"/>
+                <omgdi:waypoint x="1920" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowExceptionEnd" bpmnElement="flowExceptionEnd">
+                <omgdi:waypoint x="2070" y="170"/>
+                <omgdi:waypoint x="2160" y="170"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

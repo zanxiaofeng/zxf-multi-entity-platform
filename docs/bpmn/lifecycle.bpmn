@@ -13,7 +13,10 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <message id="msgTradeMonitoringHit" name="trade-monitoring-hit"/>
     <message id="msgCustomerExit" name="customer-exit"/>
@@ -80,4 +83,108 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="lifecycle">
+            <bpmndi:BPMNShape id="BPMNShape_laneCompliance" bpmnElement="laneCompliance" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="1846" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="1846" height="300"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_ebgwWait" bpmnElement="ebgwWait">
+                <omgdc:Bounds x="1440" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_iccRecheckTimer" bpmnElement="iccRecheckTimer">
+                <omgdc:Bounds x="1680" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_iccTradeMonitoring" bpmnElement="iccTradeMonitoring">
+                <omgdc:Bounds x="240" y="452" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_iccCustomerExit" bpmnElement="iccCustomerExit">
+                <omgdc:Bounds x="1680" y="452" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcLifecycleScreening" bpmnElement="svcLifecycleScreening">
+                <omgdc:Bounds x="480" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utRiskReview" bpmnElement="utRiskReview">
+                <omgdc:Bounds x="720" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_gwReOnboard" bpmnElement="gwReOnboard">
+                <omgdc:Bounds x="960" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcReOnboard" bpmnElement="svcReOnboard">
+                <omgdc:Bounds x="1200" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endExit" bpmnElement="endExit">
+                <omgdc:Bounds x="1920" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartEbgw" bpmnElement="flowStartEbgw">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEbgwTimer" bpmnElement="flowEbgwTimer">
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEbgwTrade" bpmnElement="flowEbgwTrade">
+                <omgdi:waypoint x="1465" y="375"/>
+                <omgdi:waypoint x="1465" y="528"/>
+                <omgdi:waypoint x="258" y="528"/>
+                <omgdi:waypoint x="258" y="488"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEbgwExit" bpmnElement="flowEbgwExit">
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1585" y="350"/>
+                <omgdi:waypoint x="1585" y="470"/>
+                <omgdi:waypoint x="1680" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowExitEnd" bpmnElement="flowExitEnd">
+                <omgdi:waypoint x="1716" y="470"/>
+                <omgdi:waypoint x="1818" y="470"/>
+                <omgdi:waypoint x="1818" y="350"/>
+                <omgdi:waypoint x="1920" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowTimerScreening" bpmnElement="flowTimerScreening">
+                <omgdi:waypoint x="1698" y="368"/>
+                <omgdi:waypoint x="1698" y="465"/>
+                <omgdi:waypoint x="555" y="465"/>
+                <omgdi:waypoint x="555" y="395"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowTradeScreening" bpmnElement="flowTradeScreening">
+                <omgdi:waypoint x="276" y="470"/>
+                <omgdi:waypoint x="378" y="470"/>
+                <omgdi:waypoint x="378" y="350"/>
+                <omgdi:waypoint x="480" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowScreeningReview" bpmnElement="flowScreeningReview">
+                <omgdi:waypoint x="630" y="350"/>
+                <omgdi:waypoint x="675" y="350"/>
+                <omgdi:waypoint x="675" y="170"/>
+                <omgdi:waypoint x="720" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowReviewGw" bpmnElement="flowReviewGw">
+                <omgdi:waypoint x="870" y="170"/>
+                <omgdi:waypoint x="915" y="170"/>
+                <omgdi:waypoint x="915" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowReOnboard" bpmnElement="flowReOnboard">
+                <omgdi:waypoint x="1010" y="350"/>
+                <omgdi:waypoint x="1200" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowReOnboardBack" bpmnElement="flowReOnboardBack">
+                <omgdi:waypoint x="1350" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowBackWait" bpmnElement="flowBackWait">
+                <omgdi:waypoint x="1010" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

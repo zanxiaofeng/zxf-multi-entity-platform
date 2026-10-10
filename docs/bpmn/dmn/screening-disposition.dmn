@@ -8,12 +8,15 @@
   第 48 条（恐怖活动组织及人员名单按制裁口径并入 SANCTIONS）。
   输出 disposition 供业务库/审计记录细分动作；主流程网关分流用 hitFlag（阈值不写在网关上）。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_screening_disposition" name="名单命中分级处置"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="screening-disposition" name="名单命中分级处置">
     <decisionTable id="screeningDispositionTable" hitPolicy="FIRST">
-      <input label="名单命中类型">
+      <input id="input_1" label="名单命中类型">
         <inputExpression id="inputExpression_hitFlag" typeRef="string">
           <text>hitFlag</text>
         </inputExpression>
@@ -56,4 +59,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_screening-disposition" dmnElementRef="screening-disposition">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

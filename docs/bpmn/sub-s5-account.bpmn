@@ -11,7 +11,10 @@
 -->
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:flowable="http://flowable.org/bpmn"
-             targetNamespace="http://zxf.com/platform/onboarding">
+             targetNamespace="http://zxf.com/platform/onboarding"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <message id="msgAccountOpenResult" name="account-open-result"/>
 
@@ -76,4 +79,95 @@
             </lane>
         </laneSet>
     </process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-s5-account">
+            <bpmndi:BPMNShape id="BPMNShape_laneOperations" bpmnElement="laneOperations" isHorizontal="true">
+                <omgdc:Bounds x="180" y="80" width="1846" height="180"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
+                <omgdc:Bounds x="180" y="260" width="1846" height="300"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <omgdc:Bounds x="240" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_utContract" bpmnElement="utContract">
+                <omgdc:Bounds x="480" y="125" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_sendNotifyCustomer" bpmnElement="sendNotifyCustomer">
+                <omgdc:Bounds x="720" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcOpenAccount" bpmnElement="svcOpenAccount">
+                <omgdc:Bounds x="960" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_ebgwReceipt" bpmnElement="ebgwReceipt">
+                <omgdc:Bounds x="1200" y="325" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_iccAccountResult" bpmnElement="iccAccountResult">
+                <omgdc:Bounds x="1440" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_iccReceiptTimeout" bpmnElement="iccReceiptTimeout">
+                <omgdc:Bounds x="1440" y="452" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcArchive" bpmnElement="svcArchive">
+                <omgdc:Bounds x="1680" y="305" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_svcReceiptAlert" bpmnElement="svcReceiptAlert">
+                <omgdc:Bounds x="1680" y="425" width="150" height="90"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <omgdc:Bounds x="1920" y="332" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="BPMNShape_endTimeoutHandled" bpmnElement="endTimeoutHandled">
+                <omgdc:Bounds x="1920" y="452" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowStartContract" bpmnElement="flowStartContract">
+                <omgdi:waypoint x="276" y="350"/>
+                <omgdi:waypoint x="378" y="350"/>
+                <omgdi:waypoint x="378" y="170"/>
+                <omgdi:waypoint x="480" y="170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowContractNotify" bpmnElement="flowContractNotify">
+                <omgdi:waypoint x="630" y="170"/>
+                <omgdi:waypoint x="675" y="170"/>
+                <omgdi:waypoint x="675" y="350"/>
+                <omgdi:waypoint x="720" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowNotifyOpen" bpmnElement="flowNotifyOpen">
+                <omgdi:waypoint x="870" y="350"/>
+                <omgdi:waypoint x="960" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowOpenEbgw" bpmnElement="flowOpenEbgw">
+                <omgdi:waypoint x="1110" y="350"/>
+                <omgdi:waypoint x="1200" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEbgwResult" bpmnElement="flowEbgwResult">
+                <omgdi:waypoint x="1250" y="350"/>
+                <omgdi:waypoint x="1440" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowEbgwTimeout" bpmnElement="flowEbgwTimeout">
+                <omgdi:waypoint x="1250" y="350"/>
+                <omgdi:waypoint x="1345" y="350"/>
+                <omgdi:waypoint x="1345" y="470"/>
+                <omgdi:waypoint x="1440" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowResultArchive" bpmnElement="flowResultArchive">
+                <omgdi:waypoint x="1476" y="350"/>
+                <omgdi:waypoint x="1680" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowArchiveEnd" bpmnElement="flowArchiveEnd">
+                <omgdi:waypoint x="1830" y="350"/>
+                <omgdi:waypoint x="1920" y="350"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowTimeoutAlert" bpmnElement="flowTimeoutAlert">
+                <omgdi:waypoint x="1476" y="470"/>
+                <omgdi:waypoint x="1680" y="470"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="BPMNEdge_flowAlertEnd" bpmnElement="flowAlertEnd">
+                <omgdi:waypoint x="1830" y="470"/>
+                <omgdi:waypoint x="1920" y="470"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
 </definitions>

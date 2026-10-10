@@ -4,22 +4,25 @@
   由区域政策条线独立维护。输入 regionCode/isCrossBorder 由 svcAssembleInput 预置。
   示意骨架：制裁涉及地区拒绝、跨境业务高风险地区从严。
 -->
-<definitions xmlns="http://www.omg.org/spec/DMN/20150501"
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_region_policy" name="区域政策校验"
-             namespace="http://zxf.com/platform/onboarding/dmn">
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
   <decision id="region-policy" name="区域政策校验">
     <decisionTable id="regionPolicyTable" hitPolicy="FIRST">
-      <input label="区域编码">
+      <input id="input_1" label="区域编码">
         <inputExpression id="inputExpression_rc" typeRef="string">
           <text>regionCode</text>
         </inputExpression>
       </input>
-      <input label="是否跨境">
+      <input id="input_2" label="是否跨境">
         <inputExpression id="inputExpression_xb" typeRef="boolean">
           <text>isCrossBorder</text>
         </inputExpression>
       </input>
-      <input label="业务品种">
+      <input id="input_3" label="业务品种">
         <inputExpression id="inputExpression_bt" typeRef="string">
           <text>businessType</text>
         </inputExpression>
@@ -50,4 +53,11 @@
       </rule>
     </decisionTable>
   </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_region-policy" dmnElementRef="region-policy">
+        <dc:Bounds x="160" y="80" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>
