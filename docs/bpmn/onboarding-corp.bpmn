@@ -22,6 +22,29 @@
     <message id="msgOnboardingRequest" name="onboarding-request"/>
 
     <process id="onboarding-corp" name="对公客户准入主流程">
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>startByRm</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>startFromCore</flowNodeRef>
+                <flowNodeRef>callS1</flowNodeRef>
+                <flowNodeRef>callS2</flowNodeRef>
+                <flowNodeRef>s3Fork</flowNodeRef>
+                <flowNodeRef>callS3a</flowNodeRef>
+                <flowNodeRef>callS3b</flowNodeRef>
+                <flowNodeRef>s3Join</flowNodeRef>
+                <flowNodeRef>gwScreeningOutcome</flowNodeRef>
+                <flowNodeRef>callP3</flowNodeRef>
+                <flowNodeRef>callS4</flowNodeRef>
+                <flowNodeRef>gwApprovalResult</flowNodeRef>
+                <flowNodeRef>callS5</flowNodeRef>
+                <flowNodeRef>callP1</flowNodeRef>
+                <flowNodeRef>endOnboarded</flowNodeRef>
+                <flowNodeRef>endTerminated</flowNodeRef>
+                <flowNodeRef>endRejected</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <!-- 1.2 双启动：两条入边隐式汇入 S1 -->
         <startEvent id="startByRm" name="客户经理发起" flowable:initiator="initiator"/>
@@ -150,29 +173,6 @@
         <sequenceFlow id="flowP1End" sourceRef="callP1" targetRef="endRejected"/>
 
         <!-- 泳道（1.3）：Lane 仅图形信息、无执行语义；系统泳道承载编排节点与网关 -->
-        <laneSet>
-            <lane id="laneRm" name="客户经理（RM）">
-                <flowNodeRef>startByRm</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>startFromCore</flowNodeRef>
-                <flowNodeRef>callS1</flowNodeRef>
-                <flowNodeRef>callS2</flowNodeRef>
-                <flowNodeRef>s3Fork</flowNodeRef>
-                <flowNodeRef>callS3a</flowNodeRef>
-                <flowNodeRef>callS3b</flowNodeRef>
-                <flowNodeRef>s3Join</flowNodeRef>
-                <flowNodeRef>gwScreeningOutcome</flowNodeRef>
-                <flowNodeRef>callP3</flowNodeRef>
-                <flowNodeRef>callS4</flowNodeRef>
-                <flowNodeRef>gwApprovalResult</flowNodeRef>
-                <flowNodeRef>callS5</flowNodeRef>
-                <flowNodeRef>callP1</flowNodeRef>
-                <flowNodeRef>endOnboarded</flowNodeRef>
-                <flowNodeRef>endTerminated</flowNodeRef>
-                <flowNodeRef>endRejected</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -240,6 +240,8 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowEddReject" bpmnElement="flowEddReject">
                 <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="1730" y="293"/>
+                <omgdi:waypoint x="2400" y="293"/>
                 <omgdi:waypoint x="2400" y="350"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowApproved" bpmnElement="flowApproved">
@@ -318,5 +320,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

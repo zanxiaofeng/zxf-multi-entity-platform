@@ -19,6 +19,29 @@
     <message id="msgCustomerAppeal" name="customer-appeal"/>
 
     <process id="reject-appeal" name="P1 拒绝与申诉">
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>utRejectRegister</flowNodeRef>
+            </lane>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utAppealReview</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>gwHitType</flowNodeRef>
+                <flowNodeRef>sendNotifyCustomer</flowNodeRef>
+                <flowNodeRef>ebgwAppeal</flowNodeRef>
+                <flowNodeRef>iccAppealWindow</flowNodeRef>
+                <flowNodeRef>iccCustomerAppeal</flowNodeRef>
+                <flowNodeRef>gwAppealResult</flowNodeRef>
+                <flowNodeRef>svcRestartOnboarding</flowNodeRef>
+                <flowNodeRef>gwAppealLimit</flowNodeRef>
+                <flowNodeRef>endNoNotify</flowNodeRef>
+                <flowNodeRef>endWindowClosed</flowNodeRef>
+                <flowNodeRef>endRestarted</flowNodeRef>
+                <flowNodeRef>endFinal</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <userTask id="utRejectRegister" name="拒绝原因登记（结构化拒绝码 + 说明）"
@@ -72,29 +95,6 @@
         <!-- 未达上限：回到复审受理下一轮申诉 -->
         <sequenceFlow id="flowBackToReview" sourceRef="gwAppealLimit" targetRef="utAppealReview"/>
 
-        <laneSet>
-            <lane id="laneRm" name="客户经理（RM）">
-                <flowNodeRef>utRejectRegister</flowNodeRef>
-            </lane>
-            <lane id="laneCompliance" name="合规/反洗钱岗">
-                <flowNodeRef>utAppealReview</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>gwHitType</flowNodeRef>
-                <flowNodeRef>sendNotifyCustomer</flowNodeRef>
-                <flowNodeRef>ebgwAppeal</flowNodeRef>
-                <flowNodeRef>iccAppealWindow</flowNodeRef>
-                <flowNodeRef>iccCustomerAppeal</flowNodeRef>
-                <flowNodeRef>gwAppealResult</flowNodeRef>
-                <flowNodeRef>svcRestartOnboarding</flowNodeRef>
-                <flowNodeRef>gwAppealLimit</flowNodeRef>
-                <flowNodeRef>endNoNotify</flowNodeRef>
-                <flowNodeRef>endWindowClosed</flowNodeRef>
-                <flowNodeRef>endRestarted</flowNodeRef>
-                <flowNodeRef>endFinal</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -231,5 +231,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

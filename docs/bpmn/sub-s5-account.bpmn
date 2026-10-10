@@ -19,6 +19,23 @@
     <message id="msgAccountOpenResult" name="account-open-result"/>
 
     <process id="sub-s5-account" name="S5 签约、开户与归档">
+        <laneSet>
+            <lane id="laneOperations" name="运营/开户岗">
+                <flowNodeRef>utContract</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>sendNotifyCustomer</flowNodeRef>
+                <flowNodeRef>svcOpenAccount</flowNodeRef>
+                <flowNodeRef>ebgwReceipt</flowNodeRef>
+                <flowNodeRef>iccAccountResult</flowNodeRef>
+                <flowNodeRef>iccReceiptTimeout</flowNodeRef>
+                <flowNodeRef>svcArchive</flowNodeRef>
+                <flowNodeRef>svcReceiptAlert</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+                <flowNodeRef>endTimeoutHandled</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <userTask id="utContract" name="签约准备（合同/印鉴）"
@@ -61,23 +78,6 @@
         <sequenceFlow id="flowTimeoutAlert" sourceRef="iccReceiptTimeout" targetRef="svcReceiptAlert"/>
         <sequenceFlow id="flowAlertEnd" sourceRef="svcReceiptAlert" targetRef="endTimeoutHandled"/>
 
-        <laneSet>
-            <lane id="laneOperations" name="运营/开户岗">
-                <flowNodeRef>utContract</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>sendNotifyCustomer</flowNodeRef>
-                <flowNodeRef>svcOpenAccount</flowNodeRef>
-                <flowNodeRef>ebgwReceipt</flowNodeRef>
-                <flowNodeRef>iccAccountResult</flowNodeRef>
-                <flowNodeRef>iccReceiptTimeout</flowNodeRef>
-                <flowNodeRef>svcArchive</flowNodeRef>
-                <flowNodeRef>svcReceiptAlert</flowNodeRef>
-                <flowNodeRef>end</flowNodeRef>
-                <flowNodeRef>endTimeoutHandled</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -169,5 +169,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

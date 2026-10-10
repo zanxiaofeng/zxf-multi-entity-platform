@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_risk_rating" name="洗钱风险评级"
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
   风险评级（文档 2.3）。hitPolicy = FIRST：最严规则置顶 + 兜底行置底（"就高不就低"）；
   不用 UNIQUE——评级维度天然重叠，UNIQUE 要求规则完全不相交，细则微调易漏行
   （系统设计文档 4.3.1 同款论证）。表达式语言为 JUEL（Flowable DMN 不支持 FEEL），
@@ -9,12 +15,7 @@
   循环嵌套交叉持股/协议代持/异常变化——文档 2.2）。
   输出 riskLevel 写回流程变量（驱动 S3a 高风险分流、S4 审批路由）。
 -->
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-             id="definitions_risk_rating" name="洗钱风险评级"
-             namespace="http://zxf.com/platform/onboarding/dmn"
-             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
-             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
-             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
   <decision id="risk-rating" name="洗钱风险评级">
     <decisionTable id="riskRatingTable" hitPolicy="FIRST">
       <input id="input_1" label="所有权结构复杂标记">

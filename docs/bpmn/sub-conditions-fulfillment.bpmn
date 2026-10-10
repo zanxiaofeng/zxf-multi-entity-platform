@@ -24,6 +24,30 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-conditions-fulfillment" name="条件落实（有条件通过）">
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>utFulfillConditions</flowNodeRef>
+            </lane>
+            <lane id="laneApprover" name="审批岗">
+                <flowNodeRef>utVerifyConditions</flowNodeRef>
+                <flowNodeRef>utAdjudicate</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcRegisterConditions</flowNodeRef>
+                <flowNodeRef>conditionsUrgeTimer</flowNodeRef>
+                <flowNodeRef>svcUrge</flowNodeRef>
+                <flowNodeRef>endUrge</flowNodeRef>
+                <flowNodeRef>gwVerify</flowNodeRef>
+                <flowNodeRef>svcNotifyFulfilled</flowNodeRef>
+                <flowNodeRef>endFulfilled</flowNodeRef>
+                <flowNodeRef>gwOverdue</flowNodeRef>
+                <flowNodeRef>gwAdjudicate</flowNodeRef>
+                <flowNodeRef>svcExtendDeadline</flowNodeRef>
+                <flowNodeRef>svcRevokeApproval</flowNodeRef>
+                <flowNodeRef>endRevoked</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <serviceTask id="svcRegisterConditions" name="条件结构化登记（类型/责任人/dueDate，配置读取催办周期）"
@@ -85,30 +109,6 @@
         <sequenceFlow id="flowToRevoke" sourceRef="gwAdjudicate" targetRef="svcRevokeApproval"/>
         <sequenceFlow id="flowRevokeEnd" sourceRef="svcRevokeApproval" targetRef="endRevoked"/>
 
-        <laneSet>
-            <lane id="laneRm" name="客户经理（RM）">
-                <flowNodeRef>utFulfillConditions</flowNodeRef>
-            </lane>
-            <lane id="laneApprover" name="审批岗">
-                <flowNodeRef>utVerifyConditions</flowNodeRef>
-                <flowNodeRef>utAdjudicate</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>svcRegisterConditions</flowNodeRef>
-                <flowNodeRef>conditionsUrgeTimer</flowNodeRef>
-                <flowNodeRef>svcUrge</flowNodeRef>
-                <flowNodeRef>endUrge</flowNodeRef>
-                <flowNodeRef>gwVerify</flowNodeRef>
-                <flowNodeRef>svcNotifyFulfilled</flowNodeRef>
-                <flowNodeRef>endFulfilled</flowNodeRef>
-                <flowNodeRef>gwOverdue</flowNodeRef>
-                <flowNodeRef>gwAdjudicate</flowNodeRef>
-                <flowNodeRef>svcExtendDeadline</flowNodeRef>
-                <flowNodeRef>svcRevokeApproval</flowNodeRef>
-                <flowNodeRef>endRevoked</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -132,7 +132,7 @@
                 <omgdc:Bounds x="720" y="125" width="150" height="90"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_conditionsUrgeTimer" bpmnElement="conditionsUrgeTimer">
-                <omgdc:Bounds x="882" y="207" width="30" height="30"/>
+                <omgdc:Bounds x="878" y="155" width="30" height="30"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_svcUrge" bpmnElement="svcUrge">
                 <omgdc:Bounds x="1200" y="485" width="150" height="90"/>
@@ -181,9 +181,9 @@
                 <omgdi:waypoint x="720" y="170"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowUrgeTimer" bpmnElement="flowUrgeTimer">
-                <omgdi:waypoint x="912" y="222"/>
-                <omgdi:waypoint x="1056" y="222"/>
-                <omgdi:waypoint x="1056" y="530"/>
+                <omgdi:waypoint x="908" y="170"/>
+                <omgdi:waypoint x="1054" y="170"/>
+                <omgdi:waypoint x="1054" y="530"/>
                 <omgdi:waypoint x="1200" y="530"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowUrgeEnd" bpmnElement="flowUrgeEnd">
@@ -192,6 +192,8 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowFulfillVerify" bpmnElement="flowFulfillVerify">
                 <omgdi:waypoint x="870" y="170"/>
+                <omgdi:waypoint x="870" y="143"/>
+                <omgdi:waypoint x="915" y="143"/>
                 <omgdi:waypoint x="915" y="170"/>
                 <omgdi:waypoint x="915" y="350"/>
                 <omgdi:waypoint x="960" y="350"/>
@@ -242,8 +244,8 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowExtendBack" bpmnElement="flowExtendBack">
                 <omgdi:waypoint x="2235" y="575"/>
-                <omgdi:waypoint x="2235" y="645"/>
-                <omgdi:waypoint x="795" y="645"/>
+                <omgdi:waypoint x="2235" y="865"/>
+                <omgdi:waypoint x="795" y="865"/>
                 <omgdi:waypoint x="795" y="215"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowToRevoke" bpmnElement="flowToRevoke">
@@ -260,5 +262,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

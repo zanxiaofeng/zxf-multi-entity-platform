@@ -21,6 +21,21 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s3a-screening" name="S3a 筛查与风险评级">
+        <laneSet>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utComplianceReview</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcScreening</flowNodeRef>
+                <flowNodeRef>brtDisposition</flowNodeRef>
+                <flowNodeRef>brtRating</flowNodeRef>
+                <flowNodeRef>gwHighRisk</flowNodeRef>
+                <flowNodeRef>callEdd</flowNodeRef>
+                <flowNodeRef>gwReviewNeed</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <serviceTask id="svcScreening" name="名单与舆情筛查（企业/UBO/股东/董监高/经办人/担保人，记录名单版本号）"
@@ -61,21 +76,6 @@
         <sequenceFlow id="flowReviewEnd" sourceRef="utComplianceReview" targetRef="end"/>
         <sequenceFlow id="flowDirectEnd" sourceRef="gwReviewNeed" targetRef="end"/>
 
-        <laneSet>
-            <lane id="laneCompliance" name="合规/反洗钱岗">
-                <flowNodeRef>utComplianceReview</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>svcScreening</flowNodeRef>
-                <flowNodeRef>brtDisposition</flowNodeRef>
-                <flowNodeRef>brtRating</flowNodeRef>
-                <flowNodeRef>gwHighRisk</flowNodeRef>
-                <flowNodeRef>callEdd</flowNodeRef>
-                <flowNodeRef>gwReviewNeed</flowNodeRef>
-                <flowNodeRef>end</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -139,6 +139,8 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowToReviewNeed" bpmnElement="flowToReviewNeed">
                 <omgdi:waypoint x="1250" y="350"/>
+                <omgdi:waypoint x="1250" y="293"/>
+                <omgdi:waypoint x="1680" y="293"/>
                 <omgdi:waypoint x="1680" y="350"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowNeedReview" bpmnElement="flowNeedReview">
@@ -159,5 +161,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

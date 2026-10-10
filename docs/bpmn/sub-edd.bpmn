@@ -16,6 +16,20 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-edd" name="强化尽调（EDD）与高级管理层批准">
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>utEddMeasures</flowNodeRef>
+            </lane>
+            <lane id="laneSeniorMgmt" name="高级管理层">
+                <flowNodeRef>utSeniorSignoff</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>gwEddResult</flowNodeRef>
+                <flowNodeRef>endApproved</flowNodeRef>
+                <flowNodeRef>endRejected</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <userTask id="utEddMeasures" name="EDD 措施执行（11 号令第 28 条清单）"
@@ -44,20 +58,6 @@
         </sequenceFlow>
         <sequenceFlow id="flowEddRejected" sourceRef="gwEddResult" targetRef="endRejected"/>
 
-        <laneSet>
-            <lane id="laneRm" name="客户经理（RM）">
-                <flowNodeRef>utEddMeasures</flowNodeRef>
-            </lane>
-            <lane id="laneSeniorMgmt" name="高级管理层">
-                <flowNodeRef>utSeniorSignoff</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>gwEddResult</flowNodeRef>
-                <flowNodeRef>endApproved</flowNodeRef>
-                <flowNodeRef>endRejected</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -119,5 +119,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_screening_disposition" name="名单命中分级处置"
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
   名单命中分级处置（文档 2.3）。hitPolicy = FIRST + 兜底行置底：名单类型分流处置，
   不做命中/未命中二元判断。处置依据《反洗钱特别预防措施管理办法》（文号待核对，
   8.2-D4）与银反洗发〔2018〕19 号第 49/50 条：制裁命中 = 立即停止、限制转移、
@@ -8,12 +14,7 @@
   第 48 条（恐怖活动组织及人员名单按制裁口径并入 SANCTIONS）。
   输出 disposition 供业务库/审计记录细分动作；主流程网关分流用 hitFlag（阈值不写在网关上）。
 -->
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-             id="definitions_screening_disposition" name="名单命中分级处置"
-             namespace="http://zxf.com/platform/onboarding/dmn"
-             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
-             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
-             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
   <decision id="screening-disposition" name="名单命中分级处置">
     <decisionTable id="screeningDispositionTable" hitPolicy="FIRST">
       <input id="input_1" label="名单命中类型">

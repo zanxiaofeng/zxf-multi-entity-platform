@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  产品适配校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
-  由产品条线独立维护。输入 productCode 由 svcAssembleInput 预置（业务库产品目录）。
-  示意骨架：产品风险等级与客户准入状态/业务品种的适配矩阵。
--->
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_product_fit" name="产品适配校验"
              namespace="http://zxf.com/platform/onboarding/dmn"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
+  产品适配校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
+  由产品条线独立维护。输入 productCode 由 svcAssembleInput 预置（业务库产品目录）。
+  示意骨架：产品风险等级与客户准入状态/业务品种的适配矩阵。
+-->
+
   <decision id="product-fit" name="产品适配校验">
     <decisionTable id="productFitTable" hitPolicy="FIRST">
       <input id="input_1" label="产品代码">

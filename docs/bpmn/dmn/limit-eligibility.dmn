@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  额度适配校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
-  由授信/额度条线独立维护。输入 applyAmount 在 S1 发起表单采集（文档 2.1：
-  申请额度作为 S3b 输入）。阈值数值为示意骨架（注意 COLLECT `#` 等聚合结果
-  返回 Double 的版本陷阱不适用本表——FIRST 单值输出，完全指南 19.3）。
--->
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_limit_eligibility" name="额度适配校验"
              namespace="http://zxf.com/platform/onboarding/dmn"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
+  额度适配校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
+  由授信/额度条线独立维护。输入 applyAmount 在 S1 发起表单采集（文档 2.1：
+  申请额度作为 S3b 输入）。阈值数值为示意骨架（注意 COLLECT `#` 等聚合结果
+  返回 Double 的版本陷阱不适用本表——FIRST 单值输出，完全指南 19.3）。
+-->
+
   <decision id="limit-eligibility" name="额度适配校验">
     <decisionTable id="limitEligibilityTable" hitPolicy="FIRST">
       <input id="input_1" label="申请额度(元)">

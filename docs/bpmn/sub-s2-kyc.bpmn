@@ -20,6 +20,21 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s2-kyc" name="S2 尽调与 KYC">
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>utUboDiligence</flowNodeRef>
+                <flowNodeRef>utOnsiteVerify</flowNodeRef>
+            </lane>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utUboReview</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcIdentity</flowNodeRef>
+                <flowNodeRef>svcUboFiling</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <!-- 幂等键：申请编号+查询类型+日期（四-2） -->
@@ -51,21 +66,6 @@
         <sequenceFlow id="flowFilingOnsite" sourceRef="svcUboFiling" targetRef="utOnsiteVerify"/>
         <sequenceFlow id="flowOnsiteEnd" sourceRef="utOnsiteVerify" targetRef="end"/>
 
-        <laneSet>
-            <lane id="laneRm" name="客户经理（RM）">
-                <flowNodeRef>utUboDiligence</flowNodeRef>
-                <flowNodeRef>utOnsiteVerify</flowNodeRef>
-            </lane>
-            <lane id="laneCompliance" name="合规/反洗钱岗">
-                <flowNodeRef>utUboReview</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>svcIdentity</flowNodeRef>
-                <flowNodeRef>svcUboFiling</flowNodeRef>
-                <flowNodeRef>end</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -136,5 +136,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_approval_routing" name="审批路由"
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
   审批路由（文档 2.5）。hitPolicy = FIRST：最严层级置顶 + 兜底行（低风险小额走一级）。
   输入 applyAmount/riskLevel/businessType 由流程变量传入（callS4 in 链），
   isGroupCustomer/isCrossBorder 由 svcAssembleApprovalInput 预置。
@@ -10,12 +16,7 @@
   completionCondition 只消费换算后的变量（文档 2.5 修订，规则计算不进表达式）。
   层级/金额阈值为示意骨架，由授权管理制度条线维护。
 -->
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-             id="definitions_approval_routing" name="审批路由"
-             namespace="http://zxf.com/platform/onboarding/dmn"
-             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
-             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
-             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
   <decision id="approval-routing" name="审批路由">
     <decisionTable id="approvalRoutingTable" hitPolicy="FIRST">
       <input id="input_1" label="申请额度(元)">

@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  区域政策校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
-  由区域政策条线独立维护。输入 regionCode/isCrossBorder 由 svcAssembleInput 预置。
-  示意骨架：制裁涉及地区拒绝、跨境业务高风险地区从严。
--->
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_region_policy" name="区域政策校验"
              namespace="http://zxf.com/platform/onboarding/dmn"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
+  区域政策校验（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一，
+  由区域政策条线独立维护。输入 regionCode/isCrossBorder 由 svcAssembleInput 预置。
+  示意骨架：制裁涉及地区拒绝、跨境业务高风险地区从严。
+-->
+
   <decision id="region-policy" name="区域政策校验">
     <decisionTable id="regionPolicyTable" hitPolicy="FIRST">
       <input id="input_1" label="区域编码">

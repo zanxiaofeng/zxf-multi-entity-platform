@@ -17,6 +17,19 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s3b-eligibility" name="S3b 准入规则校验">
+        <laneSet>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcAssembleInput</flowNodeRef>
+                <flowNodeRef>brtIndustry</flowNodeRef>
+                <flowNodeRef>brtRegion</flowNodeRef>
+                <flowNodeRef>brtLimit</flowNodeRef>
+                <flowNodeRef>brtProduct</flowNodeRef>
+                <flowNodeRef>brtBlacklist</flowNodeRef>
+                <flowNodeRef>brtException</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <!-- 数据装配：从业务库客户属性预置 industryCode/regionCode/productCode/
@@ -47,19 +60,6 @@
         <sequenceFlow id="flowBlacklistException" sourceRef="brtBlacklist" targetRef="brtException"/>
         <sequenceFlow id="flowExceptionEnd" sourceRef="brtException" targetRef="end"/>
 
-        <laneSet>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>svcAssembleInput</flowNodeRef>
-                <flowNodeRef>brtIndustry</flowNodeRef>
-                <flowNodeRef>brtRegion</flowNodeRef>
-                <flowNodeRef>brtLimit</flowNodeRef>
-                <flowNodeRef>brtProduct</flowNodeRef>
-                <flowNodeRef>brtBlacklist</flowNodeRef>
-                <flowNodeRef>brtException</flowNodeRef>
-                <flowNodeRef>end</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -128,5 +128,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

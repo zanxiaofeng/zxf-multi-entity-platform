@@ -18,6 +18,20 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s1-precheck" name="S1 受理与资料预检">
+        <laneSet>
+            <lane id="laneRm" name="客户经理（RM）">
+                <flowNodeRef>utApply</flowNodeRef>
+                <flowNodeRef>utCollect</flowNodeRef>
+                <flowNodeRef>utSupplement</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>brtChecklist</flowNodeRef>
+                <flowNodeRef>svcCheckDocuments</flowNodeRef>
+                <flowNodeRef>gwDocsComplete</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <!-- 发起表单：flowable:formKey 指向自建表单中心（Flowable 8 无 Form 引擎，8.1 修订 #2） -->
@@ -48,29 +62,15 @@
         <sequenceFlow id="flowToSupplement" sourceRef="gwDocsComplete" targetRef="utSupplement"/>
         <sequenceFlow id="flowSupplementBack" sourceRef="utSupplement" targetRef="utCollect"/>
 
-        <laneSet>
-            <lane id="laneRm" name="客户经理（RM）">
-                <flowNodeRef>utApply</flowNodeRef>
-                <flowNodeRef>utCollect</flowNodeRef>
-                <flowNodeRef>utSupplement</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>brtChecklist</flowNodeRef>
-                <flowNodeRef>svcCheckDocuments</flowNodeRef>
-                <flowNodeRef>gwDocsComplete</flowNodeRef>
-                <flowNodeRef>end</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
         <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="sub-s1-precheck">
             <bpmndi:BPMNShape id="BPMNShape_laneRm" bpmnElement="laneRm" isHorizontal="true">
-                <omgdc:Bounds x="180" y="80" width="1606" height="180"/>
+                <omgdc:Bounds x="180" y="80" width="1720" height="180"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_laneSystem" bpmnElement="laneSystem" isHorizontal="true">
-                <omgdc:Bounds x="180" y="260" width="1606" height="180"/>
+                <omgdc:Bounds x="180" y="260" width="1720" height="180"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
                 <omgdc:Bounds x="240" y="332" width="36" height="36"/>
@@ -91,7 +91,7 @@
                 <omgdc:Bounds x="1440" y="325" width="50" height="50"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_utSupplement" bpmnElement="utSupplement">
-                <omgdc:Bounds x="240" y="125" width="150" height="90"/>
+                <omgdc:Bounds x="1680" y="125" width="150" height="90"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
                 <omgdc:Bounds x="1680" y="332" width="36" height="36"/>
@@ -125,16 +125,22 @@
                 <omgdi:waypoint x="1680" y="350"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowToSupplement" bpmnElement="flowToSupplement">
-                <omgdi:waypoint x="1465" y="375"/>
-                <omgdi:waypoint x="1465" y="415"/>
-                <omgdi:waypoint x="315" y="415"/>
-                <omgdi:waypoint x="315" y="215"/>
+                <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1585" y="350"/>
+                <omgdi:waypoint x="1585" y="170"/>
+                <omgdi:waypoint x="1680" y="170"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowSupplementBack" bpmnElement="flowSupplementBack">
-                <omgdi:waypoint x="390" y="170"/>
-                <omgdi:waypoint x="720" y="170"/>
+                <omgdi:waypoint x="1755" y="215"/>
+                <omgdi:waypoint x="1755" y="435"/>
+                <omgdi:waypoint x="795" y="435"/>
+                <omgdi:waypoint x="795" y="215"/>
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

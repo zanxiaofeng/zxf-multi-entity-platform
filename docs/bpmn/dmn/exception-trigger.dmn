@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  例外审批触发（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表的**汇聚节点**：
-  前五张表（industry/region/limit/product/blacklist）的布尔结论在本表汇聚为
-  eligibilityPassed 与 exceptionRequired——任一校验不过即触发例外审批路径，
-  由 S4 审批路由按例外标记上收审批层级。
-  输出 eligibilityPassed 为主流程 callS3b 的 out 变量（网关/审批输入）。
--->
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_exception_trigger" name="例外审批触发"
              namespace="http://zxf.com/platform/onboarding/dmn"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
+  例外审批触发（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表的**汇聚节点**：
+  前五张表（industry/region/limit/product/blacklist）的布尔结论在本表汇聚为
+  eligibilityPassed 与 exceptionRequired——任一校验不过即触发例外审批路径，
+  由 S4 审批路由按例外标记上收审批层级。
+  输出 eligibilityPassed 为主流程 callS3b 的 out 变量（网关/审批输入）。
+-->
+
   <decision id="exception-trigger" name="例外审批触发">
     <decisionTable id="exceptionTriggerTable" hitPolicy="FIRST">
       <input id="input_1" label="行业校验结论">

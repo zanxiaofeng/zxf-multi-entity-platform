@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  黑名单比对（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一。
-  分工边界：名单库比对（查询）由 svcAssembleInput 预置 blacklistHit 变量
-  （内部黑名单=本行维护名单库，与 S3a 外部五类名单筛查不同源）；本表只做
-  命中类型的处置分流——DMN 是"条件→结论"映射，不做数据查询（系统设计文档 4.3）。
-  输出 blacklistPassed 供 exception-trigger 汇聚。
--->
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_blacklist_check" name="内部黑名单比对"
              namespace="http://zxf.com/platform/onboarding/dmn"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
+  黑名单比对（文档 2.4）。hitPolicy = FIRST + 兜底行。S3b 六张表之一。
+  分工边界：名单库比对（查询）由 svcAssembleInput 预置 blacklistHit 变量
+  （内部黑名单=本行维护名单库，与 S3a 外部五类名单筛查不同源）；本表只做
+  命中类型的处置分流——DMN 是"条件→结论"映射，不做数据查询（系统设计文档 4.3）。
+  输出 blacklistPassed 供 exception-trigger 汇聚。
+-->
+
   <decision id="blacklist-check" name="内部黑名单比对">
     <decisionTable id="blacklistCheckTable" hitPolicy="FIRST">
       <input id="input_1" label="内部黑名单命中类型">

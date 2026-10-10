@@ -13,6 +13,18 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="aml-report" name="P3 AML 合规上报">
+        <laneSet>
+            <lane id="laneCompliance" name="合规/反洗钱岗">
+                <flowNodeRef>utAmlReview</flowNodeRef>
+                <flowNodeRef>utFreeze</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcAmlReport</flowNodeRef>
+                <flowNodeRef>svcAmlResult</flowNodeRef>
+                <flowNodeRef>end</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <userTask id="utAmlReview" name="合规人工审核（可疑线索）"
@@ -35,18 +47,6 @@
         <sequenceFlow id="flowResultFreeze" sourceRef="svcAmlResult" targetRef="utFreeze"/>
         <sequenceFlow id="flowFreezeEnd" sourceRef="utFreeze" targetRef="end"/>
 
-        <laneSet>
-            <lane id="laneCompliance" name="合规/反洗钱岗">
-                <flowNodeRef>utAmlReview</flowNodeRef>
-                <flowNodeRef>utFreeze</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>svcAmlReport</flowNodeRef>
-                <flowNodeRef>svcAmlResult</flowNodeRef>
-                <flowNodeRef>end</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -105,5 +105,9 @@
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

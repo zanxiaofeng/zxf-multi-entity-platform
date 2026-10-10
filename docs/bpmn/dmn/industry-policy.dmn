@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  行业政策校验（文档 2.4）。hitPolicy = FIRST + 兜底行（校验类规则维度可重叠，
-  不用 UNIQUE 防漏行）。S3b 六张表之一，由行业政策条线独立维护。
-  输入 industryCode 由 svcAssembleInput（S3b 数据装配 delegate）从业务库客户属性
-  预置——DMN 只做条件判断，不做数据查询。行业限制清单为示意骨架
-  （限制类/产能过剩类/监管叫停类），条线补全。
--->
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="definitions_industry_policy" name="行业政策校验"
              namespace="http://zxf.com/platform/onboarding/dmn"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
+  行业政策校验（文档 2.4）。hitPolicy = FIRST + 兜底行（校验类规则维度可重叠，
+  不用 UNIQUE 防漏行）。S3b 六张表之一，由行业政策条线独立维护。
+  输入 industryCode 由 svcAssembleInput（S3b 数据装配 delegate）从业务库客户属性
+  预置——DMN 只做条件判断，不做数据查询。行业限制清单为示意骨架
+  （限制类/产能过剩类/监管叫停类），条线补全。
+-->
+
   <decision id="industry-policy" name="行业政策校验">
     <decisionTable id="industryPolicyTable" hitPolicy="FIRST">
       <input id="input_1" label="行业编码">

@@ -22,6 +22,26 @@
              xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI">
 
     <process id="sub-s4-approval" name="S4 审批决策">
+        <laneSet>
+            <lane id="laneApprover" name="审批岗">
+                <flowNodeRef>utApprove</flowNodeRef>
+                <flowNodeRef>utEscalate</flowNodeRef>
+            </lane>
+            <lane id="laneSystem" name="系统自动处理">
+                <flowNodeRef>start</flowNodeRef>
+                <flowNodeRef>svcAssembleApprovalInput</flowNodeRef>
+                <flowNodeRef>brtRouting</flowNodeRef>
+                <flowNodeRef>svcAssembleParams</flowNodeRef>
+                <flowNodeRef>approveTimeout</flowNodeRef>
+                <flowNodeRef>gwEscalated</flowNodeRef>
+                <flowNodeRef>gwResult</flowNodeRef>
+                <flowNodeRef>gwConditional</flowNodeRef>
+                <flowNodeRef>callConditions</flowNodeRef>
+                <flowNodeRef>gwConditionsOutcome</flowNodeRef>
+                <flowNodeRef>endApproved</flowNodeRef>
+                <flowNodeRef>endRejected</flowNodeRef>
+            </lane>
+        </laneSet>
 
         <startEvent id="start"/>
         <!-- 审批输入装配：isGroupCustomer/isCrossBorder 由业务库预置（approval-routing.dmn 输入） -->
@@ -95,26 +115,6 @@
         <sequenceFlow id="flowConditionsRejected" sourceRef="gwConditionsOutcome" targetRef="endRejected"/>
         <sequenceFlow id="flowUnconditionalEnd" sourceRef="gwConditional" targetRef="endApproved"/>
 
-        <laneSet>
-            <lane id="laneApprover" name="审批岗">
-                <flowNodeRef>utApprove</flowNodeRef>
-                <flowNodeRef>utEscalate</flowNodeRef>
-            </lane>
-            <lane id="laneSystem" name="系统自动处理">
-                <flowNodeRef>start</flowNodeRef>
-                <flowNodeRef>svcAssembleApprovalInput</flowNodeRef>
-                <flowNodeRef>brtRouting</flowNodeRef>
-                <flowNodeRef>svcAssembleParams</flowNodeRef>
-                <flowNodeRef>approveTimeout</flowNodeRef>
-                <flowNodeRef>gwEscalated</flowNodeRef>
-                <flowNodeRef>gwResult</flowNodeRef>
-                <flowNodeRef>gwConditional</flowNodeRef>
-                <flowNodeRef>callConditions</flowNodeRef>
-                <flowNodeRef>gwConditionsOutcome</flowNodeRef>
-                <flowNodeRef>endApproved</flowNodeRef>
-                <flowNodeRef>endRejected</flowNodeRef>
-            </lane>
-        </laneSet>
     </process>
 
     <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -141,7 +141,7 @@
                 <omgdc:Bounds x="1200" y="125" width="150" height="90"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_approveTimeout" bpmnElement="approveTimeout">
-                <omgdc:Bounds x="1362" y="207" width="30" height="30"/>
+                <omgdc:Bounds x="1358" y="155" width="30" height="30"/>
             </bpmndi:BPMNShape>
             <bpmndi:BPMNShape id="BPMNShape_utEscalate" bpmnElement="utEscalate">
                 <omgdc:Bounds x="1680" y="125" width="150" height="90"/>
@@ -186,9 +186,7 @@
                 <omgdi:waypoint x="1200" y="170"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowTimeoutEscalate" bpmnElement="flowTimeoutEscalate">
-                <omgdi:waypoint x="1392" y="222"/>
-                <omgdi:waypoint x="1536" y="222"/>
-                <omgdi:waypoint x="1536" y="170"/>
+                <omgdi:waypoint x="1388" y="170"/>
                 <omgdi:waypoint x="1680" y="170"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowEscalateGw" bpmnElement="flowEscalateGw">
@@ -199,16 +197,22 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowEscApproved" bpmnElement="flowEscApproved">
                 <omgdi:waypoint x="1970" y="350"/>
+                <omgdi:waypoint x="1970" y="313"/>
+                <omgdi:waypoint x="2400" y="313"/>
                 <omgdi:waypoint x="2400" y="350"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowEscRejected" bpmnElement="flowEscRejected">
                 <omgdi:waypoint x="1970" y="350"/>
+                <omgdi:waypoint x="1970" y="313"/>
+                <omgdi:waypoint x="2185" y="313"/>
                 <omgdi:waypoint x="2185" y="350"/>
                 <omgdi:waypoint x="2185" y="470"/>
                 <omgdi:waypoint x="2400" y="470"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowApproveGw" bpmnElement="flowApproveGw">
                 <omgdi:waypoint x="1350" y="170"/>
+                <omgdi:waypoint x="1350" y="143"/>
+                <omgdi:waypoint x="1395" y="143"/>
                 <omgdi:waypoint x="1395" y="170"/>
                 <omgdi:waypoint x="1395" y="350"/>
                 <omgdi:waypoint x="1440" y="350"/>
@@ -219,8 +223,12 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowRejected" bpmnElement="flowRejected">
                 <omgdi:waypoint x="1490" y="350"/>
+                <omgdi:waypoint x="1490" y="313"/>
+                <omgdi:waypoint x="1945" y="313"/>
                 <omgdi:waypoint x="1945" y="350"/>
                 <omgdi:waypoint x="1945" y="470"/>
+                <omgdi:waypoint x="1945" y="413"/>
+                <omgdi:waypoint x="2400" y="413"/>
                 <omgdi:waypoint x="2400" y="470"/>
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowConditional" bpmnElement="flowConditional">
@@ -247,9 +255,15 @@
             </bpmndi:BPMNEdge>
             <bpmndi:BPMNEdge id="BPMNEdge_flowUnconditionalEnd" bpmnElement="flowUnconditionalEnd">
                 <omgdi:waypoint x="1730" y="350"/>
+                <omgdi:waypoint x="1730" y="313"/>
+                <omgdi:waypoint x="2400" y="313"/>
                 <omgdi:waypoint x="2400" y="350"/>
             </bpmndi:BPMNEdge>
         </bpmndi:BPMNPlane>
     </bpmndi:BPMNDiagram>
+
+
+
+
 
 </definitions>

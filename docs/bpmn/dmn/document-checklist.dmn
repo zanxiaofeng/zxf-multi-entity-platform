@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_document_checklist" name="资料清单匹配"
+             namespace="http://zxf.com/platform/onboarding/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <!--
   资料清单匹配（文档 2.1）。hitPolicy = COLLECT：多命中每行输出一项资料，
   结果以 JSON 数组存入以决策 key 命名的变量 document-checklist（多命中写回规则见
   完全指南 20.3）——清单型决策天然完备，不设兜底行（无命中 = 无附加资料要求）。
@@ -11,12 +17,7 @@
   银发〔2019〕41 号三类开户资料）补全维护。documentsComplete 的判定不在本表
   （集合比对归 documentsCheckDelegate，见 sub-s1）。
 -->
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-             id="definitions_document_checklist" name="资料清单匹配"
-             namespace="http://zxf.com/platform/onboarding/dmn"
-             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
-             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
-             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
   <decision id="document-checklist" name="资料清单匹配">
     <decisionTable id="documentChecklistTable" hitPolicy="COLLECT">
       <input id="input_1" label="客户类型">
