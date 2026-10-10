@@ -59,11 +59,11 @@ BPMN（Business Process Model and Notation）2.0 是工作流引擎（Flowable�
 - **Message（消息，信封图标）**：通过消息（MQ 消息、API 调用）启动或推动流程，一对一定向投递，常用于跨流程、跨系统协作。
 - **Timer（定时器，时钟图标）**：按时间点（`2026-08-10T09:00`）、持续时间（`PT3D`）或周期（`R5/PT1H`，部分引擎支持 cron）触发。审批超时、定时补偿都依赖它。
 - **Signal（信号，三角图标）**：广播式触发——一个流程抛出，**所有订阅该信号的流程实例**都会收到，与消息的一对一投递形成对比。
-- **Error（错误，闪电图标）**：仅用于结束事件和边界事件，表示业务错误（区别于技术异常），可被错误边界事件捕获。
+- **Error（错误，闪电图标）**：仅用于结束事件、边界事件和事件子流程起始事件，表示业务错误（区别于技术异常），可被错误边界事件捕获。
 - **Escalation（升级，向上箭头）**：语义类似 Error，但不强制中断流程，常用于向上级上报。
 - **Conditional（条件，三条线图标）**：当表达式条件成立（如 `amount > 10000`）时触发，由引擎持续评估。
 - **Compensation（补偿，向左双三角）**：配合补偿边界事件实现 Saga 式回滚。
-- **Terminate（终止，实心黑圆）**：结束**整个流程实例**的所有活动分支；普通 End Event 只结束当前分支。
+- **Terminate（终止，实心黑圆）**：终止**当前作用域**的所有并行分支——在子流程 / Call Activity 内只终止该子流程，配 `flowable:terminateAll="true"` 才终止整个流程实例；普通 End Event 只结束当前分支。
 - **Link（链接，箭头图标）**：成对使用，替代跨页或过长的连线，纯图形组织用途。
 - **Cancel（取消，X 图标）**：仅用于事务子流程。
 - **Multiple / Parallel Multiple**：组合多种触发器；Parallel Multiple 要求多个触发器全部满足。
@@ -72,7 +72,7 @@ BPMN（Business Process Model and Notation）2.0 是工作流引擎（Flowable�
 
 附着在活动边框上的中间捕获事件，是实际建模中使用频率最高的机制之一：
 
-- **中断型（实心双圆）**：触发后**中断**宿主活动，流程沿边界事件出口流转。典型场景：审批超时自动驳回、收到取消消息终止当前操作。
+- **中断型（实线双圆）**：触发后**中断**宿主活动，流程沿边界事件出口流转。典型场景：审批超时自动驳回、收到取消消息终止当前操作。
 - **非中断型（虚线双圆）**：触发后宿主活动**继续执行**，同时并行开启一条新路径。典型场景：超时发送提醒，但继续等待审批结果。
 
 ## 2. 活动（Activity）
@@ -96,9 +96,37 @@ BPMN（Business Process Model and Notation）2.0 是工作流引擎（Flowable�
 
 - **嵌入式子流程**：内部可展开容纳完整流程片段，拥有自己的开始/结束事件，可访问父流程变量。
 - **事务子流程（双边框）**：内部活动构成一个事务，配合 Cancel / Compensation 边界事件实现整体回滚。
-- **事件子流程（虚线边框）**：由事件触发，常用于统一的异常处理或全局超时处理。
+- **事件子流程（虚线边框）**：由事件触发而非顺序流到达，详见 2.3。
 
-### 2.3 多实例标记（Multi-Instance）
+### 2.3 事件子流程（Event Sub-Process）
+
+事件子流程不由顺序流到达而启动，而是由事件触发。本质是"**作用域级的事件订阅器**"，三条核心机制：
+
+- **与边界事件的区别**：边界事件挂在*某个活动*上，只在该活动执行期间接事件；事件子流程挂在*整个作用域*上，主流程走到作用域内任意一步都能接住——"状态无关"的兜底。
+- **中断性**：由起始事件的 `isInterrupting` 属性控制（默认 `true`）。中断型触发后终止作用域内所有执行；非中断型主流程继续，处理器并行执行。
+- **捕获范围由嵌套位置决定**：挂在流程根上 = 全流程兜底；挂在嵌入式子流程内 = 只兜该阶段（如只兜"支付阶段"的错误，其余错误继续上抛流程级处理）。
+
+触发场景一览（各触发器在 Flowable 的支持情况见 7.1）：
+
+| 触发事件 | 中断性 | 典型场景 |
+|---|---|---|
+| Error | 中断 | **统一异常处理**：作用域内任何活动抛出 BPMN Error 即进入兜底分支善后；嵌在子流程内可实现阶段级错误隔离 |
+| Timer | 中断 | **全局超时处理**：SLA 违约，中断并升级处理 |
+| Timer | 非中断 | **催办 / 提醒 / SLA 预警**：超 3 天未审批发提醒通知，主流程照常走——与中断型全局超时是一对 |
+| Message | 中断 | **任意时刻撤销 / 取消**：申请人撤单、客户取消订单。不知道流程当前走到哪一步，无法逐活动挂边界事件，作用域级一个事件子流程全兜住 |
+| Message / Signal | 非中断 | **动态干预**：审批中补料通知、改派、加签；全局信号广播（紧急暂停、政策变更触发重审） |
+| VariableListener | 中断 / 非中断 | **变量条件监听**：如"客户信用降级为黑名单则中断当前审批"。Flowable 扩展事件，变量一变即触发；Conditional 起始事件引擎不分发 behavior（见 7.1） |
+| Compensation | — | **补偿处理器**：事务子流程的 undo 逻辑建模为补偿事件子流程，配合 Cancel 边界事件实现整体回滚 |
+
+事件子流程也是 Multiple 类不支持元素的替代建模手段（见第 11 章结论）：
+
+- **Multiple / Parallel Multiple 起始事件不支持** → 用事件子流程实现"多个事件谁先来听谁的"。
+
+"升级上报"场景则可直接用 **Escalation 起始事件**（事件子流程内，Flowable 8 已支持，见 7.1）：子流程内抛出升级，非中断型事件子流程捕获后通知上级介入，主流程不中断。
+
+> **选型口诀**：只关心某个活动 → 边界事件；关心整个作用域的任意时刻 → 事件子流程。
+
+### 2.4 多实例标记（Multi-Instance）
 
 活动上的三条竖线或横线，表示该活动对集合中每个元素各执行一次：
 
@@ -106,7 +134,7 @@ BPMN（Business Process Model and Notation）2.0 是工作流引擎（Flowable�
 - **顺序多实例（三条横线）**：按顺序逐个执行。典型场景：串行多级审批。
 - 通过 **completionCondition** 配置提前完成条件，实现"过半同意即结束"的或签。
 
-### 2.4 循环标记（Loop）
+### 2.5 循环标记（Loop）
 
 圆箭头图标：按条件重复执行该活动，直到条件不满足。
 
@@ -168,21 +196,21 @@ Flowable 宣称完整支持 BPMN 2.0 标准，实际执行语义是"**可执行�
 | Timer | ✅ | 支持 ISO 8601 表达式与 cron |
 | Signal | ✅ | 支持全局/流程定义级信号订阅 |
 | Error | ✅ | 仅用于事件子流程内 |
-| Escalation | ❌ | 开源版不支持（官方 Constructs 文档无 Escalation 章节；属企业版特性） |
-| Conditional | ⚠️ | 仅 Event Sub-Process 内支持；顶级 Conditional Start Event 不支持 |
+| Escalation | ✅ | 引擎已支持（7.x 起，含事件子流程起始）；官方 Constructs 用户文档未收录章节，以源码为准 |
+| Conditional | ❌ | 起始事件不支持（含事件子流程内，引擎不分发 behavior）；仅边界事件与中间捕获事件可用（见 7.2） |
 | Compensation | ⚠️ 有限 | 仅用于事件子流程/边界，不作为顶级开始事件 |
 | Multiple / Parallel Multiple | ❌ | 用多个独立开始事件或事件子流程替代 |
 
 ### 7.2 中间事件与边界事件
 
-- **Catching**：Timer、Message、Signal、Conditional 支持；Escalation 不支持（开源版）。
-- **Throwing**：None、Signal、Compensation 支持；Escalation 不支持（开源版）；Message Throw 需借助 Service Task 委托代码或事件注册表（Event Registry）扩展实现。
-- **边界事件**：Timer、Error、Signal、Message、Compensation、Cancel（事务子流程）、Conditional 均支持，中断型与非中断型皆可（非中断型用 `cancelActivity="false"`）；Escalation 边界事件不支持（开源版）。
+- **Catching**：Timer、Message、Signal、Conditional 支持。
+- **Throwing**：None、Signal、Compensation、Escalation 支持；Message Throw 需借助 Service Task 委托代码或事件注册表（Event Registry）扩展实现。
+- **边界事件**：Timer、Error、Signal、Message、Compensation、Cancel（事务子流程）、Conditional、Escalation 均支持，中断型与非中断型皆可（非中断型用 `cancelActivity="false"`）。
 - **Link 中间事件**：❌ 无执行语义。
 
 ### 7.3 结束事件
 
-✅ None、Error、Message、Signal、Terminate、Cancel、Compensation 支持；Escalation 结束事件不支持（开源版）。
+✅ None、Error、Escalation、Terminate、Cancel 支持；❌ Message、Signal、Compensation 结束事件无执行语义（解析后落到 None 结束行为，不投递、不回滚）。
 
 ## 8. 活动支持
 
@@ -208,7 +236,7 @@ Flowable 宣称完整支持 BPMN 2.0 标准，实际执行语义是"**可执行�
 
 ### 8.3 子流程与多实例
 
-- ✅ 嵌入式子流程、事件子流程、事务子流程、Ad-hoc 子流程。
+- ✅ 嵌入式子流程、事件子流程（触发场景见 2.3）、事务子流程、Ad-hoc 子流程。
 - ✅ Call Activity：支持 in/out 参数映射、businessKey 继承、变量继承、多租户回退。
 - ✅ 并行/顺序多实例：loopCardinality、collection、elementVariable、completionCondition。
 - ✅ 标准循环（loopCharacteristics）。
@@ -220,7 +248,7 @@ Flowable 宣称完整支持 BPMN 2.0 标准，实际执行语义是"**可执行�
 | Exclusive 网关 | ✅ | 支持默认流 |
 | Parallel 网关 | ✅ | fork-join 语义完整 |
 | Inclusive 网关 | ✅ | 多条件出口与汇聚等待均支持 |
-| Event-Based 网关 | ✅ | 出口接 Timer/Message/Signal/Conditional 捕获事件 |
+| Event-Based 网关 | ✅ | 出口只能接中间捕获事件（Timer/Message/Signal/Conditional）；官方明示接 Receive Task 不支持 |
 | **Complex 网关** | ❌ 不可执行 | XML 可解析但无行为语义，需用其他网关组合替代 |
 | Sequence Flow | ✅ | 支持条件表达式（EL）、skipExpression |
 | Message Flow / Pool / Lane | ⚠️ 仅图形信息 | 引擎不基于 Pool/Lane 做执行路由或权限控制 |
@@ -243,14 +271,14 @@ Flowable 超越标准 BPMN 的部分，专有属性通过 `flowable:` 命名空�
 | Complex Gateway | ❌ 不可执行 |
 | Multiple / Parallel Multiple 事件 | ❌ 不支持 |
 | Link Intermediate Event | ❌ 无执行语义 |
-| Escalation 事件（Start / Boundary / Intermediate / End） | ❌ 开源版不支持（官方 Constructs 文档无 Escalation 章节） |
-| Conditional 顶级 Start Event | ❌ 不支持（仅 Event Sub-Process 内可用） |
+| Escalation 事件（Start / Boundary / Intermediate / End） | ⚠️ 引擎已支持（7.x 起），但官方 Constructs 用户文档无章节——查文档时勿误判为不支持 |
+| Conditional Start Event（含事件子流程内） | ❌ 引擎不分发 behavior；仅边界事件与中间捕获事件可用，变量监听场景用 VariableListener 事件替代 |
 | Conversation / Choreography 图 | ❌ 完全不支持 |
 | Pool / Lane | ⚠️ 仅图形信息，无执行语义 |
 | Data Object | ⚠️ 可解析，运行时语义弱 |
 | Message Intermediate Throw | ⚠️ 需扩展实现（Event Registry / 委托代码） |
 
-> **结论**：Flowable 开源版对 BPMN 的覆盖足以支撑绝大多数企业审批流与服务编排场景。日常建模遇到的限制主要有 Complex Gateway、Multiple 事件、Escalation 事件（可用 Error 边界事件或事件子流程替代）三类，且都有明确的替代方案。
+> **结论**：Flowable 开源版对 BPMN 的覆盖足以支撑绝大多数企业审批流与服务编排场景。日常建模遇到的限制主要有 Complex Gateway、Multiple 事件两类，且都有明确的替代方案；Escalation 与 Conditional 需注意官方用户文档滞后于引擎实现。
 
 ---
 
@@ -318,7 +346,7 @@ Flowable 是用 Java 编写的轻量级开源业务流程与工作流引擎（�
 - `ACT_RU_*`：Runtime，运行期数据——实例（`ACT_RU_EXECUTION`）、任务（`ACT_RU_TASK`）、变量、事件订阅；**实例结束后即清理**，保证运行表小、性能稳定。
 - `ACT_HI_*`：History，历史数据，由 `flowable.history-level` 控制粒度（none / activity / audit / full）。
 - `ACT_GE_*`：General，字节数组、属性表。
-- `ACT_ID_*`：IDM 身份数据；`ACT_DE_*`：DMN；`ACT_CMMN_*` / `ACT_FO_*` / `ACT_EV_*` 对应其余引擎。
+- `ACT_ID_*`：IDM 身份数据；`ACT_DMN_*`：DMN 决策（注意 `ACT_DE_*` 是企业版 Design 建模器的表，非 DMN 引擎）；`ACT_CMMN_*` / `ACT_FO_*` / `ACT_EV_*` 对应其余引擎。
 
 生产库支持 MySQL、PostgreSQL、Oracle、MSSQL、DB2；Oracle 环境可用 `flowable.oracle-lob-handler` 适配 LOB 处理。
 
@@ -474,6 +502,8 @@ public class NotificationDelegate implements JavaDelegate {
 
 ### 16.6 测试（仅 JUnit 5）
 
+`@FlowableTest` 需引入 `flowable-spring-boot-starter-test`（15.1 的依赖清单未含）：
+
 ```java
 @FlowableTest
 class LeaveProcessTest {
@@ -504,6 +534,8 @@ class LeaveProcessTest {
 | **flowable-rest Docker** | `docker run -p 8080:8080 flowable/flowable-rest`，开箱 REST API（账号 rest-admin/test） |
 | **flowable-ui Docker** | 含 Modeler / Task / Admin / IDM 四个 UI 应用，适合建模调试（账号 admin/test） |
 | **K8s 多副本** | 无状态嵌入部署，Async Executor 通过 DB 锁自动协调 job 分配 |
+
+> Docker 镜像的默认凭据（rest-admin/test、admin/test）仅限本地评估，生产环境必须修改或禁用。
 
 ### 17.2 生产落地清单
 
@@ -587,7 +619,7 @@ DMN 引擎与 BPMN 引擎平级，共享数据源、事务与部署基础设施�
 - **DmnDecisionService**：决策执行门面——按 key 执行单个决策、多结果执行、带审计日志执行。
 - **DmnHistoryService**：决策执行历史与审计查询（每次执行的输入输出快照）。
 - **DmnManagementService**：引擎管理与缓存。
-- 表族：`ACT_DE_*`（决策定义、部署）、`ACT_DMN_HI_DECISION_EXECUTION`（执行历史）。
+- 表族：`ACT_DMN_DEPLOYMENT` / `ACT_DMN_DECISION`（部署与决策定义）、`ACT_DMN_HI_DECISION_EXECUTION`（执行历史）。
 
 ### 20.2 支持范围矩阵
 
@@ -609,12 +641,12 @@ BPMN 的 **Business Rule Task / Decision Task** 通过 `flowable:decisionTableRe
 
 ```xml
 <businessRuleTask id="determineDiscount" name="计算折扣"
-    flowable:decisionTableReferenceKey="DetermineDiscount"
-    flowable:resultVariableName="discountResult"/>
+    flowable:decisionTableReferenceKey="DetermineDiscount"/>
 ```
 
 - 流程变量自动作为决策表输入（变量名与输入列表达式一致）。
-- 单命中结果：输出变量直接写回流程变量；多命中（COLLECT/RULE ORDER 等）：结果以列表放入 `resultVariableName` 指定的变量。
+- 单命中：输出按**输出列名**直接写回流程变量（如 `discountPerc`）。
+- 多命中（COLLECT / RULE ORDER 等）：结果构造成 JSON 数组（每个命中行一个对象，key 为输出列名），存入以**决策 key** 命名的变量——`flowable:resultVariableName` 仅 Drools 版 Business Rule Task 读取，DMN 路径忽略该属性，勿写。
 - 决策表与流程分别部署、独立版本化——改规则不改流程，改流程不改规则。
 
 ## 21. Flowable 8 中使用 DMN
@@ -763,4 +795,4 @@ curl -u rest-admin:test http://localhost:8080/flowable-rest/dmn-rule/decision-ex
 | Java 基线 | 17+ |
 | Spring Boot / Framework | 4.x / 7.x |
 | 自动部署目录 | BPMN → `resources/processes/`（`*.bpmn20.xml`）；DMN → `resources/dmn/`（`*.dmn`） |
-| 关键表族 | `ACT_RU_*` 运行、`ACT_HI_*` 历史、`ACT_RE_*` 流程定义、`ACT_DE_*` 决策、`ACT_DMN_HI_*` 决策审计 |
+| 关键表族 | `ACT_RU_*` 运行、`ACT_HI_*` 历史、`ACT_RE_*` 流程定义、`ACT_DMN_*` 决策（含 `ACT_DMN_HI_*` 决策审计） |
