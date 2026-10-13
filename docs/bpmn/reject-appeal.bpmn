@@ -47,7 +47,7 @@
         <userTask id="utRejectRegister" name="拒绝原因登记（结构化拒绝码 + 说明）"
                   flowable:candidateGroups="relationship-managers" flowable:formKey="rejection-register"/>
         <exclusiveGateway id="gwHitType" name="制裁/PEP 命中？" default="flowToNotify"/>
-        <sendTask id="sendNotifyCustomer" name="通知客户（仅普通拒绝）"
+        <serviceTask id="sendNotifyCustomer" name="通知客户（仅普通拒绝）"
                   flowable:delegateExpression="${customerNotifyDelegate}"/>
 
         <eventBasedGateway id="ebgwAppeal" name="申诉窗口"/>

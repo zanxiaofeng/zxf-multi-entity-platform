@@ -43,8 +43,11 @@
                   flowable:formKey="onboarding-application"/>
         <userTask id="utCollect" name="资料收集与预检（上传证照与授权文件）"
                   flowable:candidateGroups="relationship-managers" flowable:formKey="onboarding-documents"/>
-        <businessRuleTask id="brtChecklist" name="资料清单匹配（DMN）"
-                          flowable:decisionTableReferenceKey="document-checklist"/>
+        <serviceTask id="brtChecklist" name="资料清单匹配（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="document-checklist"/>
+            </extensionElements>
+        </serviceTask>
         <!-- COLLECT 多命中结果以 JSON 数组存入决策 key 命名变量；「资料齐全」是集合
              比对（已交 ⊇ 必需），归 delegate 而非 DMN（见 document-checklist.dmn 注释） -->
         <serviceTask id="svcCheckDocuments" name="资料齐全比对（已交 ⊇ 必需清单）"

@@ -226,7 +226,7 @@ DMN 决策表 `approval-routing`（hit policy = FIRST + 兜底行）：
 
 | Task | 类型 | 泳道 | Flowable 实现 |
 | --- | --- | --- | --- |
-| 通知客户 | Send Task | 系统自动处理 | **S5 入口即发**（8.4-B6）：审批通过消息进入 S5 后第一个节点即通知客户，不等签约准备、更不等开户完成——通知是异步动作（秒级），不阻塞后续签约 |
+| 通知客户 | Service Task（自定义 delegate） | 系统自动处理 | **S5 入口即发**（8.4-B6）：审批通过消息进入 S5 后第一个节点即通知客户，不等签约准备、更不等开户完成——通知是异步动作（秒级），不阻塞后续签约。原建模为 Send Task，引擎实测 Flowable 8 校验强制 sendTask 具备 type/operation（不支持 delegateExpression 实现），已改 Service Task（8.4-B11） |
 | 签约准备 | User Task | 运营/开户岗 | 合同与印鉴准备、面签 |
 | 开户指令与回写 | 异步 ServiceTask + Message Catch Event | 系统自动处理 | 异步 ServiceTask 调核心系统（幂等键=申请编号+账户类型，业务表唯一索引兜底）；Message Catch Event 等待异步回执 |
 | 归档 | Service Task | 系统自动处理 | 归档至影像系统，落业务库留档 |
@@ -242,7 +242,7 @@ DMN 决策表 `approval-routing`（hit policy = FIRST + 兜底行）：
 | Task | 类型 | 泳道 | 实现 |
 | --- | --- | --- | --- |
 | 拒绝原因登记 | User Task | 客户经理 | 结构化拒绝码 + 说明 |
-| 通知客户 | Send Task | 系统自动处理 | 仅普通拒绝；制裁/PEP 命中不通知（反洗钱保密义务） |
+| 通知客户 | Service Task（自定义 delegate） | 系统自动处理 | 仅普通拒绝；制裁/PEP 命中不通知（反洗钱保密义务）。Send Task → Service Task 同 2.6（8.4-B11） |
 | 申诉受理与复审 | User Task | 合规/反洗钱岗 | 独立申诉子流程；申诉次数上限 3 次（8.3-A1） |
 | 流程终止 | None End Event | — | 普通拒绝用 None End Event，不用 Terminate |
 
@@ -276,7 +276,7 @@ AML 上报为独立合规流程，由**主流程 S3 join 后的筛查结果网�
 
 ## 四、Flowable 关键配置要点
 
-1. **DMN 独立部署、独立版本化。** 决策表与流程**分开部署**（DMN 资源独立目录部署，改规则不发流程、改流程不改规则——完全指南 23 第 2 条，这是引入 DMN 的核心收益，也是监管细则密集换版下「规则必须外置」的系统设计文档结论）。Business Rule Task 通过 **`flowable:decisionTableReferenceKey`** 引用决策表 key（原文误写 `decisionTableKey`；多命中结果构造成 JSON 数组存入以决策 key 命名的变量，`flowable:resultVariableName` 在 DMN 路径被忽略勿写；无命中兜底二选一：`-` 兜底规则或 field `decisionTaskThrowErrorOnNoHits` 把表不完备暴露为显式失败）。
+1. **DMN 独立部署、独立版本化。** 决策表与流程**分开部署**（DMN 资源独立目录部署，改规则不发流程、改流程不改规则——完全指南 23 第 2 条，这是引入 DMN 的核心收益，也是监管细则密集换版下「规则必须外置」的系统设计文档结论）。决策调用经 **`flowable:type="dmn"` + field 注入 `decisionTableReferenceKey`**（8.4-B13 实测修正；多命中结果构造成 JSON 数组存入以决策 key 命名的变量，`flowable:resultVariableName` 在 DMN 路径被忽略勿写；无命中兜底二选一：`-` 兜底规则或 field `decisionTaskThrowErrorOnNoHits` 把表不完备暴露为显式失败）。
 
 2. **外部系统调用统一异步 ServiceTask（8.2-D3 已决，不使用 External Task）。** 每个调用需定义业务幂等键（如「申请编号+查询类型+日期」），在实现端基于幂等键去重；重试策略区分瞬时故障（网络超时，可重试）与业务故障（客户不存在，应直接失败走 Error 边界分支），经 `flowable:failedJobRetryTimeCycle` 配置（格式 `R3/PT10M`：重试 3 次、间隔 10 分钟）；死信队列须配监控告警与人工重放通道（`ManagementService.moveDeadLetterJobToExecutableJob`），死信不是自动恢复机制。
 
@@ -422,6 +422,10 @@ DMN 侧生产配置 `history-enabled: true` 开启决策执行审计（输入输
 | B8 | P3 | 2.1/2.2 Task 表一行跨两泳道（如「对公结构尽调 | 客户经理 + 合规复核」），UBO 合规复核作为 D6 关键设计无独立行 | 表格拆行，一 Task 一行一泳道；UBO 复核、资料清单匹配各自单列 |
 | B9 | P3 | 3.3 称 P3「由 S3a 或 S4 触发」——实现仅主流程筛查网关触发，S4 无筛查环节无触发源 | 表述修正为「主流程 S3 join 后筛查结果网关触发」，S4 路径标注为需先补输入源的预留 |
 | B10 | P3 | 1.3「Stage 用 Sub-Process 表示」与 8.2-D2「Call Activity 而非内嵌 Sub-Process」对读者构成措辞矛盾 | 改为「Stage 以独立子流程定义表示（统一经 Call Activity 调用）」 |
+| B11 | **P2** | 通知节点建模为 Send Task + `flowable:delegateExpression`——Flowable 8 部署期校验（`flowable-executable-process` 集）强制 sendTask 具备 `type` 或 `operation`，SendTaskXMLConverter 亦不解析 delegate 属性，**该建模无法部署**（demo 引擎实测发现；原文 2.6 引「完全指南 8.1 支持自定义实现」系过度引申——原文仅称「通常配合事件注册表或自定义实现」） | 两个 `sendNotifyCustomer`（S5/P1）改为 Service Task + delegate（语义等价：通知是系统动作）；Flowable 8 的 Send Task 面向 mail/事件注册表，不承载自定义 delegate |
+| B13 | **P1** | BRT 以 `businessRuleTask` + `flowable:decisionTableReferenceKey` 属性引用决策表——Flowable 8.0.0 中该属性**无解析者**（BusinessRuleParseHandler 固定创建 KIE 行为类，执行报 `deployment doesn't contain any rules`；DMN 行为类经 field 注入读取 `decisionTableReferenceKey`，且路由需 `flowable:type="dmn"`）。demo 引擎实测 | 10 个 BRT 改写为 `<serviceTask flowable:type="dmn"> + <flowable:field name="decisionTableReferenceKey" stringValue="key"/>`（完全指南 20.3 已同步修正——原「businessRuleTask 属性形式」表述有误） |
+| B14 | **P2** | DMN 规则行使用 FEEL 风格简写 `== "CREDIT" \|\| == "LOAN"`——Flowable DMN 表达式语言为 **JUEL**（方案 2.3 已载明），`\|\| ==` 后省略变量名属 FEEL 语法，解析报 `syntax error` | 4 处简写展开为完整比较（`== "CREDIT" \|\| businessType == "LOAN"`，document-checklist ×2、industry-policy、limit-eligibility） |
+| B12 | **P1** | 全部 callActivity 的 `flowable:in`/`flowable:out` 采用「省略 target 的同名映射」惯用写法（Flowable 6/7 合法）——**Flowable 8.0.0 `InParameterParser`/`OutParameterParser` 要求 target 属性非空才创建 IOParameter**（`(source 非空) && target 非空`），省略 target 的映射在解析期被**静默丢弃**（demo 引擎实测：部署成功、运行期子流程拿不到变量、`${initiator}` 抛 Unknown property）。8.2-D2 的「变量经 in/out 显式映射」在该写法下全部失效 | 交付件全部 in/out 显式补 `target`（同名：`<flowable:in source="applyNo" target="applyNo"/>`，40 处）；落地装配冒烟须断言部署后 BpmnModel 的 `callActivity.getInParameters()` 非空（防同类静默丢弃） |
 
 ---
 

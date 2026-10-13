@@ -232,7 +232,7 @@ Flowable 宣称完整支持 BPMN 2.0 标准，实际执行语义是"**可执行�
 - **Mail Task**：发送邮件，支持字符串集合/JSON 数组收件人。
 - **Camel Task / Shell Task**：集成 Apache Camel、执行 Shell。
 - **External Worker Task**：外部工作器模式。
-- **DMN 决策调用**：开源版通过标准 Business Rule Task + `flowable:decisionTableReferenceKey` 调用 DMN 决策表（见第 20.3 节）；独立的 Decision Task / Case Task 是企业版 Design 建模器概念，开源版无此任务类型。
+- **DMN 决策调用**：开源版通过 `flowable:type="dmn"` 的 Service Task + field 注入 `decisionTableReferenceKey` 调用 DMN 决策表（**正统写法见第 20.3 节**，businessRuleTask 属性形式不可用）；独立的 Decision Task / Case Task 是企业版 Design 建模器概念，开源版无此任务类型。
 
 ### 8.3 子流程与多实例
 
@@ -656,11 +656,14 @@ DMN 引擎与 BPMN 引擎平级，共享数据源、事务与部署基础设施�
 
 ### 20.3 与 BPMN 的集成方式
 
-BPMN 的 **Business Rule Task / Decision Task** 通过 `flowable:decisionTableReferenceKey` 引用决策表 key：
+BPMN 任务通过 **`flowable:type="dmn"` + field 注入**引用决策表 key（**8.0.0 实测口径**：`businessRuleTask` 上的 `flowable:decisionTableReferenceKey` 属性**没有解析者**——BRT 固定落入 KIE 规则路径，部署无错但执行报 `deployment doesn't contain any rules`；须用 serviceTask 形式）：
 
 ```xml
-<businessRuleTask id="determineDiscount" name="计算折扣"
-    flowable:decisionTableReferenceKey="DetermineDiscount"/>
+<serviceTask id="determineDiscount" name="计算折扣" flowable:type="dmn">
+  <extensionElements>
+    <flowable:field name="decisionTableReferenceKey" stringValue="DetermineDiscount"/>
+  </extensionElements>
+</serviceTask>
 ```
 
 - 流程变量自动作为决策表输入（变量名与输入列表达式一致）。

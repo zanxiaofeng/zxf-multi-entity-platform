@@ -59,12 +59,12 @@
       </rule>
       <rule>
         <inputEntry id="ie_dc_7"><text><![CDATA[== "GROUP"]]></text></inputEntry>
-        <inputEntry id="ie_dc_8"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <inputEntry id="ie_dc_8"><text><![CDATA[== "CREDIT" || businessType == "LOAN"]]></text></inputEntry>
         <outputEntry id="oe_dc_4"><text><![CDATA["DOC_GROUP_STATEMENT"]]></text></outputEntry>
       </rule>
       <rule>
         <inputEntry id="ie_dc_9"><text><![CDATA[== "GROUP"]]></text></inputEntry>
-        <inputEntry id="ie_dc_10"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <inputEntry id="ie_dc_10"><text><![CDATA[== "CREDIT" || businessType == "LOAN"]]></text></inputEntry>
         <outputEntry id="oe_dc_5"><text><![CDATA["DOC_GROUP_FINANCIALS"]]></text></outputEntry>
       </rule>
       <rule>

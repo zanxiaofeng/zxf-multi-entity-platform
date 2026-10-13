@@ -40,7 +40,7 @@
 
 - **D2**：S1–S5、sub-edd 均为独立流程定义，主流程以 Call Activity 编排，变量经 `flowable:in`/`flowable:out` 显式映射；
 - **D3**：外部系统调用全部异步 ServiceTask（`flowable:async="true"` + `R3/PT10M` + 死信），无 External Task；
-- **多表 DMN**：单 Business Rule Task 只执行一张表（无 DRG），S3a 两张、S3b 六张拆节点串联；
+- **多表 DMN**：单个 dmn 型 serviceTask 只执行一张表（无 DRG），S3a 两张、S3b 六张拆节点串联（BRT 引用 DMN 用 `flowable:type="dmn"` + field 注入 decisionTableReferenceKey——8.4-B13）；
 - **会签规则参数化**：completionCondition 只消费 `vetoEnabled`/`passThresholdCount` 变量，阈值换算在 `approvalParamDelegate`；
 - **SLA 配置化**：`approvalSla`/`accountReceiptTimeout`/`appealWindow`/`recheckInterval` 均为流程变量注入，不写死在流程定义。
 
@@ -56,5 +56,5 @@
 
 - delegate 实现须**继承 `EntityContextAwareDelegate`**（实体模块 ArchUnit 强制，Job 线程从流程变量重建上下文）、专属 delegate 以 `@ForEntity` 限定；
 - 通用 delegate（通知/归档类）进 platform-core，专属（名单筛查等）进实体模块；
-- ACT_* 表已由 `common/V3` Flyway 脚本治理，部署即用；**装配冒烟测试**须扩展断言：本批流程同 key 唯一、callActivity 引用的子流程 key 已部署、delegate 全装配（引擎不做启动期校验，README Review 硬性规则 5）、**每条 `flowable:in`/`out` 映射的源变量在两侧流程均有产生点**——Flowable 8 对缺失源变量静默跳过（`IOParameterUtil` 对 null 不写入，不抛错不留痕），断链无任何告警（8.4-B1：`callS1` out 已补 `applyNo` 回传、`utApply` 已补 RM 候选组兜底，冒烟须覆盖 None 与 Message 双启动路径）；
+- ACT_* 表已由 `common/V3` Flyway 脚本治理，部署即用；**装配冒烟测试**须扩展断言：本批流程同 key 唯一、callActivity 引用的子流程 key 已部署、delegate 全装配（引擎不做启动期校验，README Review 硬性规则 5）、**每条 `flowable:in`/`out` 映射的源变量在两侧流程均有产生点**——Flowable 8 对缺失源变量静默跳过（`IOParameterUtil` 对 null 不写入，不抛错不留痕），断链无任何告警；且须断言部署后 `BpmnModel` 的 `callActivity.getInParameters()/getOutParameters()` 非空——Flowable 8.0.0 的 IOParameterParser 要求 target 属性非空（本批已全部显式补同名 target），省略 target 的映射会被解析器静默丢弃（8.4-B1：`callS1` out 已补 `applyNo` 回传、`utApply` 已补 RM 候选组兜底，冒烟须覆盖 None 与 Message 双启动路径）；
 - 两实体拓扑差异时按「同 key 不同拓扑」惯例拆至各自实体模块（文档第七章）。

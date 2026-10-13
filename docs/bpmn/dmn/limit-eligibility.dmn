@@ -35,7 +35,7 @@
       <rule>
         <inputEntry id="ie_le_1"><text><![CDATA[> 100000000]]></text></inputEntry>
         <inputEntry id="ie_le_2"><text><![CDATA[== "GROUP"]]></text></inputEntry>
-        <inputEntry id="ie_le_3"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <inputEntry id="ie_le_3"><text><![CDATA[== "CREDIT" || businessType == "LOAN"]]></text></inputEntry>
         <outputEntry id="oe_le_1"><text><![CDATA[false]]></text></outputEntry>
         <outputEntry id="oe_le_2"><text><![CDATA[100000000]]></text></outputEntry>
       </rule>

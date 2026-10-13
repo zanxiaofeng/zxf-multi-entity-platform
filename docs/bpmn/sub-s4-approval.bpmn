@@ -47,8 +47,11 @@
         <!-- 审批输入装配：isGroupCustomer/isCrossBorder 由业务库预置（approval-routing.dmn 输入） -->
         <serviceTask id="svcAssembleApprovalInput" name="审批输入装配（集团/跨境标记）"
                      flowable:delegateExpression="${approvalInputAssemblyDelegate}"/>
-        <businessRuleTask id="brtRouting" name="审批路由（DMN：层级/人员集合/会签规则）"
-                          flowable:decisionTableReferenceKey="approval-routing"/>
+        <serviceTask id="brtRouting" name="审批路由（DMN：层级/人员集合/会签规则）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="approval-routing"/>
+            </extensionElements>
+        </serviceTask>
         <!-- 领域服务换算阈值与开关（public 方法、参数含 DelegateExecution、
              捕获业务异常 fallback 默认审批链——2.5 纪律） -->
         <serviceTask id="svcAssembleParams" name="审批参数装配（passThresholdCount/vetoEnabled）"
@@ -80,8 +83,8 @@
         <exclusiveGateway id="gwConditional" name="是否有条件通过" default="flowUnconditionalEnd"/>
         <callActivity id="callConditions" name="条件落实" calledElement="sub-conditions-fulfillment">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:out source="conditionsMet"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:out source="conditionsMet" target="conditionsMet"/>
             </extensionElements>
         </callActivity>
         <!-- 条件落实结果分流（sub-conditions-fulfillment 补齐后新增）：

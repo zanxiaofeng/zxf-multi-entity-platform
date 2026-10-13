@@ -40,7 +40,7 @@
         <startEvent id="start"/>
         <userTask id="utContract" name="签约准备（合同/印鉴）"
                   flowable:candidateGroups="account-operations" flowable:formKey="contract-signing"/>
-        <sendTask id="sendNotifyCustomer" name="通知客户（审批通过即通知，入口即发）"
+        <serviceTask id="sendNotifyCustomer" name="通知客户（审批通过即通知，入口即发）"
                   flowable:delegateExpression="${customerNotifyDelegate}"/>
         <serviceTask id="svcOpenAccount" name="开户指令（核心系统，幂等键=申请编号+账户类型）"
                      flowable:async="true" flowable:delegateExpression="${accountOpenDelegate}">

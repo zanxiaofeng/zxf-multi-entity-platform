@@ -37,18 +37,36 @@
              （见各 .dmn 注释与 blacklist-check.dmn 分工边界） -->
         <serviceTask id="svcAssembleInput" name="校验输入装配（业务库属性/名单库比对预置）"
                      flowable:delegateExpression="${s3bInputAssemblyDelegate}"/>
-        <businessRuleTask id="brtIndustry" name="行业政策校验（DMN）"
-                          flowable:decisionTableReferenceKey="industry-policy"/>
-        <businessRuleTask id="brtRegion" name="区域政策校验（DMN）"
-                          flowable:decisionTableReferenceKey="region-policy"/>
-        <businessRuleTask id="brtLimit" name="额度适配校验（DMN）"
-                          flowable:decisionTableReferenceKey="limit-eligibility"/>
-        <businessRuleTask id="brtProduct" name="产品适配校验（DMN）"
-                          flowable:decisionTableReferenceKey="product-fit"/>
-        <businessRuleTask id="brtBlacklist" name="黑名单比对（DMN）"
-                          flowable:decisionTableReferenceKey="blacklist-check"/>
-        <businessRuleTask id="brtException" name="例外审批触发（DMN）"
-                          flowable:decisionTableReferenceKey="exception-trigger"/>
+        <serviceTask id="brtIndustry" name="行业政策校验（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="industry-policy"/>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="brtRegion" name="区域政策校验（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="region-policy"/>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="brtLimit" name="额度适配校验（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="limit-eligibility"/>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="brtProduct" name="产品适配校验（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="product-fit"/>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="brtBlacklist" name="黑名单比对（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="blacklist-check"/>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="brtException" name="例外审批触发（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="exception-trigger"/>
+            </extensionElements>
+        </serviceTask>
         <endEvent id="end"/>
 
         <sequenceFlow id="flowStartAssemble" sourceRef="start" targetRef="svcAssembleInput"/>

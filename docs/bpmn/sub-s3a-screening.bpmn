@@ -45,16 +45,22 @@
                 <flowable:failedJobRetryTimeCycle>R3/PT10M</flowable:failedJobRetryTimeCycle>
             </extensionElements>
         </serviceTask>
-        <businessRuleTask id="brtDisposition" name="名单命中分级处置（DMN）"
-                          flowable:decisionTableReferenceKey="screening-disposition"/>
-        <businessRuleTask id="brtRating" name="风险评级（DMN）"
-                          flowable:decisionTableReferenceKey="risk-rating"/>
+        <serviceTask id="brtDisposition" name="名单命中分级处置（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="screening-disposition"/>
+            </extensionElements>
+        </serviceTask>
+        <serviceTask id="brtRating" name="风险评级（DMN）" flowable:type="dmn">
+            <extensionElements>
+                <flowable:field name="decisionTableReferenceKey" stringValue="risk-rating"/>
+            </extensionElements>
+        </serviceTask>
         <exclusiveGateway id="gwHighRisk" name="高风险分流" default="flowToReviewNeed"/>
         <callActivity id="callEdd" name="强化尽调（EDD + 高管批准）" calledElement="sub-edd">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="structureComplex"/>
-                <flowable:out source="eddApproved"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="structureComplex" target="structureComplex"/>
+                <flowable:out source="eddApproved" target="eddApproved"/>
             </extensionElements>
         </callActivity>
         <exclusiveGateway id="gwReviewNeed" name="是否需合规复核" default="flowDirectEnd"/>

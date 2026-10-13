@@ -56,24 +56,24 @@
              同业独立流程——8.2-D5）；补件回退在子流程内部，不污染主图 -->
         <callActivity id="callS1" name="S1 受理与资料预检" calledElement="sub-s1-precheck">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="initiator"/>
-                <flowable:out source="applyNo"/>
-                <flowable:out source="customerType"/>
-                <flowable:out source="businessType"/>
-                <flowable:out source="applyAmount"/>
-                <flowable:out source="documentsComplete"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="initiator" target="initiator"/>
+                <flowable:out source="applyNo" target="applyNo"/>
+                <flowable:out source="customerType" target="customerType"/>
+                <flowable:out source="businessType" target="businessType"/>
+                <flowable:out source="applyAmount" target="applyAmount"/>
+                <flowable:out source="documentsComplete" target="documentsComplete"/>
             </extensionElements>
         </callActivity>
 
         <!-- S2（2.2）：UBO 三类标准识别 + 合规复核双人留痕（8.2-D6）、备案核对（12 号令 23/27 条） -->
         <callActivity id="callS2" name="S2 尽调与 KYC" calledElement="sub-s2-kyc">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="customerType"/>
-                <flowable:in source="businessType"/>
-                <flowable:out source="uboConfirmed"/>
-                <flowable:out source="structureComplex"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="customerType" target="customerType"/>
+                <flowable:in source="businessType" target="businessType"/>
+                <flowable:out source="uboConfirmed" target="uboConfirmed"/>
+                <flowable:out source="structureComplex" target="structureComplex"/>
             </extensionElements>
         </callActivity>
 
@@ -83,21 +83,21 @@
 
         <callActivity id="callS3a" name="S3a 筛查与风险评级" calledElement="sub-s3a-screening">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="structureComplex"/>
-                <flowable:out source="hitFlag"/>
-                <flowable:out source="riskLevel"/>
-                <flowable:out source="eddApproved"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="structureComplex" target="structureComplex"/>
+                <flowable:out source="hitFlag" target="hitFlag"/>
+                <flowable:out source="riskLevel" target="riskLevel"/>
+                <flowable:out source="eddApproved" target="eddApproved"/>
             </extensionElements>
         </callActivity>
 
         <callActivity id="callS3b" name="S3b 准入规则校验" calledElement="sub-s3b-eligibility">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="customerType"/>
-                <flowable:in source="businessType"/>
-                <flowable:in source="applyAmount"/>
-                <flowable:out source="eligibilityPassed"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="customerType" target="customerType"/>
+                <flowable:in source="businessType" target="businessType"/>
+                <flowable:in source="applyAmount" target="applyAmount"/>
+                <flowable:out source="eligibilityPassed" target="eligibilityPassed"/>
             </extensionElements>
         </callActivity>
 
@@ -111,8 +111,8 @@
         </sequenceFlow>
         <callActivity id="callP3" name="P3 AML 合规上报" calledElement="aml-report">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="hitFlag"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="hitFlag" target="hitFlag"/>
             </extensionElements>
         </callActivity>
         <sequenceFlow id="flowEddReject" sourceRef="gwScreeningOutcome" targetRef="callP1">
@@ -122,12 +122,12 @@
         <!-- S4（2.5）：会签规则由 DMN 输出参数驱动（passThreshold/vetoEnabled），不在网关硬编码 -->
         <callActivity id="callS4" name="S4 审批决策" calledElement="sub-s4-approval">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="applyAmount"/>
-                <flowable:in source="businessType"/>
-                <flowable:in source="riskLevel"/>
-                <flowable:in source="eligibilityPassed"/>
-                <flowable:out source="approved"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="applyAmount" target="applyAmount"/>
+                <flowable:in source="businessType" target="businessType"/>
+                <flowable:in source="riskLevel" target="riskLevel"/>
+                <flowable:in source="eligibilityPassed" target="eligibilityPassed"/>
+                <flowable:out source="approved" target="approved"/>
             </extensionElements>
         </callActivity>
 
@@ -139,17 +139,17 @@
         <!-- S5（2.6）：签约→开户指令→回执（Message Catch + 超时）→归档 -->
         <callActivity id="callS5" name="S5 签约、开户与归档" calledElement="sub-s5-account">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="customerType"/>
-                <flowable:in source="businessType"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="customerType" target="customerType"/>
+                <flowable:in source="businessType" target="businessType"/>
             </extensionElements>
         </callActivity>
 
         <!-- P1（3.1）：拒绝登记与申诉闭环（8.3-A1）在独立流程内 -->
         <callActivity id="callP1" name="P1 拒绝与申诉" calledElement="reject-appeal">
             <extensionElements>
-                <flowable:in source="applyNo"/>
-                <flowable:in source="hitFlag"/>
+                <flowable:in source="applyNo" target="applyNo"/>
+                <flowable:in source="hitFlag" target="hitFlag"/>
             </extensionElements>
         </callActivity>
 

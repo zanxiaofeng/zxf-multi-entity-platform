@@ -44,7 +44,7 @@
       <rule>
         <inputEntry id="ie_ip_4"><text><![CDATA[== "HIGH_ENERGY"]]></text></inputEntry>
         <inputEntry id="ie_ip_5"><text><![CDATA[-]]></text></inputEntry>
-        <inputEntry id="ie_ip_6"><text><![CDATA[== "CREDIT" || == "LOAN"]]></text></inputEntry>
+        <inputEntry id="ie_ip_6"><text><![CDATA[== "CREDIT" || businessType == "LOAN"]]></text></inputEntry>
         <outputEntry id="oe_ip_3"><text><![CDATA[false]]></text></outputEntry>
         <outputEntry id="oe_ip_4"><text><![CDATA["授信业务限制高耗能行业"]]></text></outputEntry>
       </rule>
