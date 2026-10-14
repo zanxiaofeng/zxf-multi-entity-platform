@@ -127,8 +127,7 @@ curl localhost:8080/actuator/info    # → {"entity":"ALPHA"}，运行期漂移�
 | --- | --- |
 | [BPMN 2.0 / DMN 与 Flowable 8 完全指南](docs/BPMN-DMN与Flowable8完全指南.md) | 元素级手册：BPMN 事件/活动/网关详解 + Flowable 8 支持矩阵 + DMN 决策模型与引擎详解 |
 | [SpringBoot-Flowable 通用公共组件调研](docs/SpringBoot-Flowable通用公共组件调研.md) | 横切组件清单（全局监听器/死信运维/Outbox/容错…），platform-core 组件沉淀的依据 |
-| [基于 Flowable 与 BPMN 的 Case 系统和 Onboarding 系统：业务/设计/实现模式](docs/基于Flowable与BPMN的Case系统和Onboarding系统的常用业务模式、设计模式与实现模式.md) | Case（路径运行期展开）与 Onboarding（路径确定）两类系统的模式目录：三档技术路线（结构化 / BPMN 动态 / CMMN）、公共业务模式 P1~P10、Case 动态性 P11~P13、Onboarding 确定性编排 P14~P16、设计模式 D1~D8、实现模式 I1~I10 与反模式清单 |
-| 对公准入流程设计（已迁移） | 方案文档、系统设计文档与 12 BPMN + 10 DMN 交付件已整体迁至独立 demo 仓库 `~/Work/onboarding-corp-demo/docs/`（含可运行实现与四路径集成测试）；本仓库保留 Flowable 通用知识库与骨架自身设计文档 |
+| 对公准入流程设计与 Flowable 业务模式（已迁移） | 方案文档、系统设计文档、12 BPMN + 10 DMN 交付件，及《Case 系统与 Onboarding 系统模式》《Flowable 业务系统模式全景解析》两份模式文档，已整体迁至独立 demo 仓库 `~/Work/onboarding-corp-demo/docs/`（含可运行实现与四路径集成测试）；本仓库保留《完全指南》《通用公共组件调研》等引擎级通用知识库与骨架自身设计文档 |
 
 ## 演进方向（文档第九章）
 
