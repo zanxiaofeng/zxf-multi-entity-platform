@@ -506,12 +506,44 @@ public class NotificationDelegate implements JavaDelegate {
 
 completionCondition 用它们表达或签：`${nrOfCompletedInstances > nrOfInstances / 2}`（过半即过）；按票数裁决时需自维护计数变量（TaskListener 累加）——内建变量只统计"完成数"，不区分同意与否。
 
-### 16.5 超时与补偿
+### 16.5 回跳与驳回：活动重入的任务重建语义
+
+审批不通过退回提交人修改、超时驳回重审——流程从后面的阶段回到前面的阶段时，引擎**没有特殊的"回跳"语义**：它只是一次普通的 token 流转，走到哪个活动就执行哪个活动的行为。触发方式有两种：
+
+1. **设计内回跳（首选）**：拓扑里显式画出回流连线，由网关按条件路由（如 `${!approved}` → 退回 `modify` 节点）。引擎按普通连线流转，与前进方向无任何区别。
+2. **运行时跳转**：`RuntimeService.createChangeActivityStateBuilder()` 把执行流从当前活动搬到目标活动，适合拓扑未画回流的自由跳转/驳回场景：
+
+```java
+runtimeService.createChangeActivityStateBuilder()
+        .processInstanceId(piId)
+        .moveActivityIdTo("approve", "modify")   // 当前活动 → 目标活动
+        .changeState();
+```
+
+**重复的 task 会重建，而不是复用。** UserTask 每次被到达都创建全新任务：新 `taskId`、新活动实例 id、新 `ACT_RU_TASK` 行；上一轮任务在离开节点时已删除（complete 或跳转销毁），`ACT_HI_TASKINST` 已写 `END_TIME_`，不会复活也不会重开。同一活动被经过 N 次，各表表现为：
+
+| 数据 | 回跳后的表现 |
+|---|---|
+| `ACT_RU_TASK` | 只反映当前轮次——新行、新 taskId，旧行已删 |
+| `ACT_HI_TASKINST` / `ACT_HI_ACTINST` | 每轮各一条：同 activityId、不同 taskId/活动实例 id，按时间序区分轮次 |
+| TaskListener / ExecutionListener | create / start 事件每轮重新触发 |
+| 任务本地变量（`setVariableLocal`） | 随旧任务销毁清空，不带到下一轮 |
+| 流程实例级变量 | 不重置，跨轮次累积——网关条件读到的就是上一轮写入的值 |
+
+工程上的直接推论：
+
+- **监听器与 Service Task 必须幂等**：回跳意味着同一活动可能再次执行。
+- **审计按 taskId / 活动实例 id 关联**，不要按 activityId 假设唯一；"当前任务"查 `ACT_RU_TASK`，"第几轮"看历史时间序。
+- **运行时跳转遇并行结构要换 API**：源活动在并行/包含网关、多实例内时 `moveActivityIdTo` 会因执行结构不匹配失败，需 `moveExecutionsToSingleActivityId` 等变体显式声明合并语义。
+- **同步回跳没有内建循环上限**：网关条件回流的纯同步拓扑若条件不收敛，会在同一事务内死循环；用轮次计数变量保证条件收敛，或在回流连线加 `flowable:async="true"` 打断事务（重试与死信见 16.2）。
+- **回跳进多实例活动会整体重新初始化**：`nrOfInstances` 等内建变量（16.4）重新计算，不是续跑上一轮。
+
+### 16.6 超时与补偿
 
 - 审批超时：User Task 挂**中断型定时边界事件** → 自动驳回/升级分支。
 - 分布式回滚：Service Task + **补偿边界事件** + 事务子流程实现 Saga。
 
-### 16.6 测试（仅 JUnit 5）
+### 16.7 测试（仅 JUnit 5）
 
 `@FlowableTest` 需引入 `flowable-spring-boot-starter-test`（15.1 的依赖清单未含）：
 
@@ -535,7 +567,7 @@ class LeaveProcessTest {
 }
 ```
 
-### 16.7 流程定义版本化与实例迁移
+### 16.8 流程定义版本化与实例迁移
 
 - 同 key 重新部署自动产生新版本（`ACT_RE_PROCDEF.VERSION_` 递增），**存量实例继续走其启动时的版本**，不会自动迁移——"部署了新流程，老单子还在走旧流程"是最常见的认知坑。
 - 存量实例需要走新流程时用迁移 API：`ProcessMigrationService.createProcessInstanceMigrationBuilder()` 构建，`migrate()` 前先 `validateMigration()` 预校验；拓扑有变化时用 `addActivityMigrationMapping()` 显式声明新旧活动映射。
